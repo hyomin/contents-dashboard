@@ -1,63 +1,107 @@
-import Image from "next/image";
+'use client'
+
+import { useEffect, useState } from 'react'
+
+interface TestResult {
+  success: boolean
+  message?: string
+  error?: string
+  configured: boolean
+  needsTable?: boolean
+}
 
 export default function Home() {
+  const [testResult, setTestResult] = useState<TestResult | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function testSupabase() {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/test-supabase')
+      const data = await res.json()
+      setTestResult(data)
+    } catch (error) {
+      setTestResult({
+        success: false,
+        error: '테스트 실패',
+        configured: false
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-8">
+      <main className="text-center max-w-2xl">
+        <h1 className="text-6xl font-bold text-gray-900 dark:text-white mb-4">
+          Hello World!
+        </h1>
+        <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
+          Next.js + Supabase Dashboard
+        </p>
+
+        <button
+          onClick={testSupabase}
+          disabled={loading}
+          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
+        >
+          {loading ? '테스트 중...' : 'Supabase 연결 테스트'}
+        </button>
+
+        {testResult && (
+          <div className={`mt-6 p-4 rounded-lg ${
+            testResult.success 
+              ? 'bg-green-100 dark:bg-green-900' 
+              : 'bg-red-100 dark:bg-red-900'
+          }`}>
+            <p className={`font-semibold ${
+              testResult.success 
+                ? 'text-green-800 dark:text-green-200' 
+                : 'text-red-800 dark:text-red-200'
+            }`}>
+              {testResult.success ? '✅ 성공' : '❌ 실패'}
+            </p>
+            <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+              {testResult.message || testResult.error}
+            </p>
+            {testResult.needsTable && (
+              <div className="mt-4 text-left bg-white dark:bg-gray-800 p-3 rounded text-xs">
+                <p className="font-semibold mb-2">다음 단계:</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>Supabase Dashboard → SQL Editor</li>
+                  <li>SETUP_SUPABASE.md 파일의 SQL 실행</li>
+                  <li>다시 테스트 버튼 클릭</li>
+                </ol>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-12 text-left bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+          <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+            📝 설정 가이드
+          </h2>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
+            <li>
+              <a 
+                href="https://supabase.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                Supabase
+              </a>
+              에서 프로젝트 생성 (Seoul 리전)
+            </li>
+            <li>Settings → API에서 URL과 Key 복사</li>
+            <li><code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">.env.local</code> 파일에 값 입력</li>
+            <li>개발 서버 재시작: <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">npm run dev</code></li>
+            <li>위 버튼으로 연결 테스트</li>
+          </ol>
+          <p className="mt-4 text-xs text-gray-500">
+            자세한 내용은 <code>SETUP_SUPABASE.md</code> 파일 참고
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
         </div>
       </main>
     </div>
