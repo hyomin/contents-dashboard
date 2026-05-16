@@ -1,0 +1,166 @@
+{
+  "name": "주제 선별 AI - Contents Dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "topic-suggest",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "topic-suggest-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 입력 데이터 파싱\nconst body = $input.first().json.body;\nconst { category, platform, urls } = body;\n\n// 레퍼런스 콘텐츠 목록 포맷\nconst refList = urls.map((u, i) => \n  `${i + 1}. 제목: \"${u.title}\"\\n   URL: ${u.url}\\n   vs.Avg: ${u.vsAvg}x`\n).join('\\n\\n');\n\n// 플랫폼별 형식 가이드\nconst platformGuide = {\n  youtube: '유튜브 영상 (제목 40자 이내, 썸네일 클릭유도, 첫 30초 훅 중요)',\n  instagram: '인스타그램 릴스/캐러셀 (짧고 강렬한 제목, 해시태그 10개, 저장 유도)',\n  'naver-blog': '네이버 블로그 포스팅 (SEO 최적화 제목, 키워드 자연스럽게 포함, 2000자 이상)',\n  tistory: '티스토리 포스팅 (구글 SEO, AdSense 친화적 주제, 롱테일 키워드)'\n}[platform] || '콘텐츠';\n\n// LLM 프롬프트 구성\nconst prompt = `당신은 유튜브·소셜미디어 콘텐츠 전략 전문가입니다.\n\n아래는 \"${category}\" 주제로 제작된 레퍼런스 콘텐츠들입니다.\nvs.Avg는 채널 평균 조회수 대비 배율(높을수록 알고리즘에 더 잘 노출된 콘텐츠)입니다.\n\n[레퍼런스 콘텐츠]\n${refList}\n\n[요청 플랫폼 형식]\n${platformGuide}\n\n위 콘텐츠들의 공통 패턴(제목 구조, 주제 각도, 감성적 훅 등)을 분석하여,\n\"${category}\" 주제에서 비슷한 패턴을 따르되 차별화된 새 콘텐츠 3개를 제안해주세요.\n\n반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 포함하지 마세요:\n{\n  \"suggestions\": [\n    {\n      \"title\": \"콘텐츠 제목 (${platform === 'youtube' ? '40자 이내' : '50자 이내'})\",\n      \"hook\": \"오프닝 훅 전략 (첫 15-30초에 시청자를 잡는 방법)\",\n      \"structure\": [\"인트로 구성\", \"본론1\", \"본론2\", \"결론 + CTA\"],\n      \"keywords\": [\"핵심키워드1\", \"키워드2\", \"키워드3\"],\n      \"estimatedVsAvg\": \"예상 배율 범위 (예: 3.5x ~ 5.0x)\",\n      \"reasoning\": \"이 제안의 근거 (어떤 패턴을 참고했는지 1-2문장)\"\n    }\n  ]\n}`;\n\nreturn [{ json: { prompt, category, platform, urlCount: urls.length } }];"
+      },
+      "id": "node-build-prompt",
+      "name": "프롬프트 구성",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "apiKey",
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "claude-3-5-sonnet-20241022",
+          "mode": "list",
+          "cachedResultName": "Claude 3.5 Sonnet"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokensToSample": 2000,
+          "temperature": 0.7
+        }
+      },
+      "id": "node-claude",
+      "name": "Claude AI 분석",
+      "type": "@n8n/n8n-nodes-langchain.lmAnthropicClaude",
+      "typeVersion": 1,
+      "position": [680, 220],
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_ANTHROPIC_CREDENTIAL_ID",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "apiKey",
+        "resource": "chat",
+        "operation": "create",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "={{ $('프롬프트 구성').first().json.prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 2000,
+          "temperature": 0.7
+        }
+      },
+      "id": "node-gpt",
+      "name": "GPT AI 분석",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [680, 400],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Claude 또는 GPT 응답 파싱\nlet rawText = '';\n\ntry {\n  // Claude 응답 구조\n  rawText = $input.first().json.content?.[0]?.text || '';\n} catch {\n  // GPT 응답 구조\n  rawText = $input.first().json.choices?.[0]?.message?.content || '';\n}\n\n// JSON 파싱 (마크다운 코드블록 제거)\nconst cleaned = rawText\n  .replace(/```json/g, '')\n  .replace(/```/g, '')\n  .trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch {\n  // 파싱 실패 시 기본값 반환\n  parsed = {\n    suggestions: [{\n      title: '분석 결과 파싱 오류',\n      hook: 'AI 응답 형식 오류가 발생했습니다',\n      structure: ['다시 시도해주세요'],\n      keywords: [],\n      estimatedVsAvg: '-',\n      reasoning: `원본 응답: ${rawText.slice(0, 200)}`\n    }]\n  };\n}\n\nreturn [{ json: { suggestions: parsed.suggestions || [] } }];"
+      },
+      "id": "node-parse",
+      "name": "응답 파싱",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "node-respond",
+      "name": "응답 반환",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1160, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "프롬프트 구성", "type": "main", "index": 0 }]
+      ]
+    },
+    "프롬프트 구성": {
+      "main": [
+        [
+          { "node": "Claude AI 분석", "type": "main", "index": 0 },
+          { "node": "GPT AI 분석", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Claude AI 분석": {
+      "main": [
+        [{ "node": "응답 파싱", "type": "main", "index": 0 }]
+      ]
+    },
+    "GPT AI 분석": {
+      "main": [
+        [{ "node": "응답 파싱", "type": "main", "index": 0 }]
+      ]
+    },
+    "응답 파싱": {
+      "main": [
+        [{ "node": "응답 반환", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "contents-dashboard"
+  }
+}

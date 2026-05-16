@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import BenchmarkViewComponent from '@/components/dashboard/BenchmarkView'
+import TopicSuggestView from '@/components/dashboard/TopicSuggestView'
 import { DEFAULT_CATEGORIES, getCategoryStyle } from '@/lib/categories'
 
 // ─── 타입 ────────────────────────────────────────────────────
@@ -145,6 +146,7 @@ const VIEW_META: Record<string, { title: string; desc: string; filter?: string }
   deploy:                { title: '배포 자동화',        desc: '멀티채널 배포 현황' },
   'data-collect':        { title: '데이터 수집',        desc: 'API 및 크롤링 수집 관리' },
   revenue:               { title: '수익 추적',          desc: '플랫폼별 수익 및 로드맵' },
+  'topic-suggest':       { title: '주제 선별 AI',       desc: '레퍼런스 분석 기반 콘텐츠 주제 추천 (n8n 연동)' },
 }
 
 // ─── 준비중 화면 ─────────────────────────────────────────────
@@ -913,6 +915,7 @@ export default function DashboardPage() {
       case 'trending':              return <TrendingView addToast={addToast} />
       case 'ai-insight':            return <AiInsightView addToast={addToast} />
       case 'benchmark':             return <BenchmarkViewComponent addToast={addToast} />
+      case 'topic-suggest':         return <TopicSuggestView addToast={addToast} />
       case 'channels':
       case 'channels-competitor':   return <CompetitorChannelsView addToast={addToast} />
       case 'channels-mine':         return <MyChannelsView addToast={addToast} />

@@ -52,10 +52,11 @@ const NAV_TREE: TreeItem[] = [
     label: '기획 / 인사이트',
     icon: '💡',
     children: [
-      { id: 'trending',   label: '트렌딩 키워드',  icon: '🔥' },
-      { id: 'outlier',    label: 'Outlier 분석',   icon: '🚀' },
-      { id: 'ai-insight', label: 'AI 인사이트',    icon: '🤖' },
-      { id: 'benchmark',  label: '벤치마킹 저장함', icon: '📌', badge: 5, badgeColor: 'bg-yellow-100 text-yellow-700' },
+      { id: 'trending',      label: '트렌딩 키워드',  icon: '🔥' },
+      { id: 'outlier',       label: 'Outlier 분석',   icon: '🚀' },
+      { id: 'ai-insight',    label: 'AI 인사이트',    icon: '🤖' },
+      { id: 'benchmark',     label: '벤치마킹 저장함', icon: '📌', badge: 5, badgeColor: 'bg-yellow-100 text-yellow-700' },
+      { id: 'topic-suggest', label: '주제 선별 AI',   icon: '🎯', badge: 'NEW', badgeColor: 'bg-green-100 text-green-700' },
     ],
   },
   {
