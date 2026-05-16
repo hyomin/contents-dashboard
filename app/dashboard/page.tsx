@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import BenchmarkViewComponent from '@/components/dashboard/BenchmarkView'
+import { DEFAULT_CATEGORIES } from '@/lib/categories'
 
 // ─── 타입 ────────────────────────────────────────────────────
 interface Video {
@@ -381,12 +383,52 @@ function OverviewView({ onSelect, addToast }: { onSelect: (v: Video) => void; ad
 
 // ─── 플랫폼별 화면 ───────────────────────────────────────────
 function PlatformView({ filter, onSelect, addToast }: { filter: string; onSelect: (v: Video) => void; addToast: (msg: string, type?: Toast['type']) => void }) {
-  const videos = ALL_VIDEOS.filter(v => v.platform === filter)
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const baseVideos = ALL_VIDEOS.filter(v => v.platform === filter)
+
+  // 카테고리 매핑 (keyword 기반으로 더미 카테고리 매칭)
+  const KEYWORD_TO_CATEGORY: Record<string, string> = {
+    '경제': 'cat-1', '부동산': 'cat-1', '주식': 'cat-1', '투자': 'cat-1', '금리': 'cat-1',
+    '생산성': 'cat-2', '독서': 'cat-2', '커리어': 'cat-2',
+    '건강': 'cat-3', '요리': 'cat-3', '여행': 'cat-3',
+    '수익화': 'cat-4', '유튜브': 'cat-4', '블로그': 'cat-4',
+  }
+
+  const videos = selectedCategory
+    ? baseVideos.filter(v => KEYWORD_TO_CATEGORY[v.keyword] === selectedCategory)
+    : baseVideos
+
   const outliers = videos.filter(v => v.vsAvg >= 3.0)
   const avgVsAvg = videos.length ? (videos.reduce((s, v) => s + v.vsAvg, 0) / videos.length).toFixed(1) : '0'
 
   return (
     <div className="space-y-6">
+      {/* 카테고리 필터 */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-sm text-gray-500 font-medium">주제 필터:</span>
+        <button
+          onClick={() => setSelectedCategory('')}
+          className={`px-3 py-1.5 text-sm rounded-xl font-medium transition
+            ${!selectedCategory ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+        >
+          전체 ({baseVideos.length})
+        </button>
+        {DEFAULT_CATEGORIES.map(cat => {
+          const count = baseVideos.filter(v => KEYWORD_TO_CATEGORY[v.keyword] === cat.id).length
+          const isActive = selectedCategory === cat.id
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(isActive ? '' : cat.id)}
+              className={`px-3 py-1.5 text-sm rounded-xl font-medium transition border
+                ${isActive ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+            >
+              {cat.name} ({count})
+            </button>
+          )
+        })}
+      </div>
+
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: '수집된 콘텐츠', value: `${videos.length}개`, icon: '🎬', bg: 'bg-blue-50', accent: 'text-blue-600' },
@@ -461,14 +503,6 @@ function AiInsightView({ addToast }: { addToast: (msg: string, type?: Toast['typ
   )
 }
 
-// ─── 더미: 벤치마킹 저장함 ──────────────────────────────────
-const BENCHMARKS = [
-  { id: 1, tier: 'S' as const, title: '경제 뉴스 분석 - 2024년 전망', channel: 'Travel Tube', views: 150000, vsAvg: 5.2, platform: 'youtube' as const, savedAt: '오늘', memo: '인트로 후킹 방식 참고', keyword: '경제' },
-  { id: 2, tier: 'A' as const, title: '금리 인상 시대의 재테크 전략', channel: 'Money Tube', views: 200000, vsAvg: 6.1, platform: 'youtube' as const, savedAt: '어제', memo: '썸네일 숫자 강조 레이아웃', keyword: '금리' },
-  { id: 3, tier: 'A' as const, title: '2024 부동산 투자 가이드',       channel: '경제블로그', views: 85000, vsAvg: 3.4, platform: 'naver-blog' as const, savedAt: '2일 전', memo: 'SEO 제목 구조 참고', keyword: '부동산' },
-  { id: 4, tier: 'A' as const, title: '주식 투자 가이드 - 초보자 필독', channel: 'Content Master', views: 95000, vsAvg: 3.8, platform: 'youtube' as const, savedAt: '3일 전', memo: '편집 템포 빠름, 자막 스타일', keyword: '주식' },
-  { id: 5, tier: 'B' as const, title: '인스타그램 릴스 트렌드',          channel: 'Social Creator', views: 50000, vsAvg: 2.5, platform: 'instagram' as const, savedAt: '5일 전', memo: '릴스 훅 첫 3초 분석', keyword: '릴스' },
-]
 
 // ─── 더미: 채널 데이터 ───────────────────────────────────────
 const COMPETITOR_CHANNELS = [
@@ -524,56 +558,6 @@ const REVENUE_DATA = [
 
 const MONTHLY_GOAL = 500000
 
-// ─── 뷰: 벤치마킹 저장함 ────────────────────────────────────
-function BenchmarkView({ onSelect, addToast }: { onSelect: (v: Video) => void; addToast: (m: string, t?: Toast['type']) => void }) {
-  const [list, setList] = useState(BENCHMARKS)
-
-  const remove = (id: number) => {
-    setList(prev => prev.filter(b => b.id !== id))
-    addToast('벤치마킹 목록에서 삭제되었습니다', 'warning')
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 flex items-start gap-3">
-        <span className="text-2xl">📌</span>
-        <div>
-          <p className="font-semibold text-yellow-800">벤치마킹 저장함</p>
-          <p className="text-sm text-yellow-700 mt-0.5">Outlier 분석에서 저장한 콘텐츠 {list.length}개 · 클릭하면 상세 분석을 볼 수 있어요</p>
-        </div>
-      </div>
-      <div className="space-y-3">
-        {list.map(item => (
-          <div key={item.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-5 flex items-start gap-4 group hover:shadow-md transition">
-            <span className={`px-2 py-1 text-xs font-bold rounded shrink-0 ${getTierColor(item.tier)}`}>{item.tier}</span>
-            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelect({ ...item, publishedAt: item.savedAt })}>
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.title}</p>
-                <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${getPlatformColor(item.platform)}`}>{getPlatformName(item.platform)}</span>
-              </div>
-              <p className="text-xs text-gray-400 mt-1">{item.channel} · {formatViews(item.views)} views · vs.Avg <span className="text-green-600 font-bold">{item.vsAvg}x</span></p>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs text-yellow-600">📝 메모:</span>
-                <span className="text-xs text-gray-600 dark:text-gray-300 italic">{item.memo}</span>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-2 shrink-0">
-              <span className="text-xs text-gray-400">{item.savedAt} 저장</span>
-              <button onClick={() => remove(item.id)} className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">삭제</button>
-            </div>
-          </div>
-        ))}
-        {list.length === 0 && (
-          <div className="text-center py-16 text-gray-400">
-            <p className="text-4xl mb-3">📭</p>
-            <p className="text-sm">저장된 벤치마킹이 없습니다</p>
-            <p className="text-xs mt-1">Outlier 분석에서 영상을 저장해보세요</p>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
 // ─── 뷰: 경쟁 채널 목록 ─────────────────────────────────────
 function CompetitorChannelsView({ addToast }: { addToast: (m: string, t?: Toast['type']) => void }) {
@@ -927,7 +911,7 @@ export default function DashboardPage() {
       case 'outlier':               return <OutlierView onSelect={setSelectedVideo} addToast={addToast} />
       case 'trending':              return <TrendingView addToast={addToast} />
       case 'ai-insight':            return <AiInsightView addToast={addToast} />
-      case 'benchmark':             return <BenchmarkView onSelect={setSelectedVideo} addToast={addToast} />
+      case 'benchmark':             return <BenchmarkViewComponent addToast={addToast} />
       case 'channels':
       case 'channels-competitor':   return <CompetitorChannelsView addToast={addToast} />
       case 'channels-mine':         return <MyChannelsView addToast={addToast} />
