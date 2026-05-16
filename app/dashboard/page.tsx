@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import BenchmarkViewComponent from '@/components/dashboard/BenchmarkView'
-import { DEFAULT_CATEGORIES } from '@/lib/categories'
+import { DEFAULT_CATEGORIES, getCategoryStyle } from '@/lib/categories'
 
 // ─── 타입 ────────────────────────────────────────────────────
 interface Video {
@@ -413,20 +413,21 @@ function PlatformView({ filter, onSelect, addToast }: { filter: string; onSelect
         >
           전체 ({baseVideos.length})
         </button>
-        {DEFAULT_CATEGORIES.map(cat => {
-          const count = baseVideos.filter(v => KEYWORD_TO_CATEGORY[v.keyword] === cat.id).length
-          const isActive = selectedCategory === cat.id
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(isActive ? '' : cat.id)}
-              className={`px-3 py-1.5 text-sm rounded-xl font-medium transition border
-                ${isActive ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-            >
-              {cat.name} ({count})
-            </button>
-          )
-        })}
+          {DEFAULT_CATEGORIES.map(cat => {
+            const count = baseVideos.filter(v => KEYWORD_TO_CATEGORY[v.keyword] === cat.id).length
+            const isActive = selectedCategory === cat.id
+            const style = getCategoryStyle(cat)
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(isActive ? '' : cat.id)}
+                className="px-3 py-1.5 text-sm rounded-xl font-medium transition border"
+                style={isActive ? style : { background: 'white', color: '#4b5563', borderColor: '#e5e7eb' }}
+              >
+                {cat.name} ({count})
+              </button>
+            )
+          })}
       </div>
 
       <div className="grid grid-cols-3 gap-4">

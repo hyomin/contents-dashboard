@@ -1,7 +1,8 @@
 export interface Category {
   id: string
   name: string
-  color: string
+  bgColor: string           // hex e.g. "#3B82F6"
+  textColor: 'auto' | 'white' | 'dark'  // auto = luminance 기반 자동 결정
   createdAt: string
 }
 
@@ -17,26 +18,50 @@ export interface BenchmarkItem {
   views?: number
 }
 
-export const CATEGORY_COLORS = [
-  { value: 'blue',   label: '파란색', bg: 'bg-blue-100',   text: 'text-blue-700',   border: 'border-blue-300' },
-  { value: 'green',  label: '초록색', bg: 'bg-green-100',  text: 'text-green-700',  border: 'border-green-300' },
-  { value: 'purple', label: '보라색', bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
-  { value: 'orange', label: '주황색', bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
-  { value: 'red',    label: '빨간색', bg: 'bg-red-100',    text: 'text-red-700',    border: 'border-red-300' },
-  { value: 'yellow', label: '노란색', bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300' },
-  { value: 'pink',   label: '분홍색', bg: 'bg-pink-100',   text: 'text-pink-700',   border: 'border-pink-300' },
-  { value: 'gray',   label: '회색',   bg: 'bg-gray-100',   text: 'text-gray-600',   border: 'border-gray-300' },
-]
+// ─── 색상 유틸 ────────────────────────────────────────────────
+export function hexLuminance(hex: string): number {
+  const clean = hex.replace('#', '')
+  const r = parseInt(clean.slice(0, 2), 16) / 255
+  const g = parseInt(clean.slice(2, 4), 16) / 255
+  const b = parseInt(clean.slice(4, 6), 16) / 255
+  const lin = (c: number) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
 
-export function getColorConfig(color: string) {
-  return CATEGORY_COLORS.find(c => c.value === color) ?? CATEGORY_COLORS[0]
+/** 자동 대비 결정: luminance 0.35 기준 이하면 흰 글씨 */
+export function autoTextColor(bgHex: string): '#ffffff' | '#1f2937' {
+  return hexLuminance(bgHex) <= 0.35 ? '#ffffff' : '#1f2937'
+}
+
+/** Category의 실제 텍스트 색상 값 반환 */
+export function resolveTextColor(cat: Category): string {
+  if (cat.textColor === 'white') return '#ffffff'
+  if (cat.textColor === 'dark') return '#1f2937'
+  return autoTextColor(cat.bgColor)
+}
+
+/** 배경이 진하면 solid, 밝으면 light tint */
+export function getCategoryStyle(cat: Category): {
+  background: string
+  color: string
+  border: string
+} {
+  const textCol = resolveTextColor(cat)
+  const lum = hexLuminance(cat.bgColor)
+  if (lum <= 0.35) {
+    // 진한 색: solid bg
+    return { background: cat.bgColor, color: textCol, border: cat.bgColor }
+  } else {
+    // 밝은 색: tint bg (hex + 25% opacity)
+    return { background: `${cat.bgColor}40`, color: textCol, border: `${cat.bgColor}80` }
+  }
 }
 
 export const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-1', name: '경제/재테크', color: 'blue',   createdAt: '2026-05-16' },
-  { id: 'cat-2', name: '자기계발',    color: 'green',  createdAt: '2026-05-16' },
-  { id: 'cat-3', name: '라이프스타일',color: 'purple', createdAt: '2026-05-16' },
-  { id: 'cat-4', name: '수익화',      color: 'orange', createdAt: '2026-05-16' },
+  { id: 'cat-1', name: '경제/재테크',  bgColor: '#2563EB', textColor: 'auto', createdAt: '2026-05-16' },
+  { id: 'cat-2', name: '자기계발',     bgColor: '#16A34A', textColor: 'auto', createdAt: '2026-05-16' },
+  { id: 'cat-3', name: '라이프스타일', bgColor: '#9333EA', textColor: 'auto', createdAt: '2026-05-16' },
+  { id: 'cat-4', name: '수익화',       bgColor: '#EA580C', textColor: 'auto', createdAt: '2026-05-16' },
 ]
 
 export const DEFAULT_BENCHMARKS: BenchmarkItem[] = [

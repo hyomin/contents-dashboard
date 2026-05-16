@@ -1,19 +1,19 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import {
   Category, BenchmarkItem,
-  CATEGORY_COLORS, DEFAULT_CATEGORIES, DEFAULT_BENCHMARKS,
-  getColorConfig,
+  DEFAULT_CATEGORIES, DEFAULT_BENCHMARKS,
+  getCategoryStyle, resolveTextColor, autoTextColor,
 } from '@/lib/categories'
 
 // ─── 플랫폼 헬퍼 ────────────────────────────────────────────
 const PLATFORMS = [
-  { value: 'youtube',    label: 'YouTube',     icon: '🔴' },
-  { value: 'instagram',  label: 'Instagram',   icon: '💗' },
+  { value: 'youtube',    label: 'YouTube',      icon: '🔴' },
+  { value: 'instagram',  label: 'Instagram',    icon: '💗' },
   { value: 'naver-blog', label: '네이버 블로그', icon: '🟢' },
-  { value: 'tistory',    label: '티스토리',     icon: '🟠' },
-  { value: 'other',      label: '기타',         icon: '🔗' },
+  { value: 'tistory',    label: '티스토리',      icon: '🟠' },
+  { value: 'other',      label: '기타',          icon: '🔗' },
 ]
 
 function getPlatformIcon(p: string) {
@@ -33,6 +33,19 @@ function formatViews(v?: number) {
   return v >= 10000 ? `${(v / 10000).toFixed(1)}만` : v.toLocaleString()
 }
 
+// ─── 카테고리 태그 컴포넌트 ──────────────────────────────────
+function CategoryTag({ cat, size = 'sm' }: { cat: Category; size?: 'xs' | 'sm' }) {
+  const style = getCategoryStyle(cat)
+  return (
+    <span
+      className={`inline-flex items-center rounded-full font-medium border ${size === 'xs' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'}`}
+      style={{ background: style.background, color: style.color, borderColor: style.border }}
+    >
+      {cat.name}
+    </span>
+  )
+}
+
 // ─── 카테고리 관리 모달 ───────────────────────────────────────
 function CategoryManagerModal({
   categories,
@@ -45,40 +58,59 @@ function CategoryManagerModal({
 }) {
   const [list, setList] = useState<Category[]>(categories)
   const [newName, setNewName] = useState('')
-  const [newColor, setNewColor] = useState('blue')
+  const [newBgColor, setNewBgColor] = useState('#3B82F6')
+  const [newTextColor, setNewTextColor] = useState<Category['textColor']>('auto')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [editBgColor, setEditBgColor] = useState('#3B82F6')
+  const [editTextColor, setEditTextColor] = useState<Category['textColor']>('auto')
 
   const addCategory = () => {
     if (!newName.trim()) return
     const cat: Category = {
       id: `cat-${Date.now()}`,
       name: newName.trim(),
-      color: newColor,
+      bgColor: newBgColor,
+      textColor: newTextColor,
       createdAt: new Date().toISOString().slice(0, 10),
     }
     setList(prev => [...prev, cat])
     setNewName('')
+    setNewBgColor('#3B82F6')
+    setNewTextColor('auto')
   }
 
-  const removeCategory = (id: string) => {
-    setList(prev => prev.filter(c => c.id !== id))
-  }
+  const removeCategory = (id: string) => setList(prev => prev.filter(c => c.id !== id))
 
   const startEdit = (cat: Category) => {
     setEditingId(cat.id)
     setEditName(cat.name)
+    setEditBgColor(cat.bgColor)
+    setEditTextColor(cat.textColor)
   }
 
   const saveEdit = (id: string) => {
     if (!editName.trim()) return
-    setList(prev => prev.map(c => c.id === id ? { ...c, name: editName.trim() } : c))
+    setList(prev => prev.map(c => c.id === id
+      ? { ...c, name: editName.trim(), bgColor: editBgColor, textColor: editTextColor }
+      : c
+    ))
     setEditingId(null)
+  }
+
+  const previewStyle = (bg: string, tc: Category['textColor']) => {
+    const textCol = tc === 'white' ? '#ffffff' : tc === 'dark' ? '#1f2937' : autoTextColor(bg)
+    const isLight = textCol === '#1f2937'
+    return {
+      background: isLight ? `${bg}40` : bg,
+      color: textCol,
+      borderColor: isLight ? `${bg}80` : bg,
+    }
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">🏷️ 주제 카테고리 관리</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
@@ -87,6 +119,7 @@ function CategoryManagerModal({
         {/* 새 카테고리 추가 */}
         <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-5">
           <p className="text-xs font-semibold text-gray-500 mb-3">새 카테고리 추가</p>
+
           <input
             value={newName}
             onChange={e => setNewName(e.target.value)}
@@ -94,17 +127,50 @@ function CategoryManagerModal({
             placeholder="카테고리명 입력 (예: 경제/재테크)"
             className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            {CATEGORY_COLORS.map(c => (
+
+          <div className="flex items-center gap-3 mb-3">
+            {/* 색상 피커 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500 whitespace-nowrap">배경색</label>
+              <div className="relative">
+                <input
+                  type="color"
+                  value={newBgColor}
+                  onChange={e => setNewBgColor(e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5 bg-white"
+                  title="색상 선택"
+                />
+              </div>
+              <span className="text-xs font-mono text-gray-500 uppercase">{newBgColor}</span>
+            </div>
+          </div>
+
+          {/* 글씨 색상 */}
+          <div className="flex items-center gap-2 mb-3">
+            <label className="text-xs text-gray-500 whitespace-nowrap">글씨색</label>
+            {(['auto', 'white', 'dark'] as const).map(opt => (
               <button
-                key={c.value}
-                onClick={() => setNewColor(c.value)}
-                className={`w-6 h-6 rounded-full ${c.bg} border-2 transition
-                  ${newColor === c.value ? 'border-gray-800 scale-110' : 'border-transparent'}`}
-                title={c.label}
-              />
+                key={opt}
+                onClick={() => setNewTextColor(opt)}
+                className={`px-3 py-1 text-xs rounded-lg border font-medium transition
+                  ${newTextColor === opt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+              >
+                {opt === 'auto' ? '자동' : opt === 'white' ? '⬜ 흰색' : '⬛ 검정'}
+              </button>
             ))}
           </div>
+
+          {/* 미리보기 */}
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs text-gray-500">미리보기:</span>
+            <span
+              className="px-3 py-1 text-sm rounded-full border font-medium"
+              style={previewStyle(newBgColor, newTextColor)}
+            >
+              {newName || '카테고리명'}
+            </span>
+          </div>
+
           <button
             onClick={addCategory}
             disabled={!newName.trim()}
@@ -115,29 +181,71 @@ function CategoryManagerModal({
         </div>
 
         {/* 카테고리 목록 */}
-        <div className="space-y-2 max-h-60 overflow-y-auto">
+        <div className="space-y-2">
           {list.map(cat => {
-            const cc = getColorConfig(cat.color)
+            const style = getCategoryStyle(cat)
             return (
-              <div key={cat.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                <span className={`w-3 h-3 rounded-full shrink-0 ${cc.bg} border ${cc.border}`} />
+              <div key={cat.id} className="rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden">
                 {editingId === cat.id ? (
-                  <input
-                    autoFocus
-                    value={editName}
-                    onChange={e => setEditName(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(cat.id); if (e.key === 'Escape') setEditingId(null) }}
-                    className="flex-1 px-2 py-1 text-sm border border-blue-400 rounded-lg focus:outline-none"
-                  />
+                  /* 편집 모드 */
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700 space-y-3">
+                    <input
+                      autoFocus
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-blue-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs text-gray-500">배경색</label>
+                      <input
+                        type="color"
+                        value={editBgColor}
+                        onChange={e => setEditBgColor(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-gray-200 cursor-pointer p-0.5 bg-white"
+                      />
+                      <span className="text-xs font-mono text-gray-500 uppercase">{editBgColor}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-500">글씨색</label>
+                      {(['auto', 'white', 'dark'] as const).map(opt => (
+                        <button
+                          key={opt}
+                          onClick={() => setEditTextColor(opt)}
+                          className={`px-2.5 py-1 text-xs rounded-lg border font-medium transition
+                            ${editTextColor === opt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                        >
+                          {opt === 'auto' ? '자동' : opt === 'white' ? '⬜ 흰색' : '⬛ 검정'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">미리보기:</span>
+                      <span
+                        className="px-3 py-1 text-sm rounded-full border font-medium"
+                        style={previewStyle(editBgColor, editTextColor)}
+                      >
+                        {editName || '카테고리명'}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => saveEdit(cat.id)} className="flex-1 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition">저장</button>
+                      <button onClick={() => setEditingId(null)} className="flex-1 py-1.5 bg-gray-200 text-gray-700 text-xs rounded-lg hover:bg-gray-300 transition">취소</button>
+                    </div>
+                  </div>
                 ) : (
-                  <span className="flex-1 text-sm font-medium text-gray-800 dark:text-gray-200">{cat.name}</span>
+                  /* 기본 표시 */
+                  <div className="p-3 flex items-center gap-3">
+                    <span
+                      className="px-3 py-1 text-sm rounded-full border font-medium"
+                      style={{ background: style.background, color: style.color, borderColor: style.border }}
+                    >
+                      {cat.name}
+                    </span>
+                    <span className="text-xs font-mono text-gray-400 flex-1">{cat.bgColor}</span>
+                    <button onClick={() => startEdit(cat)} className="text-xs text-gray-400 hover:text-blue-500 px-2">수정</button>
+                    <button onClick={() => removeCategory(cat.id)} className="text-xs text-gray-400 hover:text-red-500 px-2">삭제</button>
+                  </div>
                 )}
-                {editingId === cat.id ? (
-                  <button onClick={() => saveEdit(cat.id)} className="text-xs text-blue-600 font-medium">저장</button>
-                ) : (
-                  <button onClick={() => startEdit(cat)} className="text-xs text-gray-400 hover:text-blue-500">수정</button>
-                )}
-                <button onClick={() => removeCategory(cat.id)} className="text-xs text-gray-400 hover:text-red-500">삭제</button>
               </div>
             )
           })}
@@ -176,6 +284,7 @@ function AddBenchmarkModal({
 
   const platform = detectPlatform(url)
   const platformInfo = PLATFORMS.find(p => p.value === platform)
+  const selectedCat = categories.find(c => c.id === categoryId)
 
   const handleAdd = () => {
     if (!url.trim() || !title.trim() || !categoryId) return
@@ -203,7 +312,6 @@ function AddBenchmarkModal({
         </div>
 
         <div className="space-y-4">
-          {/* URL */}
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1 block">콘텐츠 URL *</label>
             <div className="relative">
@@ -211,7 +319,7 @@ function AddBenchmarkModal({
                 value={url}
                 onChange={e => setUrl(e.target.value)}
                 placeholder="https://www.youtube.com/watch?v=..."
-                className="w-full px-3 py-2.5 pr-20 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2.5 pr-24 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {url && (
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm">
@@ -221,7 +329,6 @@ function AddBenchmarkModal({
             </div>
           </div>
 
-          {/* 제목 */}
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1 block">콘텐츠 제목 *</label>
             <input
@@ -232,22 +339,23 @@ function AddBenchmarkModal({
             />
           </div>
 
-          {/* 주제 카테고리 */}
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1 block">주제 카테고리 *</label>
-            <select
-              value={categoryId}
-              onChange={e => setCategoryId(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">카테고리 선택</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={categoryId}
+                onChange={e => setCategoryId(e.target.value)}
+                className="flex-1 px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">카테고리 선택</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+              {selectedCat && <CategoryTag cat={selectedCat} />}
+            </div>
           </div>
 
-          {/* 조회수 / vs.Avg (선택) */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1 block">조회수 (선택)</label>
@@ -259,7 +367,7 @@ function AddBenchmarkModal({
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1 block">vs.Avg 배율 (선택)</label>
+              <label className="text-xs font-semibold text-gray-500 mb-1 block">vs.Avg (선택)</label>
               <input
                 value={vsAvg}
                 onChange={e => setVsAvg(e.target.value)}
@@ -269,7 +377,6 @@ function AddBenchmarkModal({
             </div>
           </div>
 
-          {/* 메모 */}
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1 block">분석 메모 (선택)</label>
             <textarea
@@ -299,30 +406,6 @@ function AddBenchmarkModal({
   )
 }
 
-// ─── 카테고리 필터 셀렉트 (플랫폼 뷰에서 임포트해서 사용) ──
-export function CategoryFilterSelect({
-  categories,
-  value,
-  onChange,
-}: {
-  categories: Category[]
-  value: string
-  onChange: (id: string) => void
-}) {
-  return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-    >
-      <option value="">전체 주제</option>
-      {categories.map(cat => (
-        <option key={cat.id} value={cat.id}>{cat.name}</option>
-      ))}
-    </select>
-  )
-}
-
 // ─── 메인 벤치마킹 뷰 ────────────────────────────────────────
 export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 'success' | 'info' | 'warning') => void }) {
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES)
@@ -346,19 +429,10 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
     addToast('벤치마킹 항목이 삭제됐습니다', 'warning')
   }
 
-  // 카테고리별 필터링
   const filtered = selectedCategoryId === 'all'
     ? items
     : items.filter(i => i.categoryId === selectedCategoryId)
 
-  // 카테고리별 그룹
-  const grouped = categories.reduce<Record<string, BenchmarkItem[]>>((acc, cat) => {
-    const catItems = filtered.filter(i => i.categoryId === cat.id)
-    if (catItems.length > 0 || selectedCategoryId === 'all') acc[cat.id] = catItems
-    return acc
-  }, {})
-
-  // 미분류
   const unclassified = filtered.filter(i => !categories.find(c => c.id === i.categoryId))
 
   return (
@@ -381,7 +455,6 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
       <div className="space-y-5">
         {/* 상단 컨트롤 */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* 카테고리 탭 필터 */}
           <div className="flex items-center gap-2 flex-1 flex-wrap">
             <button
               onClick={() => setSelectedCategoryId('all')}
@@ -391,15 +464,15 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
               전체 ({items.length})
             </button>
             {categories.map(cat => {
-              const cc = getColorConfig(cat.color)
               const count = items.filter(i => i.categoryId === cat.id).length
               const isActive = selectedCategoryId === cat.id
+              const style = getCategoryStyle(cat)
               return (
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`px-3 py-1.5 text-sm rounded-xl font-medium transition border
-                    ${isActive ? `${cc.bg} ${cc.text} ${cc.border}` : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                  className="px-3 py-1.5 text-sm rounded-xl font-medium transition border"
+                  style={isActive ? style : { background: 'white', color: '#4b5563', borderColor: '#e5e7eb' }}
                 >
                   {cat.name} ({count})
                 </button>
@@ -407,7 +480,6 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
             })}
           </div>
 
-          {/* 버튼 그룹 */}
           <div className="flex gap-2 shrink-0">
             <button
               onClick={() => setShowCategoryManager(true)}
@@ -424,53 +496,47 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
           </div>
         </div>
 
-        {/* 카테고리별 그룹 */}
+        {/* 카테고리별 그룹 뷰 */}
         {selectedCategoryId === 'all' ? (
           <div className="space-y-6">
             {categories.map(cat => {
-              const catItems = grouped[cat.id] ?? []
-              const cc = getColorConfig(cat.color)
+              const catItems = items.filter(i => i.categoryId === cat.id)
+              const style = getCategoryStyle(cat)
               const avgVsAvg = catItems.length > 0
                 ? (catItems.reduce((s, i) => s + (i.vsAvg ?? 0), 0) / catItems.length).toFixed(1)
                 : null
 
               return (
-                <div key={cat.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
-                  {/* 카테고리 헤더 */}
-                  <div className={`px-5 py-4 flex items-center justify-between ${cc.bg} border-b ${cc.border}`}>
+                <div key={cat.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700">
+                  <div
+                    className="px-5 py-4 flex items-center justify-between"
+                    style={{ background: style.background, borderBottom: `1px solid ${style.border}` }}
+                  >
                     <div className="flex items-center gap-2">
-                      <span className={`w-3 h-3 rounded-full border-2 ${cc.bg} ${cc.border}`} />
-                      <h3 className={`font-bold text-sm ${cc.text}`}>{cat.name}</h3>
-                      <span className={`px-2 py-0.5 text-xs rounded-full bg-white/70 ${cc.text} font-medium`}>
+                      <span className="font-bold text-sm" style={{ color: style.color }}>{cat.name}</span>
+                      <span
+                        className="px-2 py-0.5 text-xs rounded-full font-medium"
+                        style={{ background: 'rgba(255,255,255,0.5)', color: style.color }}
+                      >
                         {catItems.length}개
                       </span>
                     </div>
                     {avgVsAvg && (
-                      <span className={`text-xs font-semibold ${cc.text}`}>
+                      <span className="text-xs font-semibold" style={{ color: style.color }}>
                         평균 vs.Avg {avgVsAvg}x
                       </span>
                     )}
                   </div>
 
-                  {/* 항목 목록 */}
                   {catItems.length === 0 ? (
                     <div className="p-6 text-center text-sm text-gray-400">
                       이 카테고리에 저장된 벤치마킹이 없습니다
-                      <button
-                        onClick={() => setShowAddModal(true)}
-                        className="block mx-auto mt-2 text-xs text-blue-500 hover:underline"
-                      >
-                        + 추가하기
-                      </button>
+                      <button onClick={() => setShowAddModal(true)} className="block mx-auto mt-2 text-xs text-blue-500 hover:underline">+ 추가하기</button>
                     </div>
                   ) : (
                     <div className="divide-y divide-gray-100 dark:divide-gray-700">
                       {catItems.map(item => (
-                        <BenchmarkItemRow
-                          key={item.id}
-                          item={item}
-                          onDelete={handleDelete}
-                        />
+                        <BenchmarkItemRow key={item.id} item={item} cat={cat} onDelete={handleDelete} />
                       ))}
                     </div>
                   )}
@@ -478,7 +544,6 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
               )
             })}
 
-            {/* 미분류 */}
             {unclassified.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
                 <div className="px-5 py-4 bg-gray-50 border-b border-gray-200">
@@ -493,7 +558,6 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
             )}
           </div>
         ) : (
-          /* 단일 카테고리 뷰 */
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
             {filtered.length === 0 ? (
               <div className="p-12 text-center">
@@ -503,9 +567,10 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
               </div>
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                {filtered.map(item => (
-                  <BenchmarkItemRow key={item.id} item={item} onDelete={handleDelete} />
-                ))}
+                {filtered.map(item => {
+                  const cat = categories.find(c => c.id === item.categoryId)
+                  return <BenchmarkItemRow key={item.id} item={item} cat={cat} onDelete={handleDelete} />
+                })}
               </div>
             )}
           </div>
@@ -517,41 +582,45 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
 
 // ─── 벤치마킹 아이템 행 ──────────────────────────────────────
 function BenchmarkItemRow({
-  item,
-  onDelete,
+  item, cat, onDelete,
 }: {
   item: BenchmarkItem
+  cat?: Category
   onDelete: (id: string) => void
 }) {
   return (
     <div className="p-5 flex items-start gap-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition group">
       <span className="text-xl shrink-0 mt-0.5">{getPlatformIcon(item.platform)}</span>
       <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap mb-1">
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-semibold text-gray-900 dark:text-white hover:text-blue-600 hover:underline"
+          >
+            {item.title}
+          </a>
+          {cat && <CategoryTag cat={cat} size="xs" />}
+        </div>
         <a
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm font-semibold text-gray-900 dark:text-white hover:text-blue-600 hover:underline truncate block"
+          className="text-xs text-blue-400 hover:underline truncate block mb-1"
         >
-          {item.title}
+          {item.url}
         </a>
-        <p className="text-xs text-blue-400 hover:underline truncate mt-0.5">
-          <a href={item.url} target="_blank" rel="noopener noreferrer">{item.url}</a>
-        </p>
         {item.memo && (
-          <div className="mt-2 flex items-start gap-1.5">
+          <div className="flex items-start gap-1.5 mt-1">
             <span className="text-xs text-yellow-500 shrink-0">📝</span>
             <p className="text-xs text-gray-500 dark:text-gray-400 italic">{item.memo}</p>
           </div>
         )}
       </div>
       <div className="flex flex-col items-end gap-1.5 shrink-0 text-xs text-gray-400">
-        {item.vsAvg && (
-          <span className="text-green-600 font-bold text-sm">{item.vsAvg}x</span>
-        )}
-        {item.views && (
-          <span>{formatViews(item.views)}</span>
-        )}
+        {item.vsAvg && <span className="text-green-600 font-bold text-sm">{item.vsAvg}x</span>}
+        {item.views && <span>{formatViews(item.views)}</span>}
         <span>{item.addedAt}</span>
         <button
           onClick={() => onDelete(item.id)}
