@@ -57,56 +57,7 @@ export function getCategoryStyle(cat: Category): {
   }
 }
 
-export const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-1', name: '경제/재테크',  bgColor: '#2563EB', textColor: 'auto', createdAt: '2026-05-16' },
-  { id: 'cat-2', name: '자기계발',     bgColor: '#16A34A', textColor: 'auto', createdAt: '2026-05-16' },
-  { id: 'cat-3', name: '라이프스타일', bgColor: '#9333EA', textColor: 'auto', createdAt: '2026-05-16' },
-  { id: 'cat-4', name: '수익화',       bgColor: '#EA580C', textColor: 'auto', createdAt: '2026-05-16' },
-]
-
-export const DEFAULT_BENCHMARKS: BenchmarkItem[] = [
-  {
-    id: 'bm-1',
-    url: 'https://www.youtube.com/watch?v=example1',
-    title: '2024 경제 전망 - 금리 인상의 끝은?',
-    memo: '인트로 훅 방식 참고, 첫 15초 안에 핵심 수치 제시',
-    categoryId: 'cat-1',
-    platform: 'youtube',
-    addedAt: '2일 전',
-    vsAvg: 5.2,
-    views: 150000,
-  },
-  {
-    id: 'bm-2',
-    url: 'https://www.youtube.com/watch?v=example2',
-    title: '부동산 투자 가이드 - 초보자도 쉽게',
-    memo: '썸네일 숫자 강조 레이아웃 참고',
-    categoryId: 'cat-1',
-    platform: 'youtube',
-    addedAt: '3일 전',
-    vsAvg: 4.1,
-    views: 120000,
-  },
-  {
-    id: 'bm-3',
-    url: 'https://blog.naver.com/example',
-    title: '아침 루틴으로 하루를 바꾸는 방법',
-    memo: 'SEO 제목 구조, H2 사용 방식 참고',
-    categoryId: 'cat-2',
-    platform: 'naver-blog',
-    addedAt: '5일 전',
-    vsAvg: 3.4,
-    views: 85000,
-  },
-  {
-    id: 'bm-4',
-    url: 'https://www.instagram.com/p/example',
-    title: '월 100만원 블로그 수익화 전략',
-    memo: '릴스 첫 3초 훅, 자막 크기 참고',
-    categoryId: 'cat-4',
-    platform: 'instagram',
-    addedAt: '1주일 전',
-    vsAvg: 6.8,
-    views: 200000,
-  },
-]
+// 카테고리/벤치마크 데이터는 Supabase에서 관리됩니다.
+// API: /api/dashboard/benchmark-categories, /api/dashboard/benchmarks
+// 아래는 신규 설치 시 seed 용도 또는 TopicSuggestView 등에서 폴백으로 사용합니다.
+export const DEFAULT_CATEGORIES: Category[] = []

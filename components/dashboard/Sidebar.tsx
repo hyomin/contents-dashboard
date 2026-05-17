@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import { useTheme } from '@/lib/theme'
 
 interface TreeItem {
   id: string
@@ -55,7 +56,7 @@ const NAV_TREE: TreeItem[] = [
       { id: 'trending',      label: '트렌딩 키워드',  icon: '🔥' },
       { id: 'outlier',       label: 'Outlier 분석',   icon: '🚀' },
       { id: 'ai-insight',    label: 'AI 인사이트',    icon: '🤖' },
-      { id: 'benchmark',     label: '벤치마킹 저장함', icon: '📌', badge: 5, badgeColor: 'bg-yellow-100 text-yellow-700' },
+      { id: 'benchmark',     label: '채널·콘텐츠 등록', icon: '📝', badge: 5, badgeColor: 'bg-yellow-100 text-yellow-700' },
       { id: 'topic-suggest', label: '주제 선별 AI',   icon: '🎯', badge: 'NEW', badgeColor: 'bg-green-100 text-green-700' },
     ],
   },
@@ -83,6 +84,7 @@ const NAV_TREE: TreeItem[] = [
       { id: 'repurpose',     label: 'Repurposing',  icon: '🔄' },
       { id: 'deploy',        label: '배포 자동화',   icon: '📤' },
       { id: 'data-collect',  label: '데이터 수집',   icon: '🤖', badge: '●', badgeColor: 'bg-green-100 text-green-600' },
+      { id: 'automation',    label: 'n8n 자동화',    icon: '🔧', badge: 'NEW', badgeColor: 'bg-purple-100 text-purple-700' },
     ],
   },
   {
@@ -172,12 +174,50 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
           <TreeNode key={item.id} item={item} activeId={activeId} onSelect={handleSelect} />
         ))}
       </nav>
-      <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+      <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+        {/* 테마 토글 */}
+        <ThemeToggle onSelect={handleSelect} activeId={activeId} />
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
           <span className="text-xs text-gray-400">더미 데이터 모드</span>
         </div>
       </div>
     </aside>
+  )
+}
+
+function ThemeToggle({ onSelect, activeId }: { onSelect: (id: string) => void; activeId: string }) {
+  const { theme, setTheme } = useTheme()
+
+  const cycle = () => {
+    const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
+    setTheme(next)
+  }
+
+  const icons: Record<string, string> = { light: '☀️', dark: '🌙', system: '💻' }
+  const labels: Record<string, string> = { light: 'Light', dark: 'Dark', system: 'System' }
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={cycle}
+        title="테마 변경"
+        className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+      >
+        <span>{icons[theme]}</span>
+        <span>{labels[theme]}</span>
+      </button>
+      <button
+        onClick={() => onSelect('settings')}
+        title="설정"
+        className={`ml-auto p-1.5 rounded-lg text-xs transition
+          ${activeId === 'settings'
+            ? 'bg-blue-600 text-white'
+            : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+          }`}
+      >
+        ⚙️
+      </button>
+    </div>
   )
 }

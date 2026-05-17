@@ -18,6 +18,8 @@ import DataCollectView from '@/components/dashboard/views/DataCollectView'
 import RevenueView from '@/components/dashboard/views/RevenueView'
 import RepurposeView from '@/components/dashboard/views/RepurposeView'
 import DeployView from '@/components/dashboard/views/DeployView'
+import AutomationView from '@/components/dashboard/views/AutomationView'
+import SettingsView from '@/components/dashboard/views/SettingsView'
 
 // ─── 뷰별 메타 ──────────────────────────────────────────────────
 const VIEW_META: Record<string, { title: string; desc: string; filter?: string }> = {
@@ -33,7 +35,7 @@ const VIEW_META: Record<string, { title: string; desc: string; filter?: string }
   trending:            { title: '트렌딩 키워드',      desc: '급상승 키워드 및 트렌드' },
   outlier:             { title: 'Outlier 분석',       desc: 'vs.Avg 3.0x 이상 콘텐츠' },
   'ai-insight':        { title: 'AI 인사이트',        desc: 'AI 기반 콘텐츠 기획 추천' },
-  benchmark:           { title: '벤치마킹 저장함',    desc: '분석용으로 저장한 콘텐츠 모음' },
+  benchmark:           { title: '채널·콘텐츠 등록',    desc: '수집·분석 대상 채널과 레퍼런스 콘텐츠를 등록합니다' },
   channels:            { title: '채널 관리',           desc: '경쟁 채널 및 내 채널 현황' },
   'channels-competitor': { title: '경쟁 채널 목록',   desc: '벤치마킹 대상 채널 관리' },
   'channels-mine':     { title: '내 채널',             desc: '내 채널 현황 및 목표' },
@@ -44,6 +46,8 @@ const VIEW_META: Record<string, { title: string; desc: string; filter?: string }
   'data-collect':      { title: '데이터 수집',           desc: 'API 및 크롤링 수집 관리' },
   revenue:             { title: '수익 추적',             desc: '플랫폼별 수익 및 로드맵' },
   'topic-suggest':     { title: '주제 선별 AI',          desc: '레퍼런스 분석 기반 콘텐츠 주제 추천' },
+  automation:          { title: 'n8n 자동화 관리',       desc: 'n8n 워크플로 모니터링 및 편집기 내장' },
+  settings:            { title: '설정',                   desc: '테마 및 대시보드 환경 설정' },
 }
 
 function ComingSoon({ title }: { title: string }) {
@@ -88,7 +92,9 @@ export default function DashboardPage() {
       case 'repurpose':            return <RepurposeView addToast={addToast} />
       case 'deploy':               return <DeployView addToast={addToast} />
       case 'data-collect':         return <DataCollectView addToast={addToast} />
+      case 'automation':           return <AutomationView addToast={addToast} />
       case 'revenue':              return <RevenueView addToast={addToast} />
+      case 'settings':             return <SettingsView addToast={addToast} />
       default:                     return <ComingSoon title={meta.title} />
     }
   }

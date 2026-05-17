@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { DEFAULT_CATEGORIES, getCategoryStyle } from '@/lib/categories'
+import { useState, useEffect } from 'react'
+import { getCategoryStyle } from '@/lib/categories'
+import type { Category } from '@/lib/categories'
 
 // ─── 타입 ────────────────────────────────────────────────────
 interface RefUrl {
@@ -178,8 +179,22 @@ export default function TopicSuggestView({
 }: {
   addToast: (m: string, t?: 'success' | 'info' | 'warning') => void
 }) {
-  const [categoryId, setCategoryId] = useState(DEFAULT_CATEGORIES[0]?.id ?? '')
+  const [categories, setCategories] = useState<Category[]>([])
+  const [categoryId, setCategoryId] = useState('')
   const [platform, setPlatform] = useState('youtube')
+
+  useEffect(() => {
+    fetch('/api/dashboard/benchmark-categories')
+      .then(r => r.json())
+      .then((data: { id: string; name: string; bg_color: string; text_color: 'auto' | 'white' | 'dark'; created_at: string }[]) => {
+        const cats: Category[] = data.map(c => ({
+          id: c.id, name: c.name, bgColor: c.bg_color, textColor: c.text_color, createdAt: c.created_at?.slice(0, 10) ?? '',
+        }))
+        setCategories(cats)
+        if (cats.length > 0) setCategoryId(cats[0].id)
+      })
+      .catch(() => {})
+  }, [])
   const [urls, setUrls] = useState<RefUrl[]>([
     { id: '1', url: 'https://www.youtube.com/watch?v=example1', title: '2024 경제 전망 - 금리 인상의 끝은?', vsAvg: '5.2' },
     { id: '2', url: 'https://www.youtube.com/watch?v=example2', title: '부동산 투자 가이드 - 초보자도 쉽게', vsAvg: '4.1' },
@@ -191,7 +206,7 @@ export default function TopicSuggestView({
   const [result, setResult] = useState<SuggestResult | null>(null)
   const [mode] = useState<'dummy' | 'n8n'>('dummy') // 실제 연동 시 'n8n'으로 변경
 
-  const selectedCat = DEFAULT_CATEGORIES.find(c => c.id === categoryId)
+  const selectedCat = categories.find(c => c.id === categoryId)
   const catStyle = selectedCat ? getCategoryStyle(selectedCat) : null
 
   const addUrl = () => {
@@ -268,8 +283,15 @@ export default function TopicSuggestView({
             {/* 주제 카테고리 */}
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-2 block">주제 카테고리</label>
+              {categories.length === 0 && (
+                <p className="text-xs text-gray-400">
+                  카테고리가 없습니다.{' '}
+                  <a href="/dashboard?view=benchmark" className="text-blue-500 hover:underline">채널·콘텐츠 등록</a>
+                  에서 카테고리를 먼저 추가해주세요.
+                </p>
+              )}
               <div className="flex flex-wrap gap-2">
-                {DEFAULT_CATEGORIES.map(cat => {
+                {categories.map(cat => {
                   const style = getCategoryStyle(cat)
                   const isActive = categoryId === cat.id
                   return (

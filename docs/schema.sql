@@ -50,6 +50,47 @@ CREATE TABLE IF NOT EXISTS videos (
   updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ─── 3-a. benchmark_categories 테이블 ────────────────────────
+CREATE TABLE IF NOT EXISTS benchmark_categories (
+  id         TEXT PRIMARY KEY,          -- 'cat-xxxx'
+  name       TEXT NOT NULL,
+  bg_color   TEXT NOT NULL DEFAULT '#3B82F6',
+  text_color TEXT NOT NULL DEFAULT 'auto',  -- 'auto' | 'white' | 'dark'
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── 3-b. benchmarks 테이블 ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS benchmarks (
+  id          TEXT PRIMARY KEY,          -- 'bm-xxxx'
+  url         TEXT NOT NULL,
+  title       TEXT NOT NULL,
+  memo        TEXT DEFAULT '',
+  category_id TEXT REFERENCES benchmark_categories(id) ON DELETE SET NULL,
+  platform    TEXT NOT NULL DEFAULT 'other',
+  views       INTEGER,
+  vs_avg      DECIMAL,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_benchmarks_category ON benchmarks(category_id);
+CREATE INDEX IF NOT EXISTS idx_benchmarks_platform  ON benchmarks(platform);
+
+-- ─── 3-1. videos 테이블 누락 컬럼 보완 (기존 테이블에 추가 실행) ──
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS channel_id    TEXT;
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS likes         INTEGER DEFAULT 0;
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS comments      INTEGER DEFAULT 0;
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS duration      INTEGER DEFAULT 0;
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS published_at  TIMESTAMPTZ;
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS avg_views     INTEGER DEFAULT 0;
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS vs_avg        DECIMAL DEFAULT 0;
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS tier          TEXT DEFAULT 'C';
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS score         INTEGER DEFAULT 0;
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS scraped_at    TIMESTAMPTZ DEFAULT NOW();
+
+-- 스키마 캐시 강제 갱신
+NOTIFY pgrst, 'reload schema';
+
 -- ─── 4. 인덱스 ───────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_channels_channel_id ON channels(channel_id);
 CREATE INDEX IF NOT EXISTS idx_channels_platform   ON channels(platform);

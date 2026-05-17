@@ -15,3 +15,20 @@ export const getVsAvgColor = (v: number) =>
 
 export const formatViews = (v: number) =>
   v >= 10000 ? `${(v / 10000).toFixed(1)}만` : v.toLocaleString()
+
+import type { DBVideo } from './supabase'
+import type { Video } from './dashboard-types'
+
+export function dbVideoToVideo(v: DBVideo, index: number): Video {
+  return {
+    id: index + 1,
+    tier: (v.tier ?? 'C') as Video['tier'],
+    title: v.title,
+    channel: v.channel_name ?? '',
+    views: v.views ?? 0,
+    vsAvg: Number(v.vs_avg ?? 0),
+    platform: (v.platform ?? 'youtube') as Video['platform'],
+    publishedAt: v.published_at?.split('T')[0] ?? '',
+    keyword: '',
+  }
+}

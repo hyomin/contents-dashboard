@@ -5,11 +5,11 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// 데이터베이스 타입 정의
-export interface Video {
+export interface DBVideo {
   id: number
   platform: string
   video_id: string
+  channel_id: string | null
   channel_name: string | null
   title: string
   thumbnail_url: string | null
@@ -27,13 +27,14 @@ export interface Video {
   updated_at: string
 }
 
-export interface Channel {
+export interface DBChannel {
   id: number
   platform: string
   channel_id: string
   channel_name: string
-  subscriber_count: number | null
-  total_videos: number | null
+  subscribers: number | null
+  total_views: number | null
+  video_count: number | null
   avg_views: number | null
   created_at: string
   updated_at: string
