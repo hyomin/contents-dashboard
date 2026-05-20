@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react'
 import type { Video, AddToast } from '@/lib/dashboard-types'
 import { getTierColor, getVsAvgColor, formatViews } from '@/lib/dashboard-helpers'
+import { formatDurationLabel } from '@/lib/video-format'
 
 // ─── 정렬 타입 ────────────────────────────────────────────────
 type SortKey = 'tier' | 'title' | 'channel' | 'views' | 'vsAvg' | 'platform' | 'publishedAt'
@@ -9,12 +10,12 @@ type SortDir = 'asc' | 'desc'
 
 const TIER_ORDER: Record<string, number> = { S: 0, A: 1, B: 2, C: 3 }
 
-const COLUMNS: { key: SortKey; label: string; align?: string }[] = [
-  { key: 'tier',        label: 'Tier' },
-  { key: 'title',       label: '제목' },
-  { key: 'channel',     label: '채널' },
-  { key: 'views',       label: '조회수',   align: 'right' },
-  { key: 'vsAvg',       label: 'vs.Avg',   align: 'right' },
+const BASE_COLUMNS: { key: SortKey; label: string; align?: string }[] = [
+  { key: 'tier', label: 'Tier' },
+  { key: 'title', label: '제목' },
+  { key: 'channel', label: '채널' },
+  { key: 'views', label: '조회수', align: 'right' },
+  { key: 'vsAvg', label: 'vs.Avg', align: 'right' },
   { key: 'publishedAt', label: '날짜' },
 ]
 
@@ -23,14 +24,26 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   return <span className="ml-1 text-blue-500">{dir === 'asc' ? '↑' : '↓'}</span>
 }
 
-export default function ContentTable({ videos, onSelect, addToast }: {
+export default function ContentTable({
+  videos,
+  onSelect,
+  addToast,
+  showDuration = false,
+  savedVideoIds,
+  onToggleSave,
+}: {
   videos: Video[]
   onSelect: (v: Video) => void
   addToast: AddToast
+  showDuration?: boolean
+  savedVideoIds?: Set<string>
+  onToggleSave?: (v: Video) => void
 }) {
   const [vsAvgFilter, setVsAvgFilter] = useState('전체 vs.Avg')
   const [sortKey, setSortKey] = useState<SortKey>('vsAvg')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const showSaveCol = Boolean(onToggleSave)
+  const colSpan = BASE_COLUMNS.length + (showDuration ? 1 : 0) + (showSaveCol ? 1 : 0)
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -108,7 +121,7 @@ export default function ContentTable({ videos, onSelect, addToast }: {
         <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-              {COLUMNS.map(col => (
+              {BASE_COLUMNS.map(col => (
                 <th
                   key={col.key}
                   onClick={() => handleSort(col.key)}
@@ -123,18 +136,24 @@ export default function ContentTable({ videos, onSelect, addToast }: {
                   <SortIcon active={sortKey === col.key} dir={sortDir} />
                 </th>
               ))}
+              {showDuration && (
+                <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase text-right">길이</th>
+              )}
+              {showSaveCol && (
+                <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase text-center w-14">저장</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400">
+                <td colSpan={colSpan} className="px-5 py-12 text-center text-sm text-gray-400">
                   조건에 맞는 콘텐츠가 없습니다
                 </td>
               </tr>
             ) : filtered.map(video => (
               <tr
-                key={video.id}
+                key={video.videoId || video.id}
                 onClick={() => onSelect(video)}
                 className="hover:bg-blue-50/50 dark:hover:bg-gray-700 cursor-pointer transition"
               >
@@ -155,6 +174,26 @@ export default function ContentTable({ videos, onSelect, addToast }: {
                   <span className={`text-sm font-semibold ${getVsAvgColor(video.vsAvg)}`}>{video.vsAvg}x</span>
                 </td>
                 <td className="px-5 py-4 whitespace-nowrap text-xs text-gray-400">{video.publishedAt}</td>
+                {showDuration && (
+                  <td className="px-5 py-4 whitespace-nowrap text-xs text-gray-500 text-right">
+                    {formatDurationLabel(video.duration)}
+                  </td>
+                )}
+                {showSaveCol && onToggleSave && (
+                  <td className="px-5 py-4 text-center">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onToggleSave(video)
+                      }}
+                      className={`text-lg leading-none ${savedVideoIds?.has(video.videoId) ? 'text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}
+                      aria-label={savedVideoIds?.has(video.videoId) ? '저장 해제' : 'Shorts 저장'}
+                    >
+                      {savedVideoIds?.has(video.videoId) ? '★' : '☆'}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

@@ -1,0 +1,24 @@
+# n8n 자동화 서버 (대시보드와 별도 실행)
+# 사용: docker compose -f docker-compose.n8n.yml --env-file .env.local up -d
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - '5678:5678'
+    volumes:
+      - n8n_data:/home/node/.n8n
+    environment:
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      # N8N_PATH 를 쓰면 편집기는 http://localhost:5678/n8n/ 인데 Webhook은 /webhook/... 루트라 혼동됨 → 로컬은 경로 없이 5678 루트 사용
+      - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+      # 주제 선별 워크플로(OpenAI/Anthropic 노드)용 — 사용 시 설정
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+volumes:
+  n8n_data:
+    external: true

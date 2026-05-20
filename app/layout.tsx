@@ -22,8 +22,12 @@ export const metadata: Metadata = {
 const themeScript = `
 (function(){
   var t=localStorage.getItem('theme')||'system';
-  var dark=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme:dark)').matches);
-  if(dark)document.documentElement.classList.add('dark');
+  var el=document.documentElement;
+  el.classList.remove('dark','soft');
+  if(t==='soft'){el.classList.add('dark','soft');}
+  else if(t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme:dark)').matches)){
+    el.classList.add('dark');
+  }
 })();
 `;
 

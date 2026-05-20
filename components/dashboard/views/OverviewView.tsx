@@ -1,10 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Video, AddToast } from '@/lib/dashboard-types'
-import { INSIGHTS, TRENDING_KEYWORDS } from '@/lib/dummy-data'
+import type { DataInsight, TrendingKeyword } from '@/lib/analytics-from-videos'
 import { getTierColor, getPlatformName, getPlatformColor, formatViews, dbVideoToVideo } from '@/lib/dashboard-helpers'
 import ContentTable from '@/components/dashboard/ContentTable'
 import type { DBVideo, DBChannel } from '@/lib/supabase'
+import { TitleWithHint } from '@/components/dashboard/info-hint'
 
 interface VideoStats {
   total: number
@@ -18,7 +19,19 @@ export default function OverviewView({ onSelect, addToast }: { onSelect: (v: Vid
   const [outlierVideos, setOutlierVideos] = useState<Video[]>([])
   const [allVideos, setAllVideos] = useState<Video[]>([])
   const [channels, setChannels] = useState<DBChannel[]>([])
+  const [insights, setInsights] = useState<DataInsight[]>([])
+  const [trending, setTrending] = useState<TrendingKeyword[]>([])
   const [loading, setLoading] = useState(true)
+
+  const loadInsights = () => {
+    fetch('/api/dashboard/insights')
+      .then((r) => r.json())
+      .then((d) => {
+        setInsights(d.insights ?? [])
+        setTrending(d.trending ?? [])
+      })
+      .catch(console.error)
+  }
 
   useEffect(() => {
     Promise.all([
@@ -32,6 +45,7 @@ export default function OverviewView({ onSelect, addToast }: { onSelect: (v: Vid
       setAllVideos((allData as DBVideo[]).map(dbVideoToVideo))
       setChannels(channelsData)
     }).catch(console.error).finally(() => setLoading(false))
+    loadInsights()
   }, [])
 
   const total = stats?.total ?? 0
@@ -68,11 +82,18 @@ export default function OverviewView({ onSelect, addToast }: { onSelect: (v: Vid
 
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold">💡 AI 인사이트 & 추천 액션</h2>
-          <button onClick={() => addToast('인사이트 새로고침 완료', 'success')} className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition">새로고침</button>
+          <TitleWithHint
+            as="h2"
+            className="text-base font-bold"
+            hintVariant="light"
+            hint="수집 데이터 기반 규칙 인사이트와 추천 액션입니다. 카드를 클릭하면 기획 목록에 추가됩니다."
+          >
+            💡 AI 인사이트 & 추천 액션
+          </TitleWithHint>
+          <button type="button" onClick={() => { loadInsights(); addToast('인사이트 새로고침 완료', 'success') }} className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition">새로고침</button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {INSIGHTS.map((ins, i) => (
+          {insights.map((ins, i) => (
             <div key={i} onClick={() => addToast('콘텐츠 기획 목록에 추가되었습니다 ✅', 'success')} className="bg-white/10 hover:bg-white/20 rounded-xl p-3 flex gap-3 items-start cursor-pointer transition">
               <span className="text-xl">{ins.icon}</span>
               <p className="text-sm leading-relaxed">{ins.text}</p>
@@ -84,7 +105,13 @@ export default function OverviewView({ onSelect, addToast }: { onSelect: (v: Vid
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-gray-900 dark:text-white">🏆 Outlier Videos</h2>
+            <TitleWithHint
+              as="h2"
+              className="text-base font-bold text-gray-900 dark:text-white"
+              hint="vs.Avg 1.5x 이상 상위 Outlier 영상입니다."
+            >
+              🏆 Outlier Videos
+            </TitleWithHint>
             <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">vs.Avg ≥ 1.5</span>
           </div>
           {loading ? (
@@ -112,11 +139,19 @@ export default function OverviewView({ onSelect, addToast }: { onSelect: (v: Vid
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-gray-900 dark:text-white">🔥 급상승 키워드</h2>
+            <TitleWithHint
+              as="h2"
+              className="text-base font-bold text-gray-900 dark:text-white"
+              hint="최근 수집 영상 제목에서 추출한 급상승 키워드입니다."
+            >
+              🔥 급상승 키워드
+            </TitleWithHint>
             <span className="text-xs text-gray-400">최근 7일</span>
           </div>
           <div className="space-y-3">
-            {TRENDING_KEYWORDS.map(kw => (
+            {trending.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">수집 후 키워드가 표시됩니다</p>
+            ) : trending.map(kw => (
               <div key={kw.rank} onClick={() => addToast(`"${kw.keyword}" 콘텐츠 기획 추천!`, 'success')} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition">
                 <span className={`text-base font-black w-6 text-center ${kw.rank === 1 ? 'text-yellow-500' : kw.rank === 2 ? 'text-gray-400' : kw.rank === 3 ? 'text-orange-400' : 'text-gray-300'}`}>{kw.rank}</span>
                 <span className="flex-1 text-sm font-medium text-gray-800 dark:text-white">#{kw.keyword}</span>
@@ -130,7 +165,13 @@ export default function OverviewView({ onSelect, addToast }: { onSelect: (v: Vid
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">📊 vs.Avg 분포도</h2>
+          <TitleWithHint
+            as="h2"
+            className="text-base font-bold text-gray-900 dark:text-white mb-4"
+            hint="전체 수집 영상의 vs.Avg 구간별 분포입니다. 3.0x 이상이 콘텐츠 기회 구간입니다."
+          >
+            📊 vs.Avg 분포도
+          </TitleWithHint>
           {loading ? (
             <div className="space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-7 bg-gray-100 rounded-full animate-pulse" />)}</div>
           ) : (
@@ -151,7 +192,13 @@ export default function OverviewView({ onSelect, addToast }: { onSelect: (v: Vid
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">📺 수집 채널 현황</h2>
+          <TitleWithHint
+            as="h2"
+            className="text-base font-bold text-gray-900 dark:text-white mb-4"
+            hint="Supabase에 등록·수집된 YouTube 채널 요약입니다."
+          >
+            📺 수집 채널 현황
+          </TitleWithHint>
           {loading ? (
             <div className="space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}</div>
           ) : (

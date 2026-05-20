@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>n8n 자동화 아이디어 전체 정리</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: #f8f7f2; color: #2c2c2a; padding: 24px; font-size: 13px; line-height: 1.6; }
+
+  h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .meta { font-size: 12px; color: #999; margin-bottom: 24px; }
+
+  /* 필터 버튼 */
+  .filter-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .filter-btn { padding: 5px 14px; border-radius: 20px; border: 1px solid #d8d7d0; background: #fff; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .filter-btn:hover { background: #f0efe8; }
+  .filter-btn.active { background: #1e1e1c; color: #f0efe8; border-color: #1e1e1c; }
+
+  /* 테이블 */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 700px; }
+  thead { background: #1e1e1c; color: #f0efe8; position: sticky; top: 0; }
+  th { padding: 10px 12px; text-align: left; font-weight: 500; white-space: nowrap; }
+  td { padding: 10px 12px; border-bottom: 1px solid #f0efe8; vertical-align: top; }
+  tr:hover td { background: #fafaf5; }
+  tr.hidden { display: none; }
+
+  /* 카테고리 구분 행 */
+  .cat-row td { background: #f0efe8; font-weight: 700; font-size: 11px; color: #555; padding: 6px 12px; letter-spacing: 0.5px; }
+
+  /* 레벨 배지 */
+  .lv { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+  .lv1 { background: #d4f0e5; color: #085041; }
+  .lv2 { background: #faeeda; color: #6b3a00; }
+  .lv3 { background: #f0e0ff; color: #4a0080; }
+  .lv-agent { background: #dce8ff; color: #0c2f7a; }
+
+  /* 상태 배지 */
+  .st { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+  .st-done { background: #1e1e1c; color: #5dcaa5; }
+  .st-next { background: #5dcaa5; color: #03302a; }
+  .st-soon { background: #fac775; color: #412402; }
+  .st-later { background: #e8e7e1; color: #555; }
+
+  /* 카테고리 칩 */
+  .cat { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 3px; background: #f0efe8; color: #666; }
+
+  /* 효과 칩 */
+  .fx { font-size: 11px; color: #0f6e56; }
+
+  /* 요약 카드 */
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 24px; }
+  .sc { background: #fff; border: 0.5px solid #d8d7d0; border-radius: 8px; padding: 12px; }
+  .sc-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .sc-value { font-size: 20px; font-weight: 700; }
+  .sc-sub { font-size: 10px; color: #aaa; margin-top: 2px; }
+
+  .note { font-size: 11px; color: #aaa; margin-top: 12px; line-height: 1.7; }
+
+  @media (max-width: 600px) {
+    body { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>n8n 자동화 아이디어 전체 정리</h1>
+<p class="meta">대화에서 나온 모든 자동화 아이디어 · 레벨·카테고리·우선순위 기준 정리</p>
+
+<!-- 요약 카드 -->
+<div class="summary">
+  <div class="sc">
+    <div class="sc-label">전체 아이디어</div>
+    <div class="sc-value">23개</div>
+    <div class="sc-sub">4개 카테고리</div>
+  </div>
+  <div class="sc" style="border-color:#1e1e1c; background:#1e1e1c;">
+    <div class="sc-label" style="color:#aaa">구현 완료</div>
+    <div class="sc-value" style="color:#5dcaa5">1개</div>
+    <div class="sc-sub" style="color:#666">채널 vs avg</div>
+  </div>
+  <div class="sc" style="border-color:#5dcaa5;">
+    <div class="sc-label">다음 스텝</div>
+    <div class="sc-value" style="color:#0f6e56">4개</div>
+    <div class="sc-sub">지금 바로 가능</div>
+  </div>
+  <div class="sc" style="border-color:#fac775;">
+    <div class="sc-label">3개월 후</div>
+    <div class="sc-value" style="color:#ba7517">10개</div>
+    <div class="sc-sub">중급 난이도</div>
+  </div>
+  <div class="sc">
+    <div class="sc-label">6개월 후</div>
+    <div class="sc-value" style="color:#555">8개</div>
+    <div class="sc-sub">실전·Agent</div>
+  </div>
+</div>
+
+<!-- 필터 -->
+<div class="filter-wrap">
+  <button class="filter-btn active" onclick="filter('all')">전체</button>
+  <button class="filter-btn" onclick="filter('done')">✅ 완료</button>
+  <button class="filter-btn" onclick="filter('next')">🟢 다음 스텝</button>
+  <button class="filter-btn" onclick="filter('soon')">🟡 3개월 후</button>
+  <button class="filter-btn" onclick="filter('later')">🔵 6개월 후</button>
+  <button class="filter-btn" onclick="filter('trend')">트렌드 분석</button>
+  <button class="filter-btn" onclick="filter('content')">콘텐츠 제작</button>
+  <button class="filter-btn" onclick="filter('deploy')">배포·발행</button>
+  <button class="filter-btn" onclick="filter('ops')">운영·관리</button>
+  <button class="filter-btn" onclick="filter('agent')">Agent</button>
+</div>
+
+<div class="table-wrap">
+<table id="mainTable">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>자동화 이름</th>
+      <th>설명</th>
+      <th>레벨</th>
+      <th>상태</th>
+      <th>카테고리</th>
+      <th>핵심 노드</th>
+      <th>기대 효과</th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <!-- 트렌드 분석 -->
+    <tr class="cat-row"><td colspan="8">📊 트렌드 분석 & 데이터 수집</td></tr>
+
+    <tr data-status="done" data-cat="trend">
+      <td>01</td>
+      <td><strong>채널 콘텐츠 리스트 + vs avg</strong></td>
+      <td>채널 등록 → 최근 영상 목록 호출 → 평균 조회수 대비 성과 계산</td>
+      <td><span class="lv lv1">Lv.1</span></td>
+      <td><span class="st st-done">✅ 완료</span></td>
+      <td><span class="cat">트렌드</span></td>
+      <td>YouTube API · HTTP</td>
+      <td class="fx">경쟁 채널 성과 파악</td>
+    </tr>
+
+    <tr data-status="next" data-cat="trend">
+      <td>02</td>
+      <td><strong>아웃라이어 자동 태깅</strong></td>
+      <td>vs avg 3배 이상 영상에 아웃라이어 태그 부여 → Supabase 별도 저장</td>
+      <td><span class="lv lv1">Lv.1</span></td>
+      <td><span class="st st-next">🟢 다음 스텝</span></td>
+      <td><span class="cat">트렌드</span></td>
+      <td>IF 노드 · Supabase</td>
+      <td class="fx">히트 영상 패턴 추출 재료</td>
+    </tr>
+
+    <tr data-status="next" data-cat="trend">
+      <td>03</td>
+      <td><strong>경쟁 채널 다중 추적</strong></td>
+      <td>채널 ID 배열을 Loop 노드로 순환 → 전체 경쟁 채널 데이터 일괄 수집</td>
+      <td><span class="lv lv1">Lv.1</span></td>
+      <td><span class="st st-next">🟢 다음 스텝</span></td>
+      <td><span class="cat">트렌드</span></td>
+      <td>Loop · YouTube API</td>
+      <td class="fx">채널 5~10개 동시 모니터링</td>
+    </tr>
+
+    <tr data-status="soon" data-cat="trend">
+      <td>04</td>
+      <td><strong>Apify 유튜브·인스타 크롤링</strong></td>
+      <td>Apify Actor로 키워드·채널 데이터 수집 → Supabase 누적 저장</td>
+      <td><span class="lv lv2">Lv.2</span></td>
+      <td><span class="st st-soon">🟡 3개월 후</span></td>
+      <td><span class="cat">트렌드</span></td>
+      <td>Apify · Supabase</td>
+      <td class="fx">외부 트렌드 데이터 확보</td>
+    </tr>
+
+    <tr data-status="soon" data-cat="trend">
+      <td>05</td>
+      <td><strong>구글 트렌드·네이버 실검 모니터링</strong></td>
+      <td>30분 주기로 급상승 키워드 감지 → 시니어 타겟 관련 시 즉시 알림</td>
+      <td><span class="lv lv2">Lv.2</span></td>
+      <td><span class="st st-soon">🟡 3개월 후</span></td>
+      <td><span class="cat">트렌드</span></td>
+      <td>HTTP · Schedule · Slack</td>
+      <td class="fx">시사 콘텐츠 타이밍 선점</td>
+    </tr>
+
+    <tr data-status="soon" data-cat="trend">
+      <td>06</td>
+      <td><strong>주간 트렌드 자동 리포트</strong></td>
+      <td>매주 월요일 지난 주 데이터 집계 → Claude 분석 → Notion 문서 자동 생성</td>
+      <td><span class="lv lv2">Lv.2</span></td>
+      <td><span class="st st-soon">🟡 3개월 후</span></td>
+      <td><span class="cat">트렌드</span></td>
+      <td>Schedule · Claude · Notion</td>
+      <td class="fx">매주 기획 자료 자동 완성</td>
+    </tr>
+
+    <tr data-status="later" data-cat="trend agent">
+      <td>07</td>
+      <td><strong>아웃라이어 패턴 분석 Agent</strong></td>
+      <td>아웃라이어 영상 제목·썸네일·길이·요일 데이터를 Agent가 종합 분석 → 공통 패턴 추출</td>
+      <td><span class="lv lv-agent">Agent</span></td>
+      <td><span class="st st-later">🔵 6개월 후</span></td>
+      <td><span class="cat">트렌드</span> <span class="cat">Agent</span></td>
+      <td>AI Agent · Supabase · Claude</td>
+      <td class="fx">데이터 기반 제목·썸네일 전략</td>
+    </tr>
+
+    <!-- 콘텐츠 기획·제작 -->
+    <tr class="cat-row"><td colspan="8">✍️ 콘텐츠 기획 & 스크립트 제작</td></tr>
+
+    <tr data-status="next" data-cat="content">
+      <td>08</td>
+      <td><strong>RSS → 주제 후보 자동 수집</strong></td>
+      <td>뉴스 RSS 매일 수집 → Claude "시니어 타겟 주제 5개 추려줘" → Sheets 저장</td>
+      <td><span class="lv lv1">Lv.1</span></td>
+      <td><span class="st st-next">🟢 다음 스텝</span></td>
+      <td><span class="cat">콘텐츠</span></td>
+      <td>RSS · Claude · Google Sheets</td>
+      <td class="fx">매일 주제 리스트 자동 생성</td>
+    </tr>
+
+    <tr data-status="next" data-cat="content">
+      <td>09</td>
+      <td><strong>롱폼 스크립트 초안 자동 생성</strong></td>
+      <td>주제 키워드 입력 → Claude가 8분 구조(훅·본론·CTA) 스크립트 → Google Docs 저장</td>
+      <td><span class="lv lv1">Lv.1</span></td>
+      <td><span class="st st-next">🟢 다음 스텝</span></td>
+      <td><span class="cat">콘텐츠</span></td>
+      <td>Webhook · Claude · Google Docs</td>
+      <td class="fx">스크립트 작성 시간 80% 단축</td>
+    </tr>
+
+    <tr data-status="soon" data-cat="content">
+      <td>10</td>
+      <td><strong>쇼츠 전용 스크립트 생성</strong></td>
+      <td>롱폼과 별개로 60초 훅→핵심→반전→CTA 구조 쇼츠 전용 Agent</td>
+      <td><span class="lv lv2">Lv.2</span></td>
+      <td><span class="st st-soon">🟡 3개월 후</span></td>
+      <td><span class="cat">콘텐츠</span></td>
+      <td>Claude · Webhook</td>
+      <td class="fx">쇼츠 제작 사이클 단축</td>
+    </tr>
+
+    <tr data-status="soon" data-cat="content">
+      <td>11</td>
+      <td><strong>인스타툰 소재 자동 수집·구성</strong></td>
+      <td>경제 이슈 키워드 → Agent가 4컷 시나리오·대사·감정 포인트 자동 생성</td>
+      <td><span class="lv lv2">Lv.2</span></td>
+      <td><span class="st st-soon">🟡 3개월 후</span></td>
+      <td><span class="cat">콘텐츠</span></td>
+      <td>Claude · Notion</td>
+      <td class="fx">인스타툰 기획 시간 절감</td>
+    </tr>
+
+    <tr data-status="soon" data-cat="content">
+      <td>12</td>
+      <td><strong>썸네일 텍스트 A/B 후보 생성</strong></td>
+      <td>영상 제목 입력 → Agent가 클릭률 높은 썸네일 문구 5개 + 근거 자동 생성</td>
+      <td><span class="lv lv2">Lv.2</span></td>
+      <td><span class="st st-soon">🟡 3개월 후</span></td>
+      <td><span class="cat">콘텐츠</span></td>
+      <td>Claude · Webhook</td>
+      <td class="fx">썸네일 기획 시간 절감</td>
+    </tr>
+
+    <tr data-status="later" data-cat="content agent">
+      <td>13</td>
+      <td><strong>멀티 Agent 스크립트 검토</strong></td>
+      <td>기획 Agent → 비판 Agent → 수정 Agent → 최종 스크립트 Agent 체인</td>
+      <td><span class="lv lv-agent">Agent</span></td>
+      <td><span class="st st-later">🔵 6개월 후</span></td>
+      <td><span class="cat">콘텐츠</span> <span class="cat">Agent</span></td>
+      <td>AI Agent Chain · Claude</td>
+      <td class="fx">스크립트 퀄리티 자동 검증</td>
+    </tr>
+
+    <tr data-status="later" data-cat="content agent">
+      <td>14</td>
+      <td><strong>월간 콘텐츠 캘린더 자동 생성</strong></td>
+      <td>월초 실행 → 트렌드·시즌·경쟁 채널 종합 → 한 달치 주제·일정 Notion 캘린더 등록</td>
+      <td><span class="lv lv-agent">Agent</span></td>
+      <td><span class="st st-later">🔵 6개월 후</span></td>
+      <td><span class="cat">콘텐츠</span> <span class="cat">Agent</span></td>
+      <td>Schedule · Claude · Notion Calendar</td>
+      <td class="fx">한 달 기획 1회 자동 완성</td>
+    </tr>
+
+    <tr data-status="later" data-cat="content agent">
+      <td>15</td>
+      <td><strong>주제 추천 Agent (트렌드 연동)</strong></td>
+      <td>아웃라이어 데이터 → Agent가 이번 주 추천 주제 3개 + 제목·핵심메시지 자동 생성</td>
+      <td><span class="lv lv-agent">Agent</span></td>
+      <td><span class="st st-later">🔵 6개월 후</span></td>
+      <td><span class="cat">트렌드</span> <span class="cat">Agent</span></td>
+      <td>Supabase · Claude Agent · Notion</td>
+      <td class="fx">데이터 기반 주제 선정 자동화</td>
+    </tr>
+
+    <!-- 배포·발행 -->
+    <tr class="cat-row"><td colspan="8">📡 배포 & 발행 자동화</td></tr>
+
+    <tr data-status="soon" data-cat="deploy">
+      <td>16</td>
+      <td><strong>블로그 자동 발행</strong></td>
+      <td>완성 스크립트 → 블로그용 재구성 → 네이버·티스토리 자동 발행</td>
+      <td><span class="lv lv1">Lv.1</span></td>
+      <td><span class="st st-soon">🟡 3개월 후</span></td>
+      <td><span class="cat">배포</span></td>
+      <td>Claude · Tistory API · Naver API</td>
+      <td class="fx">영상 1편 → 블로그 1편 자동 변환</td>
+    </tr>
+
+    <tr data-status="soon" data-cat="deploy">
+      <td>17</td>
+      <td><strong>SNS 캡션·해시태그 자동 생성 + 예약</strong></td>
+      <td>영상 정보 입력 → 플랫폼별 캡션·해시태그 생성 → Buffer/Later 예약 발행</td>
+      <td><span class="lv lv1">Lv.1</span></td>
+      <td><span class="st st-soon">🟡 3개월 후</span></td>
+      <td><span class="cat">배포</span></td>
+      <td>Claude · Buffer API</td>
+      <td class="fx">SNS 발행 시간 90% 단축</td>
+    </tr>
+
+    <tr data-status="soon" data-cat="deploy">
+      <td>18</td>
+      <td><strong>SEO 자동 최적화 검수</strong></td>
+      <td>블로그 발행 전 Agent가 제목·소제목·키워드 밀도 체크 → 수정 제안</td>
+      <td><span class="lv lv2">Lv.2</span></td>
+      <td><span class="st st-soon">🟡 3개월 후</span></td>
+      <td><span class="cat">배포</span></td>
+      <td>Claude · Webhook</td>
+      <td class="fx">블로그 검색 노출 향상</td>
+    </tr>
+
+    <tr data-status="later" data-cat="deploy">
+      <td>19</td>
+      <td><strong>원소스 멀티유즈 풀 파이프라인</strong></td>
+      <td>스크립트 완성 → 유튜브 설명·쇼츠 컷포인트·릴스 캡션·블로그·인스타툰 소재 동시 생성 → 전 플랫폼 예약 발행</td>
+      <td><span class="lv lv3">Lv.3</span></td>
+      <td><span class="st st-later">🔵 6개월 후</span></td>
+      <td><span class="cat">배포</span></td>
+      <td>Claude · n8n 전체 · 멀티 API</td>
+      <td class="fx">콘텐츠 1개 → 6개 플랫폼 동시 발행</td>
+    </tr>
+
+    <tr data-status="later" data-cat="deploy">
+      <td>20</td>
+      <td><strong>썸네일 A/B 자동 교체</strong></td>
+      <td>썸네일 2개 등록 → 48시간 후 클릭률 비교 → 낮은 쪽 자동 교체</td>
+      <td><span class="lv lv3">Lv.3</span></td>
+      <td><span class="st st-later">🔵 6개월 후</span></td>
+      <td><span class="cat">배포</span></td>
+      <td>YouTube API · Schedule · IF 노드</td>
+      <td class="fx">클릭률 자동 최적화</td>
+    </tr>
+
+    <!-- 운영·관리 -->
+    <tr class="cat-row"><td colspan="8">⚙️ 운영 관리 & 수익 트래킹</td></tr>
+
+    <tr data-status="soon" data-cat="ops">
+      <td>21</td>
+      <td><strong>유튜브 성과 자동 분석 리포트</strong></td>
+      <td>매주 유튜브 Studio API → 조회수·클릭률·시청지속률 수집 → Claude 패턴 분석 → Notion 저장</td>
+      <td><span class="lv lv2">Lv.2</span></td>
+      <td><span class="st st-soon">🟡 3개월 후</span></td>
+      <td><span class="cat">운영</span></td>
+      <td>YouTube Analytics · Claude · Notion</td>
+      <td class="fx">채널 성과 데이터 자동 축적</td>
+    </tr>
+
+    <tr data-status="soon" data-cat="ops">
+      <td>22</td>
+      <td><strong>크레딧·툴 비용 모니터링</strong></td>
+      <td>Freepik·Kling 등 크레딧 잔량 주기 체크 → 소진 임박 시 카카오톡·슬랙 알림</td>
+      <td><span class="lv lv1">Lv.1</span></td>
+      <td><span class="st st-soon">🟡 3개월 후</span></td>
+      <td><span class="cat">운영</span></td>
+      <td>HTTP · Schedule · Slack</td>
+      <td class="fx">크레딧 소진 사고 방지</td>
+    </tr>
+
+    <tr data-status="later" data-cat="ops">
+      <td>23</td>
+      <td><strong>댓글 감성 분석 → 기획 반영</strong></td>
+      <td>유튜브·인스타 댓글 주기 수집 → Claude 감성 분석 → 후속 주제·불만 포인트 추출 → 기획 자동 반영</td>
+      <td><span class="lv lv3">Lv.3</span></td>
+      <td><span class="st st-later">🔵 6개월 후</span></td>
+      <td><span class="cat">운영</span></td>
+      <td>YouTube API · Claude · Notion</td>
+      <td class="fx">시청자 니즈 기반 콘텐츠 개선</td>
+    </tr>
+
+    <tr data-status="later" data-cat="ops">
+      <td>24</td>
+      <td><strong>수익 통합 대시보드 자동 업데이트</strong></td>
+      <td>유튜브 광고·애드센스·쿠팡파트너스 수익 매일 자동 수집 → 합산 → ROI 자동 계산</td>
+      <td><span class="lv lv3">Lv.3</span></td>
+      <td><span class="st st-later">🔵 6개월 후</span></td>
+      <td><span class="cat">운영</span></td>
+      <td>멀티 API · Google Sheets · Claude</td>
+      <td class="fx">수익 현황 실시간 파악</td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+
+<p class="note">
+  ※ Lv.1 = n8n 기초 수준 · Lv.2 = API 연동·조건 분기 가능 수준 · Lv.3 = 복합 워크플로우 · Agent = AI Agent 노드 활용<br>
+  ※ "다음 스텝" 4개는 현재 완료된 채널 vs avg 워크플로우에서 바로 확장 가능<br>
+  ※ 도입 시점은 n8n 학습 진행도와 채널 운영 데이터 축적 상황에 따라 조정
+</p>
+
+<script>
+  function filter(type) {
+    // 버튼 active 처리
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const rows = document.querySelectorAll('#mainTable tbody tr:not(.cat-row)');
+    rows.forEach(row => {
+      const status = row.dataset.status || '';
+      const cat = row.dataset.cat || '';
+
+      let show = false;
+      if (type === 'all') show = true;
+      else if (type === 'done' && status === 'done') show = true;
+      else if (type === 'next' && status === 'next') show = true;
+      else if (type === 'soon' && status === 'soon') show = true;
+      else if (type === 'later' && status === 'later') show = true;
+      else if (type === 'trend' && cat.includes('trend')) show = true;
+      else if (type === 'content' && cat.includes('content')) show = true;
+      else if (type === 'deploy' && cat.includes('deploy')) show = true;
+      else if (type === 'ops' && cat.includes('ops')) show = true;
+      else if (type === 'agent' && cat.includes('agent')) show = true;
+
+      row.classList.toggle('hidden', !show);
+    });
+
+    // 카테고리 행 표시 여부
+    document.querySelectorAll('.cat-row').forEach(catRow => {
+      let next = catRow.nextElementSibling;
+      let hasVisible = false;
+      while (next && !next.classList.contains('cat-row')) {
+        if (!next.classList.contains('hidden')) hasVisible = true;
+        next = next.nextElementSibling;
+      }
+      catRow.classList.toggle('hidden', !hasVisible);
+    });
+  }
+</script>
+
+</body>
+</html>

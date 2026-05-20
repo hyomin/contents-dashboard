@@ -3,107 +3,19 @@
 import { useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useTheme } from '@/lib/theme'
-
-interface TreeItem {
-  id: string
-  label: string
-  icon: string
-  children?: TreeItem[]
-  badge?: number | string
-  badgeColor?: string
-}
-
-const NAV_TREE: TreeItem[] = [
-  {
-    id: 'overview',
-    label: '전체 개요',
-    icon: '🏠',
-  },
-  {
-    id: 'analysis',
-    label: '콘텐츠 분석',
-    icon: '📊',
-    children: [
-      {
-        id: 'youtube',
-        label: 'YouTube',
-        icon: '🔴',
-        badge: 7,
-        children: [
-          { id: 'youtube-shorts', label: 'Shorts', icon: '⚡' },
-          { id: 'youtube-longform', label: '롱폼', icon: '🎬' },
-        ],
-      },
-      {
-        id: 'instagram',
-        label: 'Instagram',
-        icon: '💗',
-        badge: 1,
-        children: [
-          { id: 'instagram-reels', label: 'Reels', icon: '🎵' },
-          { id: 'instagram-carousel', label: '캐러셀', icon: '🖼️' },
-        ],
-      },
-      { id: 'naver-blog', label: '네이버 블로그', icon: '🟢', badge: 1 },
-      { id: 'tistory',    label: '티스토리',     icon: '🟠', badge: 1 },
-    ],
-  },
-  {
-    id: 'insights',
-    label: '기획 / 인사이트',
-    icon: '💡',
-    children: [
-      { id: 'trending',      label: '트렌딩 키워드',  icon: '🔥' },
-      { id: 'outlier',       label: 'Outlier 분석',   icon: '🚀' },
-      { id: 'ai-insight',    label: 'AI 인사이트',    icon: '🤖' },
-      { id: 'benchmark',     label: '채널·콘텐츠 등록', icon: '📝', badge: 5, badgeColor: 'bg-yellow-100 text-yellow-700' },
-      { id: 'topic-suggest', label: '주제 선별 AI',   icon: '🎯', badge: 'NEW', badgeColor: 'bg-green-100 text-green-700' },
-    ],
-  },
-  {
-    id: 'channels',
-    label: '채널 관리',
-    icon: '📡',
-    children: [
-      { id: 'channels-competitor', label: '경쟁 채널 목록', icon: '🏢' },
-      { id: 'channels-mine',       label: '내 채널',         icon: '📺' },
-    ],
-  },
-  {
-    id: 'calendar',
-    label: '콘텐츠 캘린더',
-    icon: '🗓️',
-    badge: '3건',
-    badgeColor: 'bg-blue-100 text-blue-700',
-  },
-  {
-    id: 'pipeline',
-    label: '파이프라인',
-    icon: '⚙️',
-    children: [
-      { id: 'repurpose',     label: 'Repurposing',  icon: '🔄' },
-      { id: 'deploy',        label: '배포 자동화',   icon: '📤' },
-      { id: 'data-collect',  label: '데이터 수집',   icon: '🤖', badge: '●', badgeColor: 'bg-green-100 text-green-600' },
-      { id: 'automation',    label: 'n8n 자동화',    icon: '🔧', badge: 'NEW', badgeColor: 'bg-purple-100 text-purple-700' },
-    ],
-  },
-  {
-    id: 'revenue',
-    label: '수익 추적',
-    icon: '💰',
-  },
-]
+import { NAV_TREE, getNavDataBadge, type DashboardNavItem } from '@/lib/dashboard-nav'
 
 function TreeNode({
   item, depth = 0, activeId, onSelect,
 }: {
-  item: TreeItem; depth?: number; activeId: string; onSelect: (id: string) => void
+  item: DashboardNavItem; depth?: number; activeId: string; onSelect: (id: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(
-    depth === 0 || ['analysis', 'insights', 'pipeline'].includes(item.id)
+    depth === 0 || ['n8n', 'create', 'analysis', 'insights', 'pipeline', 'my-channels'].includes(item.id)
   )
   const hasChildren = !!item.children?.length
   const isActive = activeId === item.id
+  const dataBadge = getNavDataBadge(item.id)
 
   return (
     <div>
@@ -122,7 +34,31 @@ function TreeNode({
           }`}
       >
         <span className="text-base leading-none shrink-0">{item.icon}</span>
-        <span className="flex-1 text-left truncate">{item.label}</span>
+        <span className="flex-1 text-left min-w-0">
+          <span className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
+            <span className="truncate">{item.label}</span>
+            {dataBadge === 'dummy' && (
+              <span
+                className={`shrink-0 text-[10px] font-semibold tracking-tight ${
+                  isActive
+                    ? 'text-amber-100'
+                    : 'text-amber-700 dark:text-amber-400'
+                }`}
+              >
+                (더미)
+              </span>
+            )}
+            {dataBadge === 'partial' && (
+              <span
+                className={`shrink-0 text-[10px] font-medium tracking-tight ${
+                  isActive ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                (일부 더미)
+              </span>
+            )}
+          </span>
+        </span>
         {item.badge !== undefined && !isActive && (
           <span className={`text-xs px-1.5 py-0.5 rounded-full ${item.badgeColor ?? 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'}`}>
             {item.badge}
@@ -190,12 +126,14 @@ function ThemeToggle({ onSelect, activeId }: { onSelect: (id: string) => void; a
   const { theme, setTheme } = useTheme()
 
   const cycle = () => {
-    const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
+    const order = ['light', 'soft', 'dark', 'system'] as const
+    const idx = order.indexOf(theme as (typeof order)[number])
+    const next = order[(idx + 1) % order.length]
     setTheme(next)
   }
 
-  const icons: Record<string, string> = { light: '☀️', dark: '🌙', system: '💻' }
-  const labels: Record<string, string> = { light: 'Light', dark: 'Dark', system: 'System' }
+  const icons: Record<string, string> = { light: '☀️', soft: '🌤️', dark: '🌙', system: '💻' }
+  const labels: Record<string, string> = { light: 'Light', soft: 'Soft', dark: 'Dark', system: 'System' }
 
   return (
     <div className="flex items-center gap-2">

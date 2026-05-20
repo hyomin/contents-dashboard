@@ -1,59 +1,14 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { AddToast } from '@/lib/dashboard-types'
-
-interface RepurposeItem {
-  id: number
-  sourceTitle: string
-  sourcePlatform: 'youtube'
-  sourceVsAvg: number
-  tasks: {
-    platform: string
-    label: string
-    icon: string
-    status: 'done' | 'progress' | 'pending'
-    notes: string
-  }[]
-}
-
-const REPURPOSE_LIST: RepurposeItem[] = [
-  {
-    id: 1,
-    sourceTitle: '금리 인상 시대의 재테크 전략',
-    sourcePlatform: 'youtube',
-    sourceVsAvg: 6.1,
-    tasks: [
-      { platform: 'youtube-shorts', label: 'YouTube Shorts 컷편집', icon: '🎬', status: 'done',     notes: '핵심 1분 요약본 업로드 완료' },
-      { platform: 'instagram',      label: 'Instagram 카드뉴스',    icon: '💗', status: 'progress', notes: '5장 디자인 작업 중' },
-      { platform: 'naver-blog',     label: '네이버 블로그 포스팅',  icon: '🟢', status: 'pending',  notes: '스크립트 기반 글 작성 예정' },
-      { platform: 'tistory',        label: '티스토리 SEO 포스팅',   icon: '🟠', status: 'pending',  notes: '키워드 최적화 후 포스팅 예정' },
-    ],
-  },
-  {
-    id: 2,
-    sourceTitle: '경제 뉴스 분석 - 2024년 전망',
-    sourcePlatform: 'youtube',
-    sourceVsAvg: 5.2,
-    tasks: [
-      { platform: 'youtube-shorts', label: 'YouTube Shorts 컷편집', icon: '🎬', status: 'done',     notes: '30초 요약 Shorts 게시 완료' },
-      { platform: 'instagram',      label: 'Instagram 릴스',        icon: '💗', status: 'done',     notes: '릴스 포맷 재편집 완료' },
-      { platform: 'naver-blog',     label: '네이버 블로그 포스팅',  icon: '🟢', status: 'progress', notes: '키워드 삽입 중' },
-      { platform: 'tistory',        label: '티스토리 SEO 포스팅',   icon: '🟠', status: 'pending',  notes: '미착수' },
-    ],
-  },
-  {
-    id: 3,
-    sourceTitle: '노후 대비 연금 완벽 정리',
-    sourcePlatform: 'youtube',
-    sourceVsAvg: 3.5,
-    tasks: [
-      { platform: 'youtube-shorts', label: 'YouTube Shorts 컷편집', icon: '🎬', status: 'pending',  notes: '미착수' },
-      { platform: 'instagram',      label: 'Instagram 카드뉴스',    icon: '💗', status: 'pending',  notes: '미착수' },
-      { platform: 'naver-blog',     label: '네이버 블로그 포스팅',  icon: '🟢', status: 'pending',  notes: '미착수' },
-      { platform: 'tistory',        label: '티스토리 SEO 포스팅',   icon: '🟠', status: 'pending',  notes: '미착수' },
-    ],
-  },
-]
+import {
+  fetchRepurposeItems,
+  saveRepurposeItems,
+  seedRepurposeFromOutliers,
+  type RepurposeItemStored,
+} from '@/lib/dashboard-storage'
+import { useWorkspaceSeed } from '@/components/dashboard/hooks/use-workspace-seed'
+import { TitleWithHint } from '@/components/dashboard/info-hint'
 
 const STATUS_STYLE = {
   done:     { label: '완료',    bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500' },
@@ -62,14 +17,30 @@ const STATUS_STYLE = {
 }
 
 export default function RepurposeView({ addToast }: { addToast: AddToast }) {
-  const [items, setItems] = useState(REPURPOSE_LIST)
-  const [expanded, setExpanded] = useState<number[]>([1])
+  const seeded = useWorkspaceSeed()
+  const [items, setItems] = useState<RepurposeItemStored[]>([])
+  const [expanded, setExpanded] = useState<string[]>([])
 
-  const toggleExpand = (id: number) =>
+  useEffect(() => {
+    if (!seeded) return
+    fetchRepurposeItems()
+      .then((list) => {
+        setItems(list)
+        if (list[0]) setExpanded([list[0].id])
+      })
+      .catch(() => addToast('Repurpose 로드 실패', 'warning'))
+  }, [seeded, addToast])
+
+  const persist = (next: RepurposeItemStored[]) => {
+    setItems(next)
+    saveRepurposeItems(next).catch(() => addToast('저장 실패', 'warning'))
+  }
+
+  const toggleExpand = (id: string) =>
     setExpanded(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
 
-  const updateStatus = (itemId: number, taskPlatform: string, newStatus: 'done' | 'progress' | 'pending') => {
-    setItems(prev => prev.map(item =>
+  const updateStatus = (itemId: string, taskPlatform: string, newStatus: 'done' | 'progress' | 'pending') => {
+    persist(items.map(item =>
       item.id === itemId
         ? { ...item, tasks: item.tasks.map(t => t.platform === taskPlatform ? { ...t, status: newStatus } : t) }
         : item
@@ -86,8 +57,14 @@ export default function RepurposeView({ addToast }: { addToast: AddToast }) {
     <div className="space-y-6">
       {/* 상단 배너 */}
       <div className="bg-gradient-to-r from-violet-600 to-purple-600 rounded-2xl p-6 text-white">
-        <h2 className="text-lg font-bold mb-1">🔄 Repurposing 현황</h2>
-        <p className="text-sm opacity-80">Outlier 콘텐츠를 멀티 플랫폼으로 재가공하는 OSMU 전략</p>
+        <TitleWithHint
+          as="h2"
+          className="text-lg font-bold"
+          hintVariant="light"
+          hint="vs.Avg 2.0x 이상 Outlier 영상을 멀티 플랫폼으로 재가공하는 OSMU 작업 목록입니다. 진행 상태는 Supabase에 저장됩니다."
+        >
+          🔄 Repurposing 현황
+        </TitleWithHint>
       </div>
 
       {/* KPI */}
@@ -184,7 +161,22 @@ export default function RepurposeView({ addToast }: { addToast: AddToast }) {
         })}
       </div>
 
-      <button onClick={() => addToast('새 Repurposing 항목이 추가되었습니다', 'success')} className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl text-sm text-gray-400 hover:border-blue-300 hover:text-blue-500 transition">
+      <button
+        type="button"
+        onClick={async () => {
+          const res = await fetch('/api/dashboard/workspace-seed')
+          const data = await res.json()
+          const seededItems = seedRepurposeFromOutliers(data.outliers ?? [])
+          if (seededItems.length === 0) {
+            addToast('추가할 Outlier가 없습니다', 'warning')
+            return
+          }
+          const first = seededItems[0]
+          persist([first, ...items.filter((i) => i.id !== first.id)])
+          addToast('Outlier 콘텐츠를 Repurposing 목록에 추가했습니다', 'success')
+        }}
+        className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl text-sm text-gray-400 hover:border-blue-300 hover:text-blue-500 transition"
+      >
         + Outlier 콘텐츠 추가
       </button>
     </div>

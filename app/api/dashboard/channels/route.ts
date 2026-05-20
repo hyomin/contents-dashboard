@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { channel_id, channel_name, platform } = body
+  const { channel_id, channel_name, platform, category_id } = body
   if (!channel_id || !channel_name) {
     return NextResponse.json({ error: 'channel_id, channel_name required' }, { status: 400 })
   }
@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
       channel_id,
       channel_name,
       platform: platform ?? 'youtube',
+      category_id: category_id ?? null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'channel_id' })
     .select()
@@ -39,4 +40,41 @@ export async function DELETE(request: NextRequest) {
   const { error } = await supabaseAdmin.from('channels').delete().eq('channel_id', channel_id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
+}
+
+export async function PATCH(request: NextRequest) {
+  const body = await request.json()
+  const { channel_id, category_id, channel_name, platform } = body
+  if (!channel_id) {
+    return NextResponse.json({ error: 'channel_id required' }, { status: 400 })
+  }
+
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (category_id !== undefined) patch.category_id = category_id || null
+  if (channel_name !== undefined) {
+    const trimmed = String(channel_name).trim()
+    if (!trimmed) {
+      return NextResponse.json({ error: 'channel_name cannot be empty' }, { status: 400 })
+    }
+    patch.channel_name = trimmed
+  }
+  if (platform !== undefined) patch.platform = platform
+
+  const { data, error } = await supabaseAdmin
+    .from('channels')
+    .update(patch)
+    .eq('channel_id', channel_id)
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (patch.channel_name) {
+    await supabaseAdmin
+      .from('videos')
+      .update({ channel_name: patch.channel_name })
+      .eq('channel_id', channel_id)
+  }
+
+  return NextResponse.json(data)
 }

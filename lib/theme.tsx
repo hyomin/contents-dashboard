@@ -2,11 +2,12 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 
-type Theme = 'light' | 'dark' | 'system'
+export type Theme = 'light' | 'soft' | 'dark' | 'system'
+export type ResolvedTheme = 'light' | 'soft' | 'dark'
 
 interface ThemeCtx {
   theme: Theme
-  resolvedTheme: 'light' | 'dark'
+  resolvedTheme: ResolvedTheme
   setTheme: (t: Theme) => void
 }
 
@@ -20,30 +21,44 @@ export function useTheme() {
   return useContext(ThemeContext)
 }
 
+function getSystemDark() {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
+function applyThemeClasses(t: Theme): ResolvedTheme {
+  const root = document.documentElement
+  root.classList.remove('dark', 'soft')
+
+  if (t === 'light') return 'light'
+  if (t === 'soft') {
+    root.classList.add('dark', 'soft')
+    return 'soft'
+  }
+  if (t === 'dark') {
+    root.classList.add('dark')
+    return 'dark'
+  }
+  if (getSystemDark()) {
+    root.classList.add('dark')
+    return 'dark'
+  }
+  return 'light'
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('system')
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light')
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light')
 
-  // 시스템 다크 여부 감지
-  const getSystemDark = () =>
-    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
-
-  const applyTheme = (t: Theme) => {
-    const isDark = t === 'dark' || (t === 'system' && getSystemDark())
-    document.documentElement.classList.toggle('dark', isDark)
-    setResolvedTheme(isDark ? 'dark' : 'light')
-  }
-
-  // 초기 로드
   useEffect(() => {
     const saved = (localStorage.getItem('theme') as Theme) ?? 'system'
     setThemeState(saved)
-    applyTheme(saved)
+    setResolvedTheme(applyThemeClasses(saved))
 
-    // 시스템 설정 변경 감지
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const handler = () => {
-      if ((localStorage.getItem('theme') ?? 'system') === 'system') applyTheme('system')
+      if ((localStorage.getItem('theme') ?? 'system') === 'system') {
+        setResolvedTheme(applyThemeClasses('system'))
+      }
     }
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
@@ -52,7 +67,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = (t: Theme) => {
     localStorage.setItem('theme', t)
     setThemeState(t)
-    applyTheme(t)
+    setResolvedTheme(applyThemeClasses(t))
   }
 
   return (
@@ -60,4 +75,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       {children}
     </ThemeContext.Provider>
   )
+}
+
+export const RESOLVED_THEME_LABELS: Record<ResolvedTheme, string> = {
+  light: 'Light',
+  soft: 'Soft (회색)',
+  dark: 'Dark',
 }

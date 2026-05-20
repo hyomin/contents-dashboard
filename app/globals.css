@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* class 기반 dark 모드 (html 태그에 .dark 클래스를 붙임) */
+/* class 기반 dark 모드 (html 태그에 .dark 클래스) */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -11,6 +11,30 @@
 .dark {
   --background: #0a0a0a;
   --foreground: #ededed;
+  color-scheme: dark;
+}
+
+/* 다크보다 밝은 회색 톤 — dark: 유틸은 그대로, gray 팔레트만 완화 */
+.soft {
+  --background: #363b44;
+  --foreground: #e8eaed;
+  color-scheme: dark;
+}
+
+@layer theme {
+  .soft {
+    --color-gray-950: #2e333a;
+    --color-gray-900: #363b44;
+    --color-gray-800: #424852;
+    --color-gray-700: #4e545e;
+    --color-gray-600: #5d6470;
+    --color-gray-500: #727983;
+    --color-gray-400: #939aa6;
+    --color-gray-300: #b0b6c0;
+    --color-gray-200: #cdd1d8;
+    --color-gray-100: #e2e5ea;
+    --color-gray-50: #eef0f3;
+  }
 }
 
 @theme inline {

@@ -1,32 +1,20 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { AddToast } from '@/lib/dashboard-types'
-
-interface DeployTask {
-  id: number
-  title: string
-  platform: string
-  icon: string
-  scheduledAt: string
-  status: 'scheduled' | 'published' | 'failed' | 'draft'
-  channel: string
-  auto: boolean
-}
-
-const DEPLOY_TASKS: DeployTask[] = [
-  { id: 1, title: '금리 인상 시대의 재테크 전략',   platform: 'youtube',    icon: '🔴', scheduledAt: '오늘 오후 6:00',  status: 'scheduled', channel: '내 유튜브', auto: true },
-  { id: 2, title: '부동산 투자 완벽 가이드 (블로그)',platform: 'naver-blog', icon: '🟢', scheduledAt: '내일 오전 9:00',  status: 'scheduled', channel: '내 블로그', auto: true },
-  { id: 3, title: '주식 투자 인스타 카드뉴스',       platform: 'instagram',  icon: '💗', scheduledAt: '내일 오전 11:00', status: 'draft',     channel: '내 인스타', auto: false },
-  { id: 4, title: '경제 뉴스 Shorts',               platform: 'youtube',    icon: '🔴', scheduledAt: '2일 후 오후 7:00', status: 'scheduled', channel: '내 유튜브', auto: true },
-  { id: 5, title: '재테크 티스토리 포스팅',           platform: 'tistory',    icon: '🟠', scheduledAt: '어제 오전 10:00', status: 'published', channel: '내 티스토리', auto: false },
-  { id: 6, title: '연금 분석 영상 Shorts',           platform: 'youtube',    icon: '🔴', scheduledAt: '어제 오후 5:00',  status: 'failed',    channel: '내 유튜브', auto: true },
-]
+import {
+  fetchDeployTasks,
+  saveDeployTasks,
+  type DeployTaskStored,
+} from '@/lib/dashboard-storage'
+import { useWorkspaceSeed } from '@/components/dashboard/hooks/use-workspace-seed'
+import { TitleWithHint } from '@/components/dashboard/info-hint'
 
 const WEBHOOKS = [
-  { id: 1, name: 'n8n → YouTube 업로드',    status: 'active',   lastRun: '2시간 전',  icon: '🔴', runs: 42 },
-  { id: 2, name: 'n8n → Naver Blog 포스팅', status: 'active',   lastRun: '1일 전',    icon: '🟢', runs: 18 },
-  { id: 3, name: 'n8n → Instagram 게시',    status: 'inactive', lastRun: '미연동',    icon: '💗', runs: 0 },
-  { id: 4, name: 'n8n → Tistory 포스팅',    status: 'inactive', lastRun: '미연동',    icon: '🟠', runs: 0 },
+  { id: 1, name: 'n8n → YouTube 수집', status: 'active', lastRun: 'youtube-collect', icon: '🔴', runs: '—' },
+  { id: 2, name: 'n8n → 아웃라이어 태깅', status: 'active', lastRun: 'outlier-tagging', icon: '🚀', runs: '—' },
+  { id: 5, name: 'n8n → 주제 선별 AI', status: 'inactive', lastRun: '재임포트 대기', icon: '🎯', runs: 0 },
+  { id: 3, name: 'n8n → Instagram 게시', status: 'inactive', lastRun: '미연동', icon: '💗', runs: 0 },
+  { id: 4, name: 'n8n → Tistory 포스팅', status: 'inactive', lastRun: '미연동', icon: '🟠', runs: 0 },
 ]
 
 const STATUS_STYLE = {
@@ -37,26 +25,39 @@ const STATUS_STYLE = {
 }
 
 export default function DeployView({ addToast }: { addToast: AddToast }) {
-  const [tasks, setTasks] = useState(DEPLOY_TASKS)
-  const [deploying, setDeploying] = useState<number | null>(null)
+  const seeded = useWorkspaceSeed()
+  const [tasks, setTasks] = useState<DeployTaskStored[]>([])
+  const [deploying, setDeploying] = useState<string | null>(null)
 
-  const retryFailed = (id: number) => {
+  useEffect(() => {
+    if (!seeded) return
+    fetchDeployTasks()
+      .then(setTasks)
+      .catch(() => addToast('배포 목록 로드 실패', 'warning'))
+  }, [seeded, addToast])
+
+  const persist = (next: DeployTaskStored[]) => {
+    setTasks(next)
+    saveDeployTasks(next).catch(() => addToast('저장 실패', 'warning'))
+  }
+
+  const retryFailed = (id: string) => {
     setDeploying(id)
     addToast('재시도 중...', 'info')
     setTimeout(() => {
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'published' } : t))
+      persist(tasks.map(t => t.id === id ? { ...t, status: 'published' as const } : t))
       setDeploying(null)
       addToast('배포 성공! 게시 완료', 'success')
     }, 1800)
   }
 
-  const publishDraft = (id: number) => {
+  const publishDraft = (id: string) => {
     setDeploying(id)
     addToast('배포 중...', 'info')
     setTimeout(() => {
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'scheduled' } : t))
+      persist(tasks.map(t => t.id === id ? { ...t, status: 'scheduled' as const } : t))
       setDeploying(null)
-      addToast('예약 배포가 등록되었습니다 ✅', 'success')
+      addToast('예약 배포가 등록되었습니다', 'success')
     }, 1500)
   }
 
@@ -67,8 +68,14 @@ export default function DeployView({ addToast }: { addToast: AddToast }) {
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-teal-600 to-cyan-600 rounded-2xl p-6 text-white">
-        <h2 className="text-lg font-bold mb-1">📤 배포 자동화</h2>
-        <p className="text-sm opacity-80">n8n 기반 멀티채널 자동 배포 현황</p>
+        <TitleWithHint
+          as="h2"
+          className="text-lg font-bold"
+          hintVariant="light"
+          hint="n8n 웹훅·예약 배포 스케줄을 관리합니다. Outlier 기반 초안이 비어 있으면 워크스페이스 시드 API로 채울 수 있습니다."
+        >
+          📤 배포 자동화
+        </TitleWithHint>
       </div>
 
       {/* KPI */}
@@ -97,7 +104,7 @@ export default function DeployView({ addToast }: { addToast: AddToast }) {
               <span className="text-xl">{wh.icon}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">{wh.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">마지막 실행: {wh.lastRun} · 총 {wh.runs}회</p>
+                <p className="text-xs text-gray-400 mt-0.5">마지막 실행: {wh.lastRun} · 실행 {wh.runs}회</p>
               </div>
               <span className={`px-2.5 py-1 text-xs rounded-full font-medium ${wh.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
                 {wh.status === 'active' ? '● 활성' : '○ 비활성'}
@@ -114,7 +121,9 @@ export default function DeployView({ addToast }: { addToast: AddToast }) {
           <button onClick={() => addToast('새 배포 일정을 추가합니다', 'info')} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">+ 배포 추가</button>
         </div>
         <div className="divide-y divide-gray-100 dark:divide-gray-700">
-          {tasks.map(task => {
+          {tasks.length === 0 ? (
+            <p className="p-8 text-center text-sm text-gray-500">Outlier 기반 배포 초안이 없습니다. 워크스페이스 시드 후 표시됩니다.</p>
+          ) : tasks.map(task => {
             const s = STATUS_STYLE[task.status]
             const isDeploying = deploying === task.id
             return (

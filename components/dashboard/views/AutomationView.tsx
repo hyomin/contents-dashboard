@@ -1,100 +1,327 @@
 'use client'
-import { useState } from 'react'
-import type { AddToast } from '@/lib/dashboard-types'
 
-const WORKFLOWS = [
-  { name: 'YouTube 채널 데이터 수집', desc: '5개 채널 · 6시간 주기', status: 'active', file: 'N8N_YOUTUBE_COLLECT.json' },
-  { name: '주제 선별 AI', desc: 'Webhook · OpenAI 연동', status: 'active', file: 'N8N_TOPIC_SUGGEST.json' },
-]
+import { useState, useEffect, useMemo } from 'react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import type { AddToast } from '@/lib/dashboard-types'
+import {
+  ROADMAP_CATEGORY_TABS,
+  filterRoadmapServicesForWorkflowUi,
+  getServicesByCategory,
+  getWorkflowImplementationMeta,
+  getWorkflowImplementationStatus,
+  isWorkflowRunnable,
+  type RoadmapCategory,
+  type N8nAutomationService,
+} from '@/lib/n8n-research-roadmap'
+import { N8N_LIVE_WORKFLOWS } from '@/lib/n8n-live-workflows'
+import { N8nLiveWorkflowsPanel } from '@/components/dashboard/n8n-live-workflows-panel'
+import { N8nLv1ServicePanel } from '@/components/dashboard/n8n-lv1-service-panel'
+import { TitleWithHint } from '@/components/dashboard/info-hint'
+import { LOCAL_URLS } from '@/lib/n8n-urls'
+
+interface N8nStatusPayload {
+  n8nHealthy: boolean
+  activeWebhookCount: number
+  expectedLiveWebhookCount?: number
+  repoWorkflowCount: number
+  summary: string
+  activeWebhookPaths: string[]
+  urls?: typeof LOCAL_URLS
+  webhooks: {
+    path: string
+    label: string
+    registered: boolean
+    url?: string
+    error?: string
+  }[]
+}
 
 export default function AutomationView({ addToast }: { addToast: AddToast }) {
-  const [tab, setTab] = useState<'embed' | 'status'>('status')
-  const [iframeKey, setIframeKey] = useState(0)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [tab, setTab] = useState<RoadmapCategory>('trend')
+  const [n8nStatus, setN8nStatus] = useState<N8nStatusPayload | null>(null)
+
+  useEffect(() => {
+    fetch('/api/dashboard/n8n-status')
+      .then((r) => r.json())
+      .then(setN8nStatus)
+      .catch(() => setN8nStatus(null))
+  }, [])
+
+  const activeWebhookPaths = useMemo(
+    () => new Set(n8nStatus?.activeWebhookPaths ?? []),
+    [n8nStatus?.activeWebhookPaths],
+  )
+
+  const services = filterRoadmapServicesForWorkflowUi(
+    getServicesByCategory(tab),
+    activeWebhookPaths,
+  )
+  const implementedRaw = services.filter(
+    (s) => getWorkflowImplementationStatus(s, activeWebhookPaths) === 'implemented',
+  )
+  const seenWebhook = new Set<string>()
+  const implemented = implementedRaw.filter((s) => {
+    if (seenWebhook.has(s.webhookPath)) return false
+    seenWebhook.add(s.webhookPath)
+    return true
+  })
+  const partial = services.filter(
+    (s) => getWorkflowImplementationStatus(s, activeWebhookPaths) === 'partial',
+  )
+  const unimplemented = services.filter(
+    (s) => getWorkflowImplementationStatus(s, activeWebhookPaths) === 'unimplemented',
+  )
+
+  const urls = n8nStatus?.urls ?? LOCAL_URLS
 
   return (
-    <div className="space-y-4">
-      {/* 탭 */}
-      <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit">
-        {([['status', '📋 워크플로 현황'], ['embed', '🖥️ n8n 편집기']] as const).map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition ${tab === id ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}>
-            {label}
-          </button>
-        ))}
+    <div className="space-y-6 max-w-4xl">
+      <div className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/30 p-5 space-y-3">
+        <TitleWithHint
+          as="h2"
+          className="text-sm font-bold text-blue-900 dark:text-blue-200"
+          hint="«구현됨»은 n8n Docker에서 Webhook이 실제로 등록된 경우만 표시합니다."
+        >
+          워크플로 실행 · 관리
+        </TitleWithHint>
+
+        <div className="rounded-xl bg-white/70 dark:bg-gray-900/50 border border-blue-100 dark:border-blue-900 px-3 py-2.5 text-xs text-gray-700 dark:text-gray-300 space-y-1">
+          <p className="font-semibold text-gray-900 dark:text-white">로컬 접속 경로</p>
+          <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+            <li>
+              대시보드:{' '}
+              <a href={urls.dashboard} className="text-blue-600 hover:underline font-mono">
+                {urls.dashboard}
+              </a>
+            </li>
+            <li>
+              n8n 편집기(직접):{' '}
+              <a href={urls.n8nDirect} className="text-blue-600 hover:underline font-mono">
+                {urls.n8nDirect}
+              </a>
+            </li>
+            <li>
+              n8n(대시보드 경유):{' '}
+              <a href={urls.n8nViaDashboard} className="text-blue-600 hover:underline font-mono">
+                {urls.n8nViaDashboard}
+              </a>
+              <span className="text-gray-500"> — 끝에 슬래시(/) 붙이면 안 됨</span>
+            </li>
+            <li>
+              Webhook: <span className="font-mono">{urls.webhookBase}/&#123;path&#125;</span>
+            </li>
+          </ul>
+        </div>
+
+        {n8nStatus && (
+          <div
+            className={`rounded-xl px-3 py-2 text-xs ${
+              n8nStatus.n8nHealthy &&
+              n8nStatus.activeWebhookCount >= (n8nStatus.expectedLiveWebhookCount ?? 1)
+                ? 'bg-emerald-100/80 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200'
+                : 'bg-amber-100/80 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200'
+            }`}
+          >
+            <p className="font-semibold">{n8nStatus.summary}</p>
+            <ul className="mt-1.5 space-y-1">
+              {n8nStatus.webhooks.map((w) => (
+                <li key={w.path} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span>{w.registered ? '●' : '○'}</span>
+                  <span className="font-medium">{w.label}</span>
+                  <code className="text-[10px] opacity-80">{w.url ?? `${urls.webhookBase}/${w.path}`}</code>
+                  {!w.registered && w.error && (
+                    <span className="text-[10px] opacity-75">— {w.error.slice(0, 80)}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            const p = new URLSearchParams(searchParams.toString())
+            p.set('view', 'n8n-lv1')
+            router.push(`${pathname}?${p.toString()}`)
+          }}
+          className="px-4 py-2 text-xs font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition"
+        >
+          자동화 로드맵 열기 →
+        </button>
       </div>
 
-      {tab === 'status' && (
-        <div className="space-y-4">
-          {/* 상태 카드 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {WORKFLOWS.map(wf => (
-              <div key={wf.name} className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{wf.name}</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">{wf.desc}</p>
-                  </div>
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${wf.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {wf.status === 'active' ? '● 활성' : '○ 비활성'}
-                  </span>
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => { setTab('embed'); addToast(`${wf.name} 편집기 열기`, 'info') }}
-                    className="flex-1 py-1.5 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-medium transition">
-                    편집기에서 열기
-                  </button>
-                  <button
-                    onClick={() => addToast(`${wf.name} 실행 요청 완료`, 'success')}
-                    className="flex-1 py-1.5 text-xs bg-green-50 text-green-600 hover:bg-green-100 rounded-lg font-medium transition">
-                    ▶ 수동 실행
-                  </button>
-                </div>
-              </div>
+      <N8nLiveWorkflowsPanel workflows={N8N_LIVE_WORKFLOWS} registeredPaths={activeWebhookPaths} />
+
+      <div>
+        <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-2">
+          로드맵별 연동 상태
+        </h3>
+        <p className="text-xs text-gray-500 mb-3">
+          n8n에 아직 없는 항목은 «부분 구현»·«미구현»으로 표시됩니다. 우선순위는 아래 카테고리 탭에서
+          확인하세요.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-full">
+        {ROADMAP_CATEGORY_TABS.map((t) => {
+          const catServices = filterRoadmapServicesForWorkflowUi(
+            getServicesByCategory(t.id),
+            activeWebhookPaths,
+          )
+          const impl = catServices.filter(
+            (s) => getWorkflowImplementationStatus(s, activeWebhookPaths) === 'implemented',
+          ).length
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`flex-1 min-w-[120px] px-3 py-2.5 text-sm font-medium rounded-lg transition text-left sm:text-center ${
+                tab === t.id
+                  ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <span className="block">
+                {t.icon} {t.label}
+              </span>
+              <span className="block text-[10px] font-normal opacity-70 mt-0.5">
+                n8n 활성 {impl} / {catServices.length}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 text-xs -mt-2">
+        <span className="text-gray-500">
+          {ROADMAP_CATEGORY_TABS.find((t) => t.id === tab)?.label} · n8n 구현 {implemented.length} · 부분{' '}
+          {partial.length} · 미구현 {unimplemented.length}
+        </span>
+        {(['implemented', 'partial', 'unimplemented'] as const).map((key) => {
+          const m = getWorkflowImplementationMeta(key)
+          const dot =
+            key === 'implemented'
+              ? 'bg-emerald-500'
+              : key === 'partial'
+                ? 'bg-amber-500'
+                : 'bg-gray-400'
+          return (
+            <span
+              key={key}
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+              title={m.hint}
+            >
+              <span className={`w-2 h-2 rounded-full ${dot}`} />
+              {m.label}
+            </span>
+          )
+        })}
+      </div>
+
+      {services.length === 0 ? (
+        <p className="text-sm text-gray-400 py-8 text-center">이 카테고리에 등록된 워크플로가 없습니다.</p>
+      ) : (
+        <WorkflowGroupedList
+          implemented={implemented}
+          partial={partial}
+          unimplemented={unimplemented}
+          activeWebhookPaths={activeWebhookPaths}
+          addToast={addToast}
+        />
+      )}
+    </div>
+  )
+}
+
+function WorkflowGroupedList({
+  implemented,
+  partial,
+  unimplemented,
+  activeWebhookPaths,
+  addToast,
+}: {
+  implemented: N8nAutomationService[]
+  partial: N8nAutomationService[]
+  unimplemented: N8nAutomationService[]
+  activeWebhookPaths: ReadonlySet<string>
+  addToast: AddToast
+}) {
+  return (
+    <div className="space-y-8">
+      {implemented.length > 0 && (
+        <section>
+          <h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            n8n 구현됨 (Webhook 활성)
+            <span className="text-xs font-normal text-gray-500">({implemented.length}개)</span>
+          </h3>
+          <div className="space-y-4">
+            {implemented.map((service) => (
+              <N8nLv1ServicePanel
+                key={service.id}
+                service={service}
+                addToast={addToast}
+                activeWebhookPaths={activeWebhookPaths}
+                defaultExpanded
+              />
             ))}
           </div>
-
-          {/* 안내 */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-5 border border-blue-100 dark:border-blue-800">
-            <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2 text-sm">💡 n8n 워크플로 추가 방법</h3>
-            <ol className="text-sm text-blue-700 dark:text-blue-400 space-y-1 list-decimal list-inside">
-              <li>"n8n 편집기" 탭으로 이동</li>
-              <li>우측 상단 ⋮ 메뉴 → Import from JSON</li>
-              <li><code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">docs/n8n/</code> 폴더의 JSON 파일 선택</li>
-              <li>Save → Activate</li>
-            </ol>
-          </div>
-        </div>
+        </section>
       )}
 
-      {tab === 'embed' && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-red-400" />
-              <span className="w-3 h-3 rounded-full bg-yellow-400" />
-              <span className="w-3 h-3 rounded-full bg-green-400" />
-              <span className="text-xs text-gray-400 ml-2">localhost:5678  →  /n8n/</span>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setIframeKey(k => k + 1)}
-                className="text-xs px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-300 transition">
-                ↺ 새로고침
-              </button>
-              <a href="http://localhost:5678" target="_blank" rel="noopener noreferrer"
-                className="text-xs px-3 py-1 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition">
-                ↗ 새 탭에서 열기
-              </a>
-            </div>
+      {partial.length > 0 && (
+        <section>
+          <h3 className="text-sm font-bold text-amber-800 dark:text-amber-300 mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            부분 구현 (대시보드 API·더미·n8n 비활성)
+            <span className="text-xs font-normal text-gray-500">({partial.length}개)</span>
+          </h3>
+          <div className="space-y-4">
+            {partial.map((service) => (
+              <N8nLv1ServicePanel
+                key={service.id}
+                service={service}
+                addToast={addToast}
+                activeWebhookPaths={activeWebhookPaths}
+                defaultExpanded={false}
+              />
+            ))}
           </div>
-          <iframe
-            key={iframeKey}
-            src="/n8n/"
-            className="w-full border-0"
-            style={{ height: 'calc(100vh - 280px)', minHeight: '600px' }}
-            title="n8n 워크플로 편집기"
-          />
-        </div>
+        </section>
+      )}
+
+      {unimplemented.length > 0 && (
+        <section>
+          <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-gray-400 border border-gray-300" />
+            미구현 (로드맵)
+            <span className="text-xs font-normal">({unimplemented.length}개)</span>
+          </h3>
+          <div className="space-y-4">
+            {unimplemented.map((service) => (
+              <N8nLv1ServicePanel
+                key={service.id}
+                service={service}
+                addToast={addToast}
+                activeWebhookPaths={activeWebhookPaths}
+                defaultExpanded={false}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {implemented.length === 0 && partial.length === 0 && unimplemented.length > 0 && (
+        <p className="text-sm text-amber-700 dark:text-amber-300 text-center py-4">
+          n8n Webhook이 하나도 활성화되지 않았습니다. 터미널에서{' '}
+          <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">./scripts/n8n-setup.sh</code> 를
+          실행하세요.
+        </p>
       )}
     </div>
   )

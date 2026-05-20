@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# n8n 워크플로 임포트·활성화·웹훅 점검 (dashboard-app 루트에서 실행)
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+ENV_FILE="${ENV_FILE:-.env.local}"
+COMPOSE="docker compose -f docker-compose.n8n.yml"
+N8N_DOCS="$ROOT/docs/n8n/workflows"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "❌ $ENV_FILE 없음. .env.example 을 복사해 주세요."
+  exit 1
+fi
+
+echo "▶ n8n 컨테이너 기동 (환경변수: $ENV_FILE)"
+$COMPOSE --env-file "$ENV_FILE" up -d
+
+echo "▶ n8n 준비 대기…"
+for i in {1..30}; do
+  if curl -sf http://localhost:5678/healthz >/dev/null 2>&1; then
+    echo "   healthz OK"
+    break
+  fi
+  sleep 1
+  if [[ $i -eq 30 ]]; then
+    echo "❌ n8n healthz 타임아웃"
+    exit 1
+  fi
+done
+
+prep_import() {
+  local src="$1"
+  local out="/tmp/n8n-import-$(basename "$src")"
+  python3 - "$src" "$out" <<'PY'
+import json, secrets, string, sys
+from pathlib import Path
+
+def rand_id():
+    return "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+
+src, out = Path(sys.argv[1]), Path(sys.argv[2])
+data = json.loads(src.read_text())
+data["id"] = rand_id()
+data["active"] = False
+out.write_text(json.dumps([data], ensure_ascii=False))
+PY
+  echo "$out"
+}
+
+import_one() {
+  local file="$1"
+  local prepared
+  prepared=$(prep_import "$file")
+  local id name existing
+  id=$(python3 -c "import json; print(json.load(open('$prepared'))[0]['id'])")
+  name=$(python3 -c "import json; print(json.load(open('$prepared'))[0].get('name',''))")
+  docker cp "$prepared" "n8n:/tmp/import.json"
+  existing=$(docker exec n8n n8n list:workflow 2>/dev/null | grep -F "|${name}" | tail -1 | cut -d'|' -f1)
+  if [[ -n "$existing" ]]; then
+    echo "   ↷ 이미 있음: $name ($existing)"
+    id="$existing"
+  else
+    docker exec n8n n8n import:workflow --input=/tmp/import.json
+    echo "   ✓ 임포트: $name ($id)"
+  fi
+  docker exec n8n n8n publish:workflow --id="$id" || true
+  echo "   ✓ 활성화(publish): $id"
+}
+
+echo "▶ 워크플로 임포트·활성화"
+import_one "$N8N_DOCS/N8N_YOUTUBE_COLLECT.json"
+import_one "$N8N_DOCS/N8N_OUTLIER_TAGGING.json"
+# N8N_TOPIC_SUGGEST.json — LangChain 노드 필요, 재임포트 시 주석 해제
+# import_one "$N8N_DOCS/N8N_TOPIC_SUGGEST.json"
+
+echo "▶ n8n 재시작 (웹훅 등록 반영)"
+docker restart n8n >/dev/null
+sleep 6
+curl -sf http://localhost:5678/healthz >/dev/null
+
+echo "▶ 활성 워크플로"
+docker exec n8n n8n list:workflow --active=true 2>/dev/null || docker exec n8n n8n list:workflow
+
+echo "▶ Webhook 프로브"
+for path in youtube-collect outlier-tagging; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:5678/webhook/$path" \
+    -H "Content-Type: application/json" -d '{}' || true)
+  if [[ "$code" == "404" ]]; then
+    echo "   ✗ POST /webhook/$path → $code (워크플로 미활성 또는 경로 불일치)"
+  else
+    echo "   ✓ POST /webhook/$path → HTTP $code"
+  fi
+done
+
+echo ""
+echo "▶ .env.local 에 추가 권장:"
+echo "N8N_WEBHOOK_YOUTUBE_COLLECT=http://localhost:5678/webhook/youtube-collect"
+echo "N8N_WEBHOOK_OUTLIER_TAG=http://localhost:5678/webhook/outlier-tagging"
+echo "# 주제 선별 AI 재연동 시:"
+echo "# N8N_WEBHOOK_URL=http://localhost:5678/webhook/topic-suggest"
+echo "완료."

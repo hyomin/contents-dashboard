@@ -33,15 +33,23 @@ interface DBChannel {
   channel_id: string
   channel_name: string
   platform: string
+  category_id: string | null
   subscribers: number | null
   avg_views: number | null
-  total_videos: number | null
+  video_count: number | null
   updated_at: string
 }
+
+import {
+  ChannelCategoryField,
+  normalizeChannelCategories,
+  type ChannelCategoryOption,
+} from '@/components/dashboard/ChannelCategoryField'
 
 // ─── 헬퍼 ─────────────────────────────────────────────────────
 const PLATFORMS = [
   { value: 'youtube',    label: 'YouTube',      icon: '🔴' },
+  { value: 'tiktok',     label: 'TikTok',       icon: '🎵' },
   { value: 'instagram',  label: 'Instagram',    icon: '💗' },
   { value: 'naver-blog', label: '네이버 블로그', icon: '🟢' },
   { value: 'tistory',    label: '티스토리',      icon: '🟠' },
@@ -52,8 +60,46 @@ function getPlatformIcon(p: string) {
   return PLATFORMS.find(pl => pl.value === p)?.icon ?? '🔗'
 }
 
+const MODAL_BACKDROP =
+  'fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 bg-black/50 overflow-y-auto'
+const MODAL_PANEL =
+  'bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full min-w-0 max-w-2xl sm:max-w-3xl p-6 sm:p-7 max-h-[min(90vh,880px)] overflow-y-auto overflow-x-hidden my-4 sm:my-8'
+
+function PlatformPicker({
+  value,
+  onChange,
+  excludeOther = true,
+}: {
+  value: string
+  onChange: (v: string) => void
+  excludeOther?: boolean
+}) {
+  const items = excludeOther ? PLATFORMS.filter((p) => p.value !== 'other') : PLATFORMS
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 w-full">
+      {items.map((p) => (
+        <button
+          key={p.value}
+          type="button"
+          onClick={() => onChange(p.value)}
+          className={`flex flex-col items-center justify-center gap-1.5 min-h-[4.25rem] px-2 py-2.5 rounded-xl border text-xs sm:text-sm font-medium transition text-center leading-tight
+            ${
+              value === p.value
+                ? 'bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100'
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600'
+            }`}
+        >
+          <span className="text-lg leading-none">{p.icon}</span>
+          <span className="whitespace-normal">{p.label}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function detectPlatform(url: string): BenchmarkItem['platform'] {
   if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube'
+  if (url.includes('tiktok.com')) return 'tiktok'
   if (url.includes('instagram.com')) return 'instagram'
   if (url.includes('blog.naver.com')) return 'naver-blog'
   if (url.includes('tistory.com')) return 'tistory'
@@ -167,8 +213,8 @@ function CategoryManagerModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className={MODAL_BACKDROP} onClick={onClose}>
+      <div className={`${MODAL_PANEL} max-w-xl sm:max-w-2xl`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">🏷️ 주제 카테고리 관리</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
@@ -357,8 +403,8 @@ function AddBenchmarkModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+    <div className={MODAL_BACKDROP} onClick={onClose}>
+      <div className={MODAL_PANEL} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">🔖 콘텐츠(레퍼런스) 추가</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
@@ -457,13 +503,20 @@ function AddBenchmarkModal({
 function AddChannelModal({
   onAdd,
   onClose,
+  categories,
+  onCategoriesChange,
+  onNotify,
 }: {
   onAdd: (ch: DBChannel) => void
   onClose: () => void
+  categories: ChannelCategoryOption[]
+  onCategoriesChange: (cats: ChannelCategoryOption[]) => void
+  onNotify: (m: string, t?: 'success' | 'info' | 'warning') => void
 }) {
   const [channelId, setChannelId] = useState('')
   const [channelName, setChannelName] = useState('')
   const [platform, setPlatform] = useState('youtube')
+  const [categoryId, setCategoryId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -481,7 +534,12 @@ function AddChannelModal({
     const res = await fetch('/api/dashboard/channels', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel_id: finalId, channel_name: name, platform }),
+      body: JSON.stringify({
+        channel_id: finalId,
+        channel_name: name,
+        platform,
+        category_id: categoryId || null,
+      }),
     })
     setSaving(false)
     if (!res.ok) {
@@ -495,35 +553,26 @@ function AddChannelModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+    <div className={MODAL_BACKDROP} onClick={onClose}>
+      <div className={MODAL_PANEL} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">📡 채널 등록</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl shrink-0">✕</button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <div>
-            <label className="text-xs font-semibold text-gray-500 mb-1 block">플랫폼</label>
-            <div className="flex gap-2">
-              {PLATFORMS.filter(p => p.value !== 'other').map(p => (
-                <button
-                  key={p.value}
-                  onClick={() => setPlatform(p.value)}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-xl border font-medium transition
-                    ${platform === p.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                >
-                  <span>{p.icon}</span> {p.label}
-                </button>
-              ))}
-            </div>
+            <label className="text-xs font-semibold text-gray-500 mb-2 block">플랫폼</label>
+            <PlatformPicker value={platform} onChange={setPlatform} />
           </div>
 
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1 block">
               채널 ID
-              <span className="font-normal text-gray-400 ml-1">(예: UCsJ6RuBiTVWRX156FVbeaGg 또는 채널 URL)</span>
             </label>
+            <p className="text-[11px] text-gray-400 mb-1.5 break-words">
+              예: UCsJ6RuBiTVWRX156FVbeaGg 또는 https://youtube.com/channel/UC…
+            </p>
             <input
               value={channelId}
               onChange={e => setChannelId(e.target.value)}
@@ -541,6 +590,14 @@ function AddChannelModal({
               className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+
+          <ChannelCategoryField
+            value={categoryId}
+            onChange={setCategoryId}
+            categories={categories}
+            onCategoriesChange={onCategoriesChange}
+            onNotify={onNotify}
+          />
 
           {error && <p className="text-xs text-red-500">{error}</p>}
 
@@ -568,21 +625,278 @@ function AddChannelModal({
   )
 }
 
+interface ChannelFlagSnapshot {
+  is_tracked: boolean
+  is_mine: boolean
+}
+
+function EditChannelModal({
+  channel,
+  categories,
+  onCategoriesChange,
+  onNotify,
+  initialFlags,
+  onSave,
+  onClose,
+}: {
+  channel: DBChannel
+  categories: ChannelCategoryOption[]
+  onCategoriesChange: (cats: ChannelCategoryOption[]) => void
+  onNotify: (m: string, t?: 'success' | 'info' | 'warning') => void
+  initialFlags: ChannelFlagSnapshot
+  onSave: (ch: DBChannel, flags: ChannelFlagSnapshot) => void
+  onClose: () => void
+}) {
+  const [channelName, setChannelName] = useState(channel.channel_name)
+  const [platform, setPlatform] = useState(channel.platform)
+  const [categoryId, setCategoryId] = useState(channel.category_id ?? '')
+  const [isTracked, setIsTracked] = useState(initialFlags.is_tracked)
+  const [isMine, setIsMine] = useState(initialFlags.is_mine)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const channelUrl =
+    platform === 'youtube'
+      ? `https://www.youtube.com/channel/${channel.channel_id}`
+      : platform === 'instagram'
+        ? `https://www.instagram.com/${channel.channel_id}`
+        : null
+
+  const handleSave = async () => {
+    const name = channelName.trim()
+    if (!name) {
+      setError('채널명을 입력해 주세요')
+      return
+    }
+    setSaving(true)
+    setError('')
+
+    try {
+      const chRes = await fetch('/api/dashboard/channels', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel_id: channel.channel_id,
+          channel_name: name,
+          platform,
+          category_id: categoryId || null,
+        }),
+      })
+      if (!chRes.ok) {
+        const { error: msg } = await chRes.json()
+        setError(msg ?? '채널 저장 실패')
+        return
+      }
+      const updated = (await chRes.json()) as DBChannel
+
+      const flagRes = await fetch('/api/dashboard/channel-flags', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel_id: channel.channel_id,
+          is_tracked: isTracked,
+          is_mine: isMine,
+        }),
+      })
+      if (!flagRes.ok) {
+        setError('채널 정보는 저장됐으나 추적/내 채널 설정 저장에 실패했습니다')
+        onSave(updated, { is_tracked: isTracked, is_mine: isMine })
+        return
+      }
+
+      onSave(updated, { is_tracked: isTracked, is_mine: isMine })
+      onClose()
+    } catch {
+      setError('저장 중 오류가 발생했습니다')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className={MODAL_BACKDROP} onClick={onClose}>
+      <div className={MODAL_PANEL} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">✏️ 채널 수정</h3>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl shrink-0">
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-4 min-w-0">
+          <div>
+            <label className="text-xs font-semibold text-gray-500 mb-2 block">플랫폼</label>
+            <PlatformPicker value={platform} onChange={setPlatform} />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-500 mb-1 block">채널 ID (변경 불가)</label>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 px-3 py-2 text-xs bg-gray-100 dark:bg-gray-900 rounded-xl text-gray-600 dark:text-gray-300 break-all">
+                {channel.channel_id}
+              </code>
+              {channelUrl && (
+                <a
+                  href={channelUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 text-xs px-2 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
+                >
+                  열기 ↗
+                </a>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1">ID를 바꾸려면 삭제 후 다시 등록하세요.</p>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-500 mb-1 block">표시 이름 (채널명) *</label>
+            <input
+              value={channelName}
+              onChange={(e) => setChannelName(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">수집된 영상의 채널명 표시도 함께 갱신됩니다.</p>
+          </div>
+
+          <ChannelCategoryField
+            value={categoryId}
+            onChange={setCategoryId}
+            categories={categories}
+            onCategoriesChange={onCategoriesChange}
+            onNotify={onNotify}
+          />
+
+          <div className="rounded-xl border border-gray-200 dark:border-gray-600 p-4 space-y-3">
+            <p className="text-xs font-semibold text-gray-500">채널 관리 옵션</p>
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isTracked}
+                onChange={(e) => setIsTracked(e.target.checked)}
+                className="rounded"
+              />
+              경쟁 채널로 추적 (경쟁 채널 목록에 표시)
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isMine}
+                onChange={(e) => setIsMine(e.target.checked)}
+                className="rounded"
+              />
+              내 채널로 표시 (내 채널 화면)
+            </label>
+          </div>
+
+          {(channel.subscribers != null || channel.avg_views != null) && (
+            <div className="rounded-xl bg-gray-50 dark:bg-gray-900/50 p-4">
+              <p className="text-xs font-semibold text-gray-500 mb-2">수집 통계 (읽기 전용 · 수집으로 갱신)</p>
+              <div className="grid grid-cols-3 gap-3 text-center text-xs">
+                <div>
+                  <p className="font-bold text-gray-800 dark:text-white">{formatNum(channel.subscribers)}</p>
+                  <p className="text-gray-400 mt-0.5">구독자</p>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800 dark:text-white">{formatNum(channel.avg_views)}</p>
+                  <p className="text-gray-400 mt-0.5">평균 조회</p>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800 dark:text-white">{channel.video_count ?? '—'}</p>
+                  <p className="text-gray-400 mt-0.5">영상 수</p>
+                </div>
+              </div>
+              {channel.updated_at && (
+                <p className="text-[11px] text-gray-400 mt-2 text-center">
+                  마지막 갱신: {new Date(channel.updated_at).toLocaleString('ko-KR')}
+                </p>
+              )}
+            </div>
+          )}
+
+          {error && <p className="text-xs text-red-500">{error}</p>}
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!channelName.trim() || saving}
+            className="flex-1 py-2.5 bg-blue-600 text-white text-sm rounded-xl hover:bg-blue-700 disabled:opacity-40 transition font-medium"
+          >
+            {saving ? '저장 중…' : '저장'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2.5 bg-gray-100 text-gray-700 text-sm rounded-xl hover:bg-gray-200 transition"
+          >
+            취소
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── 수집 채널 현황 탭 ────────────────────────────────────────
 function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 'info' | 'warning') => void }) {
   const [channels, setChannels] = useState<DBChannel[]>([])
+  const [channelCategories, setChannelCategories] = useState<ChannelCategoryOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
-  // 채널별 수집 진행 중 상태 (channel_id → boolean)
+  const [editingChannel, setEditingChannel] = useState<DBChannel | null>(null)
+  const [channelFlagsMap, setChannelFlagsMap] = useState<Record<string, ChannelFlagSnapshot>>({})
   const [collectingIds, setCollectingIds] = useState<Record<string, boolean>>({})
+  const [collectAllLoading, setCollectAllLoading] = useState(false)
 
   const loadChannels = useCallback(() => {
     setIsLoading(true)
-    fetch('/api/dashboard/channels')
-      .then(r => r.json())
-      .then((data: DBChannel[]) => { setChannels(data); setIsLoading(false) })
+    Promise.all([
+      fetch('/api/dashboard/channels').then((r) => r.json()),
+      fetch('/api/dashboard/channel-categories').then((r) => r.json()),
+      fetch('/api/dashboard/channel-flags').then((r) => r.json()),
+    ])
+      .then(([data, cats, flags]) => {
+        setChannels(data as DBChannel[])
+        setChannelCategories(normalizeChannelCategories(cats))
+        const map: Record<string, ChannelFlagSnapshot> = {}
+        if (Array.isArray(flags)) {
+          for (const f of flags as { channel_id: string; is_tracked: boolean; is_mine: boolean }[]) {
+            map[f.channel_id] = { is_tracked: f.is_tracked, is_mine: f.is_mine }
+          }
+        }
+        setChannelFlagsMap(map)
+        setIsLoading(false)
+      })
       .catch(() => setIsLoading(false))
   }, [])
+
+  const getFlagsForChannel = (channelId: string): ChannelFlagSnapshot => ({
+    is_tracked: channelFlagsMap[channelId]?.is_tracked ?? true,
+    is_mine: channelFlagsMap[channelId]?.is_mine ?? false,
+  })
+
+  const handleEditSave = (updated: DBChannel, flags: ChannelFlagSnapshot) => {
+    setChannels((prev) => prev.map((c) => (c.channel_id === updated.channel_id ? { ...c, ...updated } : c)))
+    setChannelFlagsMap((prev) => ({ ...prev, [updated.channel_id]: flags }))
+    addToast(`"${updated.channel_name}" 채널이 수정됐습니다`, 'success')
+  }
+
+  const handleQuickCategoryChange = async (channelId: string, category_id: string) => {
+    const res = await fetch('/api/dashboard/channels', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel_id: channelId, category_id: category_id || null }),
+    })
+    if (!res.ok) {
+      addToast('카테고리 저장 실패', 'warning')
+      return
+    }
+    const updated = (await res.json()) as DBChannel
+    setChannels((prev) => prev.map((c) => (c.channel_id === channelId ? { ...c, ...updated } : c)))
+    addToast('카테고리가 저장됐습니다', 'success')
+  }
 
   useEffect(() => { loadChannels() }, [loadChannels])
 
@@ -592,7 +906,7 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
   }
 
   const handleDeleteChannel = async (channelId: string, channelName: string) => {
-    if (collectingIds[channelId]) return
+    if (collectingIds[channelId] || collectAllLoading) return
     const res = await fetch(`/api/dashboard/channels?channel_id=${encodeURIComponent(channelId)}`, { method: 'DELETE' })
     if (!res.ok) { addToast('삭제 실패', 'warning'); return }
     setChannels(prev => prev.filter(c => c.channel_id !== channelId))
@@ -600,7 +914,7 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
   }
 
   const handleCollect = async (ch: DBChannel) => {
-    if (collectingIds[ch.channel_id]) return
+    if (collectingIds[ch.channel_id] || collectAllLoading) return
     setCollectingIds(prev => ({ ...prev, [ch.channel_id]: true }))
     addToast(`"${ch.channel_name}" 데이터 수집 중...`, 'info')
     try {
@@ -624,6 +938,27 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
     }
   }
 
+  const youtubeChannels = channels.filter(c => c.platform === 'youtube')
+
+  const handleCollectAllYoutube = async () => {
+    if (youtubeChannels.length === 0 || collectAllLoading) return
+    setCollectAllLoading(true)
+    addToast(`YouTube 채널 ${youtubeChannels.length}개 전체 수집을 시작합니다…`, 'info')
+    try {
+      const res = await fetch('/api/dashboard/collect-all', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        addToast(data.error ?? '전체 수집 실패', 'warning')
+      } else {
+        addToast(data.message ?? '전체 수집 완료', data.failed > 0 ? 'warning' : 'success')
+        loadChannels()
+      }
+    } catch {
+      addToast('전체 수집 중 오류가 발생했습니다', 'warning')
+    } finally {
+      setCollectAllLoading(false)
+    }
+  }
   const byPlatform = PLATFORMS.map(p => ({
     ...p,
     channels: channels.filter(c => c.platform === p.value),
@@ -635,21 +970,47 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
         <AddChannelModal
           onAdd={handleAddChannel}
           onClose={() => setShowAddModal(false)}
+          categories={channelCategories}
+          onCategoriesChange={setChannelCategories}
+          onNotify={addToast}
+        />
+      )}
+
+      {editingChannel && (
+        <EditChannelModal
+          channel={editingChannel}
+          categories={channelCategories}
+          onCategoriesChange={setChannelCategories}
+          onNotify={addToast}
+          initialFlags={getFlagsForChannel(editingChannel.channel_id)}
+          onSave={handleEditSave}
+          onClose={() => setEditingChannel(null)}
         />
       )}
 
       <div className="space-y-4">
         {/* 헤더 */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-gray-500">
-            등록된 채널 목록입니다. <strong>데이터 수집</strong> 버튼을 클릭하면 YouTube에서 최신 데이터를 즉시 가져옵니다.
+            등록된 채널 목록입니다. <strong>데이터 수집</strong>은 채널별로, <strong>YouTube 전체 수집</strong>은 DB에 등록된 모든 YouTube 채널을 한 번에 현행화합니다.
           </p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="shrink-0 px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
-          >
-            + 채널 등록
-          </button>
+          <div className="flex flex-wrap gap-2 shrink-0 justify-end">
+            <button
+              type="button"
+              onClick={handleCollectAllYoutube}
+              disabled={youtubeChannels.length === 0 || collectAllLoading}
+              className="px-4 py-2 text-sm bg-violet-600 text-white rounded-xl hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium"
+            >
+              {collectAllLoading ? '전체 수집 중…' : `▶ YouTube 전체 수집 (${youtubeChannels.length})`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
+            >
+              + 채널 등록
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -677,15 +1038,27 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
                   {chList.map(ch => {
                     const isCollecting = !!collectingIds[ch.channel_id]
                     return (
-                      <div key={ch.id} className="px-5 py-4 flex items-center gap-4 group hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                      <div
+                        key={ch.id}
+                        className="px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 group hover:bg-gray-50 dark:hover:bg-gray-700 transition min-w-0"
+                      >
                         {/* 채널 정보 */}
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 w-full sm:w-auto">
                           <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{ch.channel_name}</p>
                           <p className="text-xs text-gray-400 mt-0.5 font-mono">{ch.channel_id}</p>
                         </div>
 
+                        <ChannelCategoryField
+                          compact
+                          value={ch.category_id ?? ''}
+                          onChange={(id) => handleQuickCategoryChange(ch.channel_id, id)}
+                          categories={channelCategories}
+                          onCategoriesChange={setChannelCategories}
+                          onNotify={addToast}
+                        />
+
                         {/* 통계 */}
-                        <div className="flex items-center gap-5 text-xs text-gray-500 shrink-0">
+                        <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs text-gray-500 w-full sm:w-auto sm:shrink-0">
                           {ch.subscribers != null ? (
                             <>
                               <div className="text-right">
@@ -710,10 +1083,10 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
                         </div>
 
                         {/* 액션 버튼 */}
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:shrink-0">
                           <button
                             onClick={() => handleCollect(ch)}
-                            disabled={isCollecting}
+                            disabled={isCollecting || collectAllLoading}
                             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium transition
                               ${isCollecting
                                 ? 'bg-blue-100 text-blue-400 cursor-not-allowed'
@@ -733,8 +1106,17 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
                             )}
                           </button>
                           <button
+                            type="button"
+                            onClick={() => setEditingChannel(ch)}
+                            disabled={isCollecting || collectAllLoading}
+                            className="opacity-0 group-hover:opacity-100 transition px-2 py-1.5 text-xs text-gray-600 hover:text-blue-600 dark:text-gray-400 disabled:opacity-30"
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleDeleteChannel(ch.channel_id, ch.channel_name)}
-                            disabled={isCollecting}
+                            disabled={isCollecting || collectAllLoading}
                             className="opacity-0 group-hover:opacity-100 transition px-2 py-1.5 text-xs text-red-400 hover:text-red-600 disabled:opacity-30"
                           >
                             삭제
