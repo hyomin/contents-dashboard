@@ -5,6 +5,9 @@ import { NextResponse } from 'next/server'
 /** repo docs/n8n 파일명만 허용 (path traversal 방지) */
 const SLUG_TO_FILE: Record<string, string> = {
   youtube: 'N8N_YOUTUBE_COLLECT.json',
+  outlier: 'N8N_OUTLIER_TAGGING.json',
+  rss: 'N8N_RSS_TOPIC_COLLECT.json',
+  'topic-suggest': 'N8N_TOPIC_SUGGEST.json',
 }
 
 export async function GET(

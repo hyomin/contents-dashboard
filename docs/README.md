@@ -11,6 +11,7 @@
 | [migrations/](./migrations/) | Supabase SQL 마이그레이션 |
 | [n8n/](./n8n/) | n8n 워크플로 JSON·설정 |
 | [guides/](./guides/) | 참고 자료·로드맵 HTML |
+| [guides/DASHBOARD_USAGE.md](./guides/DASHBOARD_USAGE.md) | **대시보드·n8n 사용법 (화면·타이밍)** |
 
 ## 디렉터리 구조
 
@@ -25,9 +26,10 @@ docs/
 │   ├── 01-workspace.sql
 │   ├── 02-channel-categories.sql
 │   ├── 03-video-format.sql
-│   └── 04-outlier-tags.sql
+│   ├── 04-outlier-tags.sql
+│   └── 05-rss-topic-candidates.sql
 ├── guides/
-│   ├── FASTCAMPUS_LECTURE_ARXIV.md
+│   ├── DASHBOARD_USAGE.md
 │   └── n8n-research.html
 └── n8n/
     ├── README.md

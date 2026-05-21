@@ -71,6 +71,7 @@ import_one() {
 echo "▶ 워크플로 임포트·활성화"
 import_one "$N8N_DOCS/N8N_YOUTUBE_COLLECT.json"
 import_one "$N8N_DOCS/N8N_OUTLIER_TAGGING.json"
+import_one "$N8N_DOCS/N8N_RSS_TOPIC_COLLECT.json"
 # N8N_TOPIC_SUGGEST.json — LangChain 노드 필요, 재임포트 시 주석 해제
 # import_one "$N8N_DOCS/N8N_TOPIC_SUGGEST.json"
 
@@ -83,7 +84,7 @@ echo "▶ 활성 워크플로"
 docker exec n8n n8n list:workflow --active=true 2>/dev/null || docker exec n8n n8n list:workflow
 
 echo "▶ Webhook 프로브"
-for path in youtube-collect outlier-tagging; do
+for path in youtube-collect outlier-tagging rss-topic-collect; do
   code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:5678/webhook/$path" \
     -H "Content-Type: application/json" -d '{}' || true)
   if [[ "$code" == "404" ]]; then
@@ -97,6 +98,7 @@ echo ""
 echo "▶ .env.local 에 추가 권장:"
 echo "N8N_WEBHOOK_YOUTUBE_COLLECT=http://localhost:5678/webhook/youtube-collect"
 echo "N8N_WEBHOOK_OUTLIER_TAG=http://localhost:5678/webhook/outlier-tagging"
+echo "N8N_WEBHOOK_RSS_TOPICS=http://localhost:5678/webhook/rss-topic-collect"
 echo "# 주제 선별 AI 재연동 시:"
 echo "# N8N_WEBHOOK_URL=http://localhost:5678/webhook/topic-suggest"
 echo "완료."

@@ -58,6 +58,24 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
       { method: 'POST', path: '/api/dashboard/outlier-tag', label: '태깅 실행 (Tier 포함)' },
     ],
   },
+  {
+    key: 'rss-topic-collect',
+    name: 'RSS → 주제 후보 자동 수집',
+    webhookPath: 'rss-topic-collect',
+    envWebhookKey: 'N8N_WEBHOOK_RSS_TOPICS',
+    workflowFile: 'N8N_RSS_TOPIC_COLLECT.json',
+    triggers: ['webhook', 'manual', 'schedule'],
+    scheduleHint: '매일 자동 수집',
+    description:
+      '경제·사회 RSS에서 시니어 관련 기사를 골라 rss_topic_candidates에 저장. 대시보드 API는 Claude 정제 옵션 지원.',
+    coreNodes: 'Webhook · RSS · Code · Supabase',
+    roadmapServiceIds: ['rss-topic-collect'],
+    linkedViewIds: ['content-guide'],
+    dashboardApis: [
+      { method: 'GET', path: '/api/dashboard/rss-topics', label: '저장된 주제 목록' },
+      { method: 'POST', path: '/api/dashboard/rss-topics', label: 'RSS 주제 수집 실행' },
+    ],
+  },
 ]
 
 export interface N8nArchivedWorkflow {

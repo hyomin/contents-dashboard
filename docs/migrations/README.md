@@ -12,6 +12,7 @@ Supabase **SQL Editor**에서 아래 순서대로 실행합니다.
 | 2 | [02-channel-categories.sql](./02-channel-categories.sql) | channel_categories + channels.category_id |
 | 3 | [03-video-format.sql](./03-video-format.sql) | videos.format, saved_shorts |
 | 4 | [04-outlier-tags.sql](./04-outlier-tags.sql) | outlier_tags (아웃라이어 자동 태깅) |
+| 5 | [05-rss-topic-candidates.sql](./05-rss-topic-candidates.sql) | rss_topic_candidates (RSS 주제 수집) |
 
 ## 권장
 

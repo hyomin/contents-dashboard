@@ -8,6 +8,7 @@
 |------|---------|------|
 | [N8N_YOUTUBE_COLLECT.json](./workflows/N8N_YOUTUBE_COLLECT.json) | `youtube-collect` | 채널·영상 수집 → Supabase |
 | [N8N_OUTLIER_TAGGING.json](./workflows/N8N_OUTLIER_TAGGING.json) | `outlier-tagging` | vs.Avg 3x+ → `outlier_tags` 저장 |
+| [N8N_RSS_TOPIC_COLLECT.json](./workflows/N8N_RSS_TOPIC_COLLECT.json) | `rss-topic-collect` | RSS → `rss_topic_candidates` 저장 |
 
 ## 보관 (미배포)
 

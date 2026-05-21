@@ -180,4 +180,4 @@ N8N_WEBHOOK_OUTLIER_TAG=http://localhost:5678/webhook/outlier-tagging
 ## 관련 문서
 
 - [CHANGELOG.md](./CHANGELOG.md) — 날짜별 이력
-- [guides/FASTCAMPUS_LECTURE_ARXIV.md](./guides/FASTCAMPUS_LECTURE_ARXIV.md) — 강의 참고
+- [guides/DASHBOARD_USAGE.md](./guides/DASHBOARD_USAGE.md) — 대시보드·n8n 사용법

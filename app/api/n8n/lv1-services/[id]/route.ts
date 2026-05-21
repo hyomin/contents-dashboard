@@ -117,6 +117,34 @@ export async function POST(
     }
   }
 
+  if (id === 'rss-topic-collect') {
+    try {
+      const origin = req.nextUrl.origin
+      const rssRes = await fetch(`${origin}/api/dashboard/rss-topics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetAudience: body.targetAudience ?? service.samplePayload?.targetAudience ?? '시니어',
+          maxTopics: body.maxTopics ?? service.samplePayload?.maxTopics ?? 5,
+          persistCollected: body.persistCollected ?? service.samplePayload?.persistCollected ?? true,
+          source: hasExplicitEnv ? 'n8n-via-dashboard' : 'dashboard',
+          useAi: body.useAi !== false,
+        }),
+      })
+      const rssData = await rssRes.json()
+      if (rssRes.ok) {
+        return NextResponse.json({
+          mode: hasExplicitEnv ? 'n8n' : 'dashboard',
+          serviceId: id,
+          scenarioName: service.n8nScenarioName,
+          ...rssData,
+        })
+      }
+    } catch (err) {
+      console.error('[lv1-services] rss-topic fallback failed', err)
+    }
+  }
+
   if (id === 'outlier-tagging') {
     try {
       const origin = req.nextUrl.origin
