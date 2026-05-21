@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, Suspense } from 'react'
+import { SessionGuard } from '@/components/auth/session-guard'
 import Sidebar from '@/components/dashboard/Sidebar'
 import { DashboardGlobalHeader } from '@/components/dashboard/DashboardGlobalHeader'
 
@@ -8,6 +9,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
+    <SessionGuard>
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {/* 모바일 오버레이 */}
       {sidebarOpen && (
@@ -37,5 +39,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>
+    </SessionGuard>
   )
 }

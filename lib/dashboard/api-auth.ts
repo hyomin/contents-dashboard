@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'crypto'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import { getSessionFromRequest } from '@/lib/auth/session'
 
 function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
@@ -38,7 +39,9 @@ export function isSameOriginBrowserRequest(request: NextRequest): boolean {
  * - 프로덕션: DASHBOARD_API_SECRET 필수. Bearer/x-dashboard-api-key 또는 동일 출처 UI 요청 허용.
  * - 개발: 시크릿 미설정 시 통과(기존 로컬 DX). 설정 시 프로덕션과 동일 규칙.
  */
-export function verifyDashboardApiAuth(request: NextRequest): NextResponse | null {
+export async function verifyDashboardApiAuth(
+  request: NextRequest,
+): Promise<NextResponse | null> {
   const secret = process.env.DASHBOARD_API_SECRET?.trim()
   const isProduction = process.env.NODE_ENV === 'production'
 
@@ -55,7 +58,9 @@ export function verifyDashboardApiAuth(request: NextRequest): NextResponse | nul
   const provided = getProvidedSecret(request)
   if (provided && safeEqual(provided, secret)) return null
 
-  if (isSameOriginBrowserRequest(request)) return null
+  if (await getSessionFromRequest(request)) return null
+
+  if (!isProduction && isSameOriginBrowserRequest(request)) return null
 
   return NextResponse.json(
     { error: '인증이 필요합니다. Authorization: Bearer 또는 x-dashboard-api-key 헤더를 사용하세요.' },

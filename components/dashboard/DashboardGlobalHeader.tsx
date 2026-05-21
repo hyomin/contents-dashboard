@@ -1,5 +1,7 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
+import { SessionIdleCountdown } from '@/components/auth/session-idle-countdown'
 import { InfoHint } from '@/components/dashboard/info-hint'
 
 interface DashboardGlobalHeaderProps {
@@ -11,6 +13,18 @@ export function DashboardGlobalHeader({
   onOpenMobileMenu,
   showMobileMenu,
 }: DashboardGlobalHeaderProps) {
+  const router = useRouter()
+
+  async function handleLogout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch {
+      /* ignore */
+    }
+    router.replace('/login')
+    router.refresh()
+  }
+
   return (
     <header className="flex items-center justify-between gap-3 px-4 md:px-6 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0 z-20">
       <div className="flex items-center gap-3 min-w-0">
@@ -35,6 +49,16 @@ export function DashboardGlobalHeader({
             />
           </p>
         </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <SessionIdleCountdown />
+        <button
+          type="button"
+          onClick={() => void handleLogout()}
+          className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+        >
+          로그아웃
+        </button>
       </div>
     </header>
   )
