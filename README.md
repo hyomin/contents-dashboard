@@ -108,4 +108,3 @@ dashboard-app/
 
 - [진행 상황](./docs/PROGRESS.md)
 - [Supabase 스키마](./docs/schema.sql)
-- [강의 참고자료](./docs/FASTCAMPUS_LECTURE_ARXIV.md)
