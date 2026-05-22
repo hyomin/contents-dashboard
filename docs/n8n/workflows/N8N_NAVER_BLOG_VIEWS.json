@@ -1,0 +1,243 @@
+{
+  "name": "네이버 블로그 조회수·vs.Avg 갱신",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "naver-blog-views",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "node-webhook-naver-views",
+      "name": "Webhook 갱신",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        200
+      ],
+      "webhookId": "naver-blog-views-webhook"
+    },
+    {
+      "parameters": {},
+      "id": "node-manual-naver-views",
+      "name": "수동 실행",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "id": "node-schedule-naver-views",
+      "name": "스케줄 (1일마다)",
+      "position": [
+        100,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let channelId = '';\nlet onlyMissingViews = true;\nlet maxPosts = 80;\nlet useEngagementFallback = true;\ntry {\n  const wh = $('Webhook 갱신').all();\n  if (wh.length) {\n    const raw = wh[0].json;\n    const b = raw.body ?? raw;\n    const parsed = typeof b === 'string' ? JSON.parse(b) : b;\n    if (parsed?.channelId) channelId = String(parsed.channelId).trim();\n    if (parsed?.onlyMissingViews != null) onlyMissingViews = Boolean(parsed.onlyMissingViews);\n    if (parsed?.maxPosts != null) maxPosts = Number(parsed.maxPosts);\n    if (parsed?.useEngagementFallback != null) useEngagementFallback = Boolean(parsed.useEngagementFallback);\n  }\n} catch { /* manual / schedule */ }\nif (!Number.isFinite(maxPosts) || maxPosts < 1) maxPosts = 80;\nconst base = ($env.DASHBOARD_API_URL || 'http://host.docker.internal:3000').replace(/\\/$/, '');\nconst secret = $env.DASHBOARD_API_SECRET || '';\nif (!secret) {\n  return [{ json: {\n    ok: false,\n    skipCall: true,\n    message: 'n8n 환경변수 DASHBOARD_API_SECRET 이 없습니다. docker-compose.n8n.yml · .env.local 을 확인하세요.',\n  } }];\n}\nreturn [{ json: {\n  channelId,\n  onlyMissingViews,\n  maxPosts,\n  useEngagementFallback,\n  source: 'n8n',\n  skipCall: false,\n  apiUrl: `${base}/api/dashboard/naver-blog-views`,\n  apiSecret: secret,\n} }];"
+      },
+      "id": "node-parse-params",
+      "name": "기준·API 설정",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip",
+              "leftValue": "={{ $json.skipCall }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-skip",
+      "name": "설정 오류?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        540,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.apiUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-dashboard-api-key",
+              "value": "={{ $json.apiSecret }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ channelId: $json.channelId || undefined, onlyMissingViews: $json.onlyMissingViews, maxPosts: $json.maxPosts, useEngagementFallback: $json.useEngagementFallback, source: $json.source }) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "node-call-dashboard",
+      "name": "대시보드 API 호출",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        760,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('기준·API 설정').first().json;\nconst items = $input.all();\nconst raw = items[0]?.json;\nlet body = raw;\nif (typeof raw === 'string') {\n  try { body = JSON.parse(raw); } catch { body = { ok: false, message: raw.slice(0, 500) }; }\n}\nif (body?.body && typeof body.body === 'object') body = body.body;\nconst ok = body?.ok !== false;\nreturn [{ json: {\n  ok,\n  mode: 'n8n',\n  source: cfg.source || 'n8n',\n  processed: body?.processed ?? 0,\n  updated: body?.updated ?? 0,\n  withReadViews: body?.withReadViews ?? 0,\n  withEngagementMetric: body?.withEngagementMetric ?? 0,\n  skipped: body?.skipped ?? 0,\n  failed: body?.failed ?? 0,\n  message: body?.message || (ok ? '네이버 블로그 메트릭 갱신 완료' : '갱신 실패'),\n  errors: body?.errors ?? [],\n  timestamp: new Date().toISOString(),\n} }];"
+      },
+      "id": "node-done-ok",
+      "name": "완료",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $input.first().json;\nreturn [{ json: {\n  ok: false,\n  mode: 'n8n',\n  message: cfg.message || '설정 오류',\n  timestamp: new Date().toISOString(),\n} }];"
+      },
+      "id": "node-done-skip",
+      "name": "완료 (설정 오류)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        480
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook 갱신": {
+      "main": [
+        [
+          {
+            "node": "기준·API 설정",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "수동 실행": {
+      "main": [
+        [
+          {
+            "node": "기준·API 설정",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "기준·API 설정": {
+      "main": [
+        [
+          {
+            "node": "설정 오류?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "설정 오류?": {
+      "main": [
+        [
+          {
+            "node": "완료 (설정 오류)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "대시보드 API 호출",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "대시보드 API 호출": {
+      "main": [
+        [
+          {
+            "node": "완료",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "스케줄 (1일마다)": {
+      "main": [
+        [
+          {
+            "node": "기준·API 설정",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "NaverBlog"
+    }
+  ],
+  "pinData": {}
+}

@@ -24,6 +24,7 @@ import {
   ContentCreationGuideView,
   ContentStudioView,
   Lv1AutomationHubView,
+  AnalysisHubView,
 } from '@/components/dashboard/views'
 import { resolveViewMeta } from '@/lib/dashboard-nav'
 import { PageHeader } from '@/components/dashboard/info-hint'
@@ -69,6 +70,7 @@ export function DashboardPageContent() {
       )
     }
     switch (view) {
+      case 'analysis':             return <AnalysisHubView />
       case 'overview':             return <OverviewView onSelect={setSelectedVideo} addToast={addToast} />
       case 'outlier':              return <OutlierView onSelect={setSelectedVideo} addToast={addToast} />
       case 'trending':             return <TrendingView addToast={addToast} />

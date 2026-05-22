@@ -45,6 +45,7 @@ export default function PlatformView({
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [savedItems, setSavedItems] = useState<SavedShortItem[]>([])
   const [backfilling, setBackfilling] = useState(false)
+  const [syncingViews, setSyncingViews] = useState(false)
   const [myChannelIds, setMyChannelIds] = useState<Set<string> | null>(mineOnly ? null : new Set())
 
   const isShortsView = videoFormat === 'short'
@@ -222,6 +223,30 @@ export default function PlatformView({
     await loadChannelMeta()
   }, [loadVideos, loadChannelMeta])
 
+  const runNaverViewsSync = useCallback(async () => {
+    if (syncingViews) return
+    setSyncingViews(true)
+    addToast('네이버 조회수·반응 수집 중… (n8n/크롤링)', 'info')
+    try {
+      const res = await fetch('/api/dashboard/naver-blog-views', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ onlyMissingViews: false, maxPosts: 80, source: 'dashboard-ui' }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        addToast(data.message ?? data.error ?? '갱신 실패', 'warning')
+        return
+      }
+      addToast(data.message ?? '갱신 완료', 'success')
+      await handleRefreshed()
+    } catch {
+      addToast('조회수 갱신 중 오류', 'warning')
+    } finally {
+      setSyncingViews(false)
+    }
+  }, [syncingViews, addToast, handleRefreshed])
+
   if (isPlatformComingSoon(filter)) {
     return (
       <div className="space-y-4">
@@ -236,7 +261,7 @@ export default function PlatformView({
           <TitleWithHint
             as="h3"
             className="text-lg font-bold text-gray-900 dark:text-white mt-3 justify-center"
-            hint="현재 자동 수집은 YouTube만 연결되어 있습니다. Instagram·네이버·티스토리는 추후 n8n·API로 연결 예정입니다."
+            hint="네이버 블로그·YouTube는 수집 API가 연결되어 있습니다. Instagram·티스토리는 추후 연동 예정입니다."
           >
             {getPlatformName(filter)} 수집 준비 중
           </TitleWithHint>
@@ -246,6 +271,9 @@ export default function PlatformView({
   }
 
   const isTiktokDummy = filter === 'tiktok'
+  const isNaverBlog = filter === 'naver-blog'
+  const isTistory = filter === 'tistory'
+  const hasViewMetrics = videos.some((v) => (v.views ?? 0) > 0)
 
   const formatBadge =
     videoFormat === 'short'
@@ -265,6 +293,49 @@ export default function PlatformView({
         addToast={addToast}
         onRefreshed={handleRefreshed}
       />
+
+      {isTistory && (
+        <>
+          <div className="rounded-xl border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30 px-4 py-3 text-sm text-orange-900 dark:text-orange-100 space-y-1">
+            <p className="font-medium">🟠 티스토리 · RSS 수집</p>
+            <p className="text-xs text-orange-800/90 dark:text-orange-200/90">
+              RSS 피드로 최근 글 목록(제목·날짜·링크)을 수집합니다. 조회수는 RSS에 미제공이라 vs.Avg 계산은 어렵습니다.
+              «콘텐츠 새로고침»으로 글 목록을 갱신하세요.
+            </p>
+          </div>
+          <N8nLv1ServicesSection
+            viewId="tistory"
+            addToast={addToast}
+            title="🔗 티스토리 수집 (n8n)"
+          />
+        </>
+      )}
+
+      {isNaverBlog && (
+        <>
+          <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 px-4 py-3 text-sm text-green-900 dark:text-green-100 space-y-2">
+            <p className="font-medium">글 목록은 검색 API · 조회수·vs.Avg는 n8n 갱신</p>
+            <p className="text-xs text-green-800/90 dark:text-green-200/90">
+              «콘텐츠 새로고침»으로 글을 먼저 수집한 뒤 «조회수·vs.Avg 갱신» 또는 n8n «네이버 블로그 조회수·vs.Avg
+              갱신»을 실행하세요. 조회수가 비공개인 글은 좋아요·댓글 기준으로 vs.Avg를 계산합니다.
+              {hasViewMetrics ? ' · 일부 글에 조회수가 반영되어 있습니다.' : ''}
+            </p>
+            <button
+              type="button"
+              onClick={runNaverViewsSync}
+              disabled={syncingViews || loading}
+              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50"
+            >
+              {syncingViews ? '갱신 중…' : '↻ 조회수·vs.Avg 갱신'}
+            </button>
+          </div>
+          <N8nLv1ServicesSection
+            viewId="naver-blog"
+            addToast={addToast}
+            title="🔗 네이버 블로그 조회수 (n8n)"
+          />
+        </>
+      )}
 
       {mineOnly && (
         <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-4 py-3 text-sm text-blue-900 dark:text-blue-100 flex flex-wrap items-center justify-between gap-2">
@@ -404,8 +475,17 @@ export default function PlatformView({
               <Link href="/dashboard?view=channels-mine" className="text-blue-600 hover:underline">
                 운영 허브에서 내 채널 지정 →
               </Link>
-            ) : (
+            ) : isNaverBlog ? (
+              <>
+                <Link href="/dashboard?view=benchmark" className="text-blue-600 hover:underline">
+                  채널·콘텐츠 등록
+                </Link>
+                에서 네이버 블로그(blogId)를 추가한 뒤 «새로고침» 또는 «데이터 수집»을 실행하세요.
+              </>
+            ) : filter === 'youtube' ? (
               '채널 수집 후 «기존 데이터 길이 기준 재분류»를 눌러 보세요.'
+            ) : (
+              '채널 등록 후 수집을 실행해 주세요.'
             )}
           </p>
         </div>

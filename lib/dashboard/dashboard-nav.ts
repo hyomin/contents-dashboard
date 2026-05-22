@@ -144,6 +144,21 @@ export const VIEW_META: Record<string, ViewMeta> = {
   },
 }
 
+/** 자식만 있고 단독 화면이 없는 그룹 메뉴 — 클릭 시 펼치기만 */
+export const NAV_EXPAND_ONLY_IDS = new Set([
+  'analysis',
+  'insights',
+  'my-channels',
+  'channels',
+  'n8n',
+  'create',
+  'pipeline',
+])
+
+export function isNavExpandOnly(id: string): boolean {
+  return NAV_EXPAND_ONLY_IDS.has(id)
+}
+
 export function resolveViewMeta(view: string): ViewMeta {
   return (
     VIEW_META[view] ?? {

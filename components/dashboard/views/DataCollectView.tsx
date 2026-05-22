@@ -145,7 +145,7 @@ export default function DataCollectView({ addToast }: { addToast: AddToast }) {
             <TitleWithHint
               as="h3"
               className="font-bold text-gray-900 dark:text-white"
-              hint="대시보드 API로 채널별·전체 수집을 실행합니다. n8n 스케줄은 «워크플로 관리»·docs/n8n/workflows JSON을 Import한 뒤 Webhook으로 연동하세요."
+              hint="대시보드 API로 채널별·전체 수집을 실행합니다. n8n 스케줄은 1일마다 자동 실행되며, Webhook·수동·이 화면에서도 즉시 실행할 수 있습니다."
             >
               YouTube 수집
             </TitleWithHint>

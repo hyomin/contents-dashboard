@@ -1,3 +1,4 @@
+export { AnalysisHubView } from './AnalysisHubView'
 export { default as OverviewView } from './OverviewView'
 export { default as PlatformView } from './PlatformView'
 export { default as OutlierView } from './OutlierView'

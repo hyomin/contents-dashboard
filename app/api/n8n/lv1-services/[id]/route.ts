@@ -145,6 +145,73 @@ export async function POST(
     }
   }
 
+  if (id === 'naver-blog-collect') {
+    try {
+      const origin = req.nextUrl.origin
+      const collectRes = await fetch(`${origin}/api/dashboard/collect-platform`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform: 'naver-blog',
+          mineOnly: body.mineOnly === true,
+        }),
+      })
+      const collectData = await collectRes.json()
+      let viewsData: Record<string, unknown> = {}
+      if (collectRes.ok && collectData.ok !== false) {
+        const viewsRes = await fetch(`${origin}/api/dashboard/naver-blog-views`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            onlyMissingViews: true,
+            maxPosts: 80,
+            source: hasExplicitEnv ? 'n8n-via-dashboard' : 'dashboard',
+          }),
+        })
+        viewsData = (await viewsRes.json()) as Record<string, unknown>
+      }
+      if (collectRes.ok) {
+        return NextResponse.json({
+          mode: hasExplicitEnv ? 'n8n' : 'dashboard',
+          serviceId: id,
+          scenarioName: service.n8nScenarioName,
+          collect: collectData,
+          views: viewsData,
+        })
+      }
+    } catch (err) {
+      console.error('[lv1-services] naver-blog-collect fallback failed', err)
+    }
+  }
+
+  if (id === 'naver-blog-views') {
+    try {
+      const origin = req.nextUrl.origin
+      const viewsRes = await fetch(`${origin}/api/dashboard/naver-blog-views`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channelId: body.channelId,
+          onlyMissingViews: body.onlyMissingViews ?? true,
+          maxPosts: body.maxPosts ?? 80,
+          useEngagementFallback: body.useEngagementFallback !== false,
+          source: hasExplicitEnv ? 'n8n-via-dashboard' : 'dashboard',
+        }),
+      })
+      const viewsData = await viewsRes.json()
+      if (viewsRes.ok) {
+        return NextResponse.json({
+          mode: hasExplicitEnv ? 'n8n' : 'dashboard',
+          serviceId: id,
+          scenarioName: service.n8nScenarioName,
+          ...viewsData,
+        })
+      }
+    } catch (err) {
+      console.error('[lv1-services] naver-blog-views fallback failed', err)
+    }
+  }
+
   if (id === 'outlier-tagging') {
     try {
       const origin = req.nextUrl.origin

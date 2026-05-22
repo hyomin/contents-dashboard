@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useTheme } from '@/lib/theme'
-import { NAV_TREE, getNavDataBadge, type DashboardNavItem } from '@/lib/dashboard-nav'
+import { NAV_TREE, getNavDataBadge, isNavExpandOnly, type DashboardNavItem } from '@/lib/dashboard-nav'
 
 function TreeNode({
   item, depth = 0, activeId, onSelect,
@@ -21,8 +21,8 @@ function TreeNode({
     <div>
       <button
         onClick={() => {
-          if (hasChildren) setIsOpen(p => !p)
-          onSelect(item.id)
+          if (hasChildren) setIsOpen((p) => !p)
+          if (!isNavExpandOnly(item.id)) onSelect(item.id)
         }}
         style={{ paddingLeft: `${12 + depth * 16}px` }}
         className={`w-full flex items-center gap-2 pr-3 py-2 rounded-lg text-sm transition

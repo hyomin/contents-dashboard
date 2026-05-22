@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyDashboardApiAuth } from '@/lib/api-auth'
+import { getProvidedSecret, verifyDashboardApiAuth } from '@/lib/api-auth'
 import { getSessionFromRequest } from '@/lib/auth/session'
 
 const MUTATION_PREFIXES = [
   '/api/dashboard/collect',
   '/api/dashboard/collect-all',
   '/api/dashboard/collect-platform',
+  '/api/dashboard/naver-blog-views',
   '/api/n8n/invoke',
   '/api/n8n/lv1-services',
   '/api/topic-suggest',
@@ -71,8 +72,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  const isMutation =
+    method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && needsMutationAuth(pathname)
+  const hasMachineHeader = isMutation && Boolean(getProvidedSecret(request))
+
   if (isProtectedApi(pathname)) {
-    if (!hasSession) {
+    if (!hasSession && !hasMachineHeader) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
     }
   }
@@ -85,6 +90,9 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!needsMutationAuth(pathname)) return NextResponse.next()
+
+  // Edge 미들웨어에서는 DASHBOARD_API_SECRET 검증 불가 → 라우트(Node)에서 재검증
+  if (hasMachineHeader) return NextResponse.next()
 
   const denied = await verifyDashboardApiAuth(request)
   if (denied) return denied

@@ -56,22 +56,39 @@ import_one() {
   id=$(python3 -c "import json; print(json.load(open('$prepared'))[0]['id'])")
   name=$(python3 -c "import json; print(json.load(open('$prepared'))[0].get('name',''))")
   docker cp "$prepared" "n8n:/tmp/import.json"
-  existing=$(docker exec n8n n8n list:workflow 2>/dev/null | grep -F "|${name}" | tail -1 | cut -d'|' -f1)
+  existing=$(docker exec n8n n8n list:workflow 2>/dev/null | grep -F "|${name}" | head -1 | cut -d'|' -f1)
   if [[ -n "$existing" ]]; then
-    echo "   ↷ 이미 있음: $name ($existing)"
+    echo "   ↷ 갱신: $name ($existing) — 동일 이름 워크플로 덮어쓰기"
+    python3 - "$prepared" "$existing" <<'PY'
+import json, sys
+path, wid = sys.argv[1], sys.argv[2]
+data = json.load(open(path))[0]
+data["id"] = wid
+data["staticData"] = None
+open(path, "w").write(json.dumps([data], ensure_ascii=False))
+PY
     id="$existing"
   else
-    docker exec n8n n8n import:workflow --input=/tmp/import.json
-    echo "   ✓ 임포트: $name ($id)"
+    echo "   ✓ 신규: $name"
+  fi
+  if ! docker exec n8n n8n import:workflow --input=/tmp/import.json; then
+    echo "   ✗ 임포트 실패: $name"
+    return 1
   fi
   docker exec n8n n8n publish:workflow --id="$id" || true
   echo "   ✓ 활성화(publish): $id"
 }
 
-echo "▶ 워크플로 임포트·활성화"
+echo "▶ 중복 워크플로 정리 (동일 이름·비활성본)"
+"$ROOT/scripts/n8n-prune-duplicates.sh" || true
+
+echo "▶ 워크플로 임포트·활성화 (스케줄: 1일마다 · Webhook·수동)"
 import_one "$N8N_DOCS/N8N_YOUTUBE_COLLECT.json"
 import_one "$N8N_DOCS/N8N_OUTLIER_TAGGING.json"
 import_one "$N8N_DOCS/N8N_RSS_TOPIC_COLLECT.json"
+import_one "$N8N_DOCS/N8N_NAVER_BLOG_COLLECT.json"
+import_one "$N8N_DOCS/N8N_NAVER_BLOG_VIEWS.json"
+import_one "$N8N_DOCS/N8N_TISTORY_COLLECT.json"
 # N8N_TOPIC_SUGGEST.json — LangChain 노드 필요, 재임포트 시 주석 해제
 # import_one "$N8N_DOCS/N8N_TOPIC_SUGGEST.json"
 
@@ -84,7 +101,7 @@ echo "▶ 활성 워크플로"
 docker exec n8n n8n list:workflow --active=true 2>/dev/null || docker exec n8n n8n list:workflow
 
 echo "▶ Webhook 프로브"
-for path in youtube-collect outlier-tagging rss-topic-collect; do
+for path in youtube-collect outlier-tagging rss-topic-collect naver-blog-collect naver-blog-views tistory-collect; do
   code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:5678/webhook/$path" \
     -H "Content-Type: application/json" -d '{}' || true)
   if [[ "$code" == "404" ]]; then
@@ -99,6 +116,10 @@ echo "▶ .env.local 에 추가 권장:"
 echo "N8N_WEBHOOK_YOUTUBE_COLLECT=http://localhost:5678/webhook/youtube-collect"
 echo "N8N_WEBHOOK_OUTLIER_TAG=http://localhost:5678/webhook/outlier-tagging"
 echo "N8N_WEBHOOK_RSS_TOPICS=http://localhost:5678/webhook/rss-topic-collect"
+echo "N8N_WEBHOOK_NAVER_BLOG_COLLECT=http://localhost:5678/webhook/naver-blog-collect"
+echo "N8N_WEBHOOK_NAVER_BLOG_VIEWS=http://localhost:5678/webhook/naver-blog-views"
+echo "N8N_WEBHOOK_TISTORY_COLLECT=http://localhost:5678/webhook/tistory-collect"
+echo "DASHBOARD_API_URL=http://host.docker.internal:3000"
 echo "# 주제 선별 AI 재연동 시:"
 echo "# N8N_WEBHOOK_URL=http://localhost:5678/webhook/topic-suggest"
 echo "완료."

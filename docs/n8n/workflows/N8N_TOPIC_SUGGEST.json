@@ -12,7 +12,10 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [200, 300],
+      "position": [
+        200,
+        300
+      ],
       "webhookId": "topic-suggest-webhook"
     },
     {
@@ -23,7 +26,10 @@
       "name": "프롬프트 구성",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300]
+      "position": [
+        440,
+        300
+      ]
     },
     {
       "parameters": {
@@ -52,7 +58,10 @@
       "name": "Claude AI 분석",
       "type": "@n8n/n8n-nodes-langchain.lmAnthropicClaude",
       "typeVersion": 1,
-      "position": [680, 220],
+      "position": [
+        680,
+        220
+      ],
       "credentials": {
         "anthropicApi": {
           "id": "YOUR_ANTHROPIC_CREDENTIAL_ID",
@@ -87,7 +96,10 @@
       "name": "GPT AI 분석",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [680, 400],
+      "position": [
+        680,
+        400
+      ],
       "credentials": {
         "openAiApi": {
           "id": "YOUR_OPENAI_CREDENTIAL_ID",
@@ -103,7 +115,10 @@
       "name": "응답 파싱",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [920, 300]
+      "position": [
+        920,
+        300
+      ]
     },
     {
       "parameters": {
@@ -124,36 +139,71 @@
       "name": "응답 반환",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1160, 300]
+      "position": [
+        1160,
+        300
+      ]
     }
   ],
   "connections": {
     "Webhook": {
       "main": [
-        [{ "node": "프롬프트 구성", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "프롬프트 구성",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "프롬프트 구성": {
       "main": [
         [
-          { "node": "Claude AI 분석", "type": "main", "index": 0 },
-          { "node": "GPT AI 분석", "type": "main", "index": 0 }
+          {
+            "node": "Claude AI 분석",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GPT AI 분석",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Claude AI 분석": {
       "main": [
-        [{ "node": "응답 파싱", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "응답 파싱",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "GPT AI 분석": {
       "main": [
-        [{ "node": "응답 파싱", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "응답 파싱",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "응답 파싱": {
       "main": [
-        [{ "node": "응답 반환", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "응답 반환",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

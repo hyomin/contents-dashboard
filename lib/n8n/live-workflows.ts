@@ -5,6 +5,9 @@
 
 export type N8nTriggerKind = 'webhook' | 'manual' | 'schedule'
 
+/** 모든 스케줄 트리거 공통 주기 (n8n: daysInterval) */
+export const N8N_SCHEDULE_INTERVAL_DAYS = 1
+
 export interface N8nLiveWorkflow {
   key: string
   name: string
@@ -15,13 +18,11 @@ export interface N8nLiveWorkflow {
   scheduleHint?: string
   description: string
   coreNodes: string
-  /** 로드맵 카드 id — 동일 Webhook으로 커버되는 항목 */
   roadmapServiceIds: string[]
   linkedViewIds: string[]
   dashboardApis: { method: 'GET' | 'POST'; path: string; label: string }[]
 }
 
-/** 현재 n8n에 1개만 활성 */
 export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
   {
     key: 'youtube-collect',
@@ -30,9 +31,9 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     envWebhookKey: 'N8N_WEBHOOK_YOUTUBE_COLLECT',
     workflowFile: 'N8N_YOUTUBE_COLLECT.json',
     triggers: ['webhook', 'manual', 'schedule'],
-    scheduleHint: '6시간마다 자동 수집',
+    scheduleHint: '1일마다 자동 수집',
     description:
-      'Supabase 채널 목록 → YouTube API 통계·영상 → Supabase 저장. Webhook·수동·스케줄 트리거.',
+      'Supabase 채널 목록 → YouTube API 통계·영상 → Supabase 저장. Webhook·수동·1일 스케줄.',
     coreNodes: 'Webhook · Schedule · YouTube API · HTTP · Supabase',
     roadmapServiceIds: ['channel-vs-avg', 'multi-channel-collect'],
     linkedViewIds: ['data-collect', 'my-youtube'],
@@ -47,10 +48,10 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     envWebhookKey: 'N8N_WEBHOOK_OUTLIER_TAG',
     workflowFile: 'N8N_OUTLIER_TAGGING.json',
     triggers: ['webhook', 'manual', 'schedule'],
-    scheduleHint: '12시간마다 자동 태깅',
+    scheduleHint: '1일마다 자동 태깅',
     description:
-      'Supabase videos에서 vs.Avg 기준 이상 영상을 outlier_tags 테이블에 저장. Tier 상향은 대시보드 API에서 처리.',
-    coreNodes: 'Webhook · IF · Supabase HTTP',
+      'Supabase videos에서 vs.Avg 기준 이상 영상을 outlier_tags 테이블에 저장.',
+    coreNodes: 'Webhook · Schedule · IF · Supabase HTTP',
     roadmapServiceIds: ['outlier-tagging'],
     linkedViewIds: ['outlier'],
     dashboardApis: [
@@ -65,15 +66,68 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     envWebhookKey: 'N8N_WEBHOOK_RSS_TOPICS',
     workflowFile: 'N8N_RSS_TOPIC_COLLECT.json',
     triggers: ['webhook', 'manual', 'schedule'],
-    scheduleHint: '매일 자동 수집',
+    scheduleHint: '1일마다 자동 수집',
     description:
-      '경제·사회 RSS에서 시니어 관련 기사를 골라 rss_topic_candidates에 저장. 대시보드 API는 Claude 정제 옵션 지원.',
-    coreNodes: 'Webhook · RSS · Code · Supabase',
+      '경제·사회 RSS에서 시니어 관련 기사를 골라 rss_topic_candidates에 저장.',
+    coreNodes: 'Webhook · Schedule · RSS · Code · Supabase',
     roadmapServiceIds: ['rss-topic-collect'],
     linkedViewIds: ['content-guide'],
     dashboardApis: [
       { method: 'GET', path: '/api/dashboard/rss-topics', label: '저장된 주제 목록' },
       { method: 'POST', path: '/api/dashboard/rss-topics', label: 'RSS 주제 수집 실행' },
+    ],
+  },
+  {
+    key: 'naver-blog-collect',
+    name: '네이버 블로그 글 목록 수집 (검색 Open API)',
+    webhookPath: 'naver-blog-collect',
+    envWebhookKey: 'N8N_WEBHOOK_NAVER_BLOG_COLLECT',
+    workflowFile: 'N8N_NAVER_BLOG_COLLECT.json',
+    triggers: ['webhook', 'manual', 'schedule'],
+    scheduleHint: '1일마다 · 글 수집 후 조회수 갱신',
+    description:
+      'n8n → 대시보드 collect-platform(naver-blog) → naver-blog-views. Webhook·수동·1일 스케줄.',
+    coreNodes: 'Webhook · Schedule · HTTP · 대시보드 API ×2',
+    roadmapServiceIds: ['naver-blog-collect'],
+    linkedViewIds: ['naver-blog', 'data-collect'],
+    dashboardApis: [
+      { method: 'POST', path: '/api/dashboard/collect-platform', label: '네이버 글 목록 수집' },
+      { method: 'POST', path: '/api/dashboard/naver-blog-views', label: '조회수·vs.Avg 갱신' },
+    ],
+  },
+  {
+    key: 'tistory-collect',
+    name: '티스토리 글 목록 수집 (RSS)',
+    webhookPath: 'tistory-collect',
+    envWebhookKey: 'N8N_WEBHOOK_TISTORY_COLLECT',
+    workflowFile: 'N8N_TISTORY_COLLECT.json',
+    triggers: ['webhook', 'manual', 'schedule'],
+    scheduleHint: '1일마다 · RSS 글 목록 갱신',
+    description:
+      'n8n → 대시보드 collect-platform(tistory) → Supabase videos 저장. Webhook·수동·1일 스케줄.',
+    coreNodes: 'Webhook · Schedule · HTTP · 대시보드 API',
+    roadmapServiceIds: ['tistory-collect'],
+    linkedViewIds: ['tistory', 'data-collect'],
+    dashboardApis: [
+      { method: 'POST', path: '/api/dashboard/collect-platform', label: '티스토리 RSS 글 목록 수집' },
+    ],
+  },
+  {
+    key: 'naver-blog-views',
+    name: '네이버 블로그 조회수·vs.Avg 갱신',
+    webhookPath: 'naver-blog-views',
+    envWebhookKey: 'N8N_WEBHOOK_NAVER_BLOG_VIEWS',
+    workflowFile: 'N8N_NAVER_BLOG_VIEWS.json',
+    triggers: ['webhook', 'manual', 'schedule'],
+    scheduleHint: '1일마다 (글 목록 수집 후 권장)',
+    description:
+      'Supabase naver-blog 글에 조회수·좋아요·댓글을 수집해 vs.Avg를 갱신합니다.',
+    coreNodes: 'Webhook · Schedule · HTTP · 대시보드 API',
+    roadmapServiceIds: ['naver-blog-views'],
+    linkedViewIds: ['naver-blog', 'data-collect'],
+    dashboardApis: [
+      { method: 'GET', path: '/api/dashboard/naver-blog-views', label: '설명·기본값' },
+      { method: 'POST', path: '/api/dashboard/naver-blog-views', label: '메트릭·vs.Avg 갱신' },
     ],
   },
 ]
@@ -85,7 +139,6 @@ export interface N8nArchivedWorkflow {
   reason: string
 }
 
-/** 레포 JSON만 있고 n8n 미배포·삭제됨 */
 export const N8N_ARCHIVED_WORKFLOW_FILES: N8nArchivedWorkflow[] = [
   {
     workflowFile: 'N8N_TOPIC_SUGGEST.json',

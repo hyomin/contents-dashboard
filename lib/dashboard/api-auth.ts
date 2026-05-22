@@ -12,10 +12,18 @@ function safeEqual(a: string, b: string): boolean {
   }
 }
 
-function getProvidedSecret(request: NextRequest): string | null {
+export function getProvidedSecret(request: NextRequest): string | null {
   const auth = request.headers.get('authorization')
   if (auth?.startsWith('Bearer ')) return auth.slice(7).trim()
   return request.headers.get('x-dashboard-api-key')?.trim() ?? null
+}
+
+/** n8n·서버 간 호출용 — DASHBOARD_API_SECRET 일치 여부 */
+export function hasValidDashboardApiSecret(request: NextRequest): boolean {
+  const secret = process.env.DASHBOARD_API_SECRET?.trim()
+  if (!secret) return false
+  const provided = getProvidedSecret(request)
+  return Boolean(provided && safeEqual(provided, secret))
 }
 
 /** 대시보드 UI(fetch)에서 오는 동일 출처 요청 — API 키 없이 허용 (비밀키는 브라우저에 넣지 않음) */

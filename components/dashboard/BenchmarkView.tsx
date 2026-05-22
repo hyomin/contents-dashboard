@@ -97,6 +97,31 @@ function PlatformPicker({
   )
 }
 
+function extractChannelIdFromInput(rawId: string, platform: string): string {
+  const trimmed = rawId.trim()
+  if (platform === 'naver-blog') {
+    const m = trimmed.match(/blog\.naver\.com\/([^/?#]+)/i)
+    if (m?.[1]) return m[1]
+    return trimmed.replace(/^@/, '').split('/')[0]?.trim() ?? trimmed
+  }
+  const idMatch = trimmed.match(/(?:channel\/|@)([\w-]+)/)
+  return idMatch ? idMatch[1] : trimmed
+}
+
+function channelIdPlaceholder(platform: string): string {
+  if (platform === 'naver-blog') {
+    return 'blogId 또는 https://blog.naver.com/blogId'
+  }
+  return 'UC... 또는 https://youtube.com/channel/UC...'
+}
+
+function channelIdHint(platform: string): string {
+  if (platform === 'naver-blog') {
+    return '예: ohmoneymate 또는 https://blog.naver.com/ohmoneymate'
+  }
+  return '예: UCsJ6RuBiTVWRX156FVbeaGg 또는 https://youtube.com/channel/UC…'
+}
+
 function detectPlatform(url: string): BenchmarkItem['platform'] {
   if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube'
   if (url.includes('tiktok.com')) return 'tiktok'
@@ -527,9 +552,7 @@ function AddChannelModal({
     setSaving(true)
     setError('')
 
-    // URL로 입력한 경우 channel_id 추출 (예: youtube.com/channel/UC...)
-    const idMatch = rawId.match(/(?:channel\/|@)([\w-]+)/) ?? null
-    const finalId = idMatch ? idMatch[1] : rawId
+    const finalId = extractChannelIdFromInput(rawId, platform)
 
     const res = await fetch('/api/dashboard/channels', {
       method: 'POST',
@@ -571,12 +594,12 @@ function AddChannelModal({
               채널 ID
             </label>
             <p className="text-[11px] text-gray-400 mb-1.5 break-words">
-              예: UCsJ6RuBiTVWRX156FVbeaGg 또는 https://youtube.com/channel/UC…
+              {channelIdHint(platform)}
             </p>
             <input
               value={channelId}
               onChange={e => setChannelId(e.target.value)}
-              placeholder="UC... 또는 https://youtube.com/channel/UC..."
+              placeholder={channelIdPlaceholder(platform)}
               className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -660,7 +683,9 @@ function EditChannelModal({
       ? `https://www.youtube.com/channel/${channel.channel_id}`
       : platform === 'instagram'
         ? `https://www.instagram.com/${channel.channel_id}`
-        : null
+        : platform === 'naver-blog'
+          ? `https://blog.naver.com/${channel.channel_id}`
+          : null
 
   const handleSave = async () => {
     const name = channelName.trim()
@@ -921,7 +946,11 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
       const res = await fetch('/api/dashboard/collect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel_id: ch.channel_id, channel_name: ch.channel_name }),
+        body: JSON.stringify({
+          channel_id: ch.channel_id,
+          channel_name: ch.channel_name,
+          platform: ch.platform,
+        }),
       })
       const result = await res.json()
       if (!res.ok) {

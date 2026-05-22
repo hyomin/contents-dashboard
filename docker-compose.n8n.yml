@@ -18,6 +18,8 @@ services:
       # 주제 선별 워크플로(OpenAI/Anthropic 노드)용 — 사용 시 설정
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - DASHBOARD_API_URL=${DASHBOARD_API_URL:-http://host.docker.internal:3000}
+      - DASHBOARD_API_SECRET=${DASHBOARD_API_SECRET:-}
 
 volumes:
   n8n_data:
