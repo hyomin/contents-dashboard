@@ -1,8 +1,8 @@
 'use client'
 import { useState, useMemo } from 'react'
-import type { Video, AddToast } from '@/lib/dashboard-types'
-import { getTierColor, getVsAvgColor, formatViews } from '@/lib/dashboard-helpers'
-import { formatDurationLabel } from '@/lib/video-format'
+import type { Video, AddToast } from '@/lib/dashboard/dashboard-types'
+import { getTierColor, getVsAvgColor, formatViews } from '@/lib/dashboard/dashboard-helpers'
+import { formatDurationLabel } from '@/lib/data/video-format'
 
 function getContentUrl(video: Video): string | null {
   if (video.videoId.startsWith('http')) return video.videoId

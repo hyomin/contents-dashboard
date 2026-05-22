@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import type { AddToast } from '@/lib/dashboard-types'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import {
   STAGE_META,
   filterRoadmapServicesForWorkflowUi,
@@ -9,8 +9,8 @@ import {
   type AutomationStage,
   type N8nAutomationService,
   type RoadmapStatus,
-} from '@/lib/n8n-research-roadmap'
-import { N8N_LIVE_WORKFLOWS } from '@/lib/n8n-live-workflows'
+} from '@/lib/n8n/research-roadmap'
+import { N8N_LIVE_WORKFLOWS } from '@/lib/n8n/live-workflows'
 import { N8nLiveWorkflowsPanel } from '@/components/dashboard/n8n-live-workflows-panel'
 import { N8nLv1ServicePanel } from '@/components/dashboard/n8n-lv1-service-panel'
 import { TitleWithHint } from '@/components/dashboard/info-hint'

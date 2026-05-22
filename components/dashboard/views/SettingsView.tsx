@@ -1,7 +1,7 @@
 'use client'
 
 import { useTheme, type Theme, RESOLVED_THEME_LABELS } from '@/lib/theme'
-import type { AddToast } from '@/lib/dashboard-types'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 
 type ThemeOption = { value: Theme; label: string; icon: string; desc: string }

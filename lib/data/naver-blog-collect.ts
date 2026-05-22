@@ -1,7 +1,7 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
 import {
   getCollectMaxVideosPerChannel,
-} from '@/lib/collect-config'
+} from '@/lib/dashboard/collect-config'
 import {
   blogIdFromBloggerLink,
   parseNaverBlogId,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAutomationService } from '@/lib/n8n-research-roadmap'
+import { getAutomationService } from '@/lib/n8n/research-roadmap'
 
 const DUMMY_RESPONSES: Record<
   string,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getChannels } from '@/lib/queries'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getChannels } from '@/lib/data/queries'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)

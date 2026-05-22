@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { listChannelCategories, upsertChannelCategory } from '@/lib/channel-category-queries'
+import { listChannelCategories, upsertChannelCategory } from '@/lib/data/channel-category-queries'
 
 export async function GET() {
   const categories = await listChannelCategories()

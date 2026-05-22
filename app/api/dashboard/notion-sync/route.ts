@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyDashboardApiAuth } from '@/lib/api-auth'
+import { verifyDashboardApiAuth } from '@/lib/dashboard/api-auth'
 import { recordWorkflowToNotion } from '@/lib/notion/notion-log'
 
 /**

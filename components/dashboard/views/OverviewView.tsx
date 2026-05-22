@@ -1,10 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
-import type { Video, AddToast } from '@/lib/dashboard-types'
-import type { DataInsight, TrendingKeyword } from '@/lib/analytics-from-videos'
-import { getTierColor, getPlatformName, getPlatformColor, formatViews, dbVideoToVideo } from '@/lib/dashboard-helpers'
+import type { Video, AddToast } from '@/lib/dashboard/dashboard-types'
+import type { DataInsight, TrendingKeyword } from '@/lib/data/analytics-from-videos'
+import { getTierColor, getPlatformName, getPlatformColor, formatViews, dbVideoToVideo } from '@/lib/dashboard/dashboard-helpers'
 import ContentTable from '@/components/dashboard/ContentTable'
-import type { DBVideo, DBChannel } from '@/lib/supabase'
+import type { DBVideo, DBChannel } from '@/lib/data/supabase'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 
 interface VideoStats {

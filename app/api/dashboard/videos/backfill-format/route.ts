@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { backfillVideoFormats } from '@/lib/video-format-backfill'
+import { backfillVideoFormats } from '@/lib/data/video-format-backfill'
 
 export async function POST() {
   const result = await backfillVideoFormats()

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getChannels, getVideoCountByChannel, getVideoStats } from '@/lib/queries'
-import { PLATFORMS_WITH_COLLECTION } from '@/lib/platforms'
+import { getChannels, getVideoCountByChannel, getVideoStats } from '@/lib/data/queries'
+import { PLATFORMS_WITH_COLLECTION } from '@/lib/dashboard/platforms'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)

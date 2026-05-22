@@ -2,18 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import type { AddToast, Video } from '@/lib/dashboard-types'
-import { TRENDING_KEYWORDS } from '@/lib/dummy-data'
+import type { AddToast, Video } from '@/lib/dashboard/dashboard-types'
+import { TRENDING_KEYWORDS } from '@/lib/dashboard/dummy-data'
 import {
   GUIDE_BY_CATEGORY,
   FALLBACK_REFERENCE_TITLES,
   buildAiScriptGuidePayload,
   type GuideCategory,
   type AiScriptGuideRequestContext,
-} from '@/lib/content-creation-guide'
-import { dbVideoToVideo } from '@/lib/dashboard-helpers'
-import type { RssTopicCandidateRow } from '@/lib/rss-topic-collect'
-import type { DBVideo } from '@/lib/supabase'
+} from '@/lib/dashboard/content-creation-guide'
+import { dbVideoToVideo } from '@/lib/dashboard/dashboard-helpers'
+import type { RssTopicCandidateRow } from '@/lib/data/rss-topic-collect'
+import type { DBVideo } from '@/lib/data/supabase'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
 

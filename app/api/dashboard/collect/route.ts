@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { collectNaverBlogChannelData } from '@/lib/naver-blog-collect'
-import { runNaverBlogViewsSync } from '@/lib/naver-blog-views'
-import { collectYoutubeChannelData } from '@/lib/youtube-channel-collect'
-import { collectTistoryChannelData } from '@/lib/tistory-collect'
+import { collectNaverBlogChannelData } from '@/lib/data/naver-blog-collect'
+import { runNaverBlogViewsSync } from '@/lib/data/naver-blog-views-sync'
+import { collectYoutubeChannelData } from '@/lib/data/youtube-channel-collect'
+import { collectTistoryChannelData } from '@/lib/data/tistory-collect'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()

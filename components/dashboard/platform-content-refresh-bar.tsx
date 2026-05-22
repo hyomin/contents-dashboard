@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getPlatformIcon, getPlatformName } from '@/lib/dashboard-helpers'
-import { isCollectionEnabled, isPlatformComingSoon, isPlatformDummyPreview } from '@/lib/platforms'
+import { getPlatformIcon, getPlatformName } from '@/lib/dashboard/dashboard-helpers'
+import { isCollectionEnabled, isPlatformComingSoon, isPlatformDummyPreview } from '@/lib/dashboard/platforms'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
-import type { AddToast } from '@/lib/dashboard-types'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
 
 interface PlatformContentRefreshBarProps {
   platform: string

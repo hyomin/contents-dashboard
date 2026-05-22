@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import type { AddToast } from '@/lib/dashboard-types'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
 
 const STORAGE_KEY = 'content-studio-drafts-v1'

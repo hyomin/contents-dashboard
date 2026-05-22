@@ -1,4 +1,4 @@
-import type { VideoFormat } from '@/lib/video-format'
+import type { VideoFormat } from '@/lib/data/video-format'
 
 export interface Video {
   id: number

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getRssTopicCandidates, runRssTopicCollect } from '@/lib/rss-topic-collect'
+import { getRssTopicCandidates, runRssTopicCollect } from '@/lib/data/rss-topic-collect'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)

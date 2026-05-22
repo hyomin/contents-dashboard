@@ -1,5 +1,5 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import type { CalendarItemStored, DeployTaskStored, RepurposeItemStored } from '@/lib/dashboard-storage'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
+import type { CalendarItemStored, DeployTaskStored, RepurposeItemStored } from '@/lib/dashboard/dashboard-storage'
 
 export interface ChannelFlagRow {
   channel_id: string

@@ -2,18 +2,18 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
-import type { Video, AddToast } from '@/lib/dashboard-types'
-import { fetchChannelFlags } from '@/lib/dashboard-storage'
-import { dbVideoToVideo } from '@/lib/dashboard-helpers'
+import type { Video, AddToast } from '@/lib/dashboard/dashboard-types'
+import { fetchChannelFlags } from '@/lib/dashboard/dashboard-storage'
+import { dbVideoToVideo } from '@/lib/dashboard/dashboard-helpers'
 import ContentTable from '@/components/dashboard/ContentTable'
-import type { DBVideo } from '@/lib/supabase'
-import { isPlatformComingSoon, isPlatformDummyPreview } from '@/lib/platforms'
-import { DUMMY_TIKTOK_CHANNELS, DUMMY_TIKTOK_VIDEOS } from '@/lib/tiktok-dummy-data'
-import { getPlatformIcon, getPlatformName } from '@/lib/dashboard-helpers'
+import type { DBVideo } from '@/lib/data/supabase'
+import { isPlatformComingSoon, isPlatformDummyPreview } from '@/lib/dashboard/platforms'
+import { DUMMY_TIKTOK_CHANNELS, DUMMY_TIKTOK_VIDEOS } from '@/lib/dashboard/tiktok-dummy-data'
+import { getPlatformIcon, getPlatformName } from '@/lib/dashboard/dashboard-helpers'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import { SavedShortsPanel, type SavedShortItem } from '@/components/dashboard/SavedShortsPanel'
-import type { ViewVideoFormat } from '@/lib/dashboard-nav'
-import { SHORTS_MAX_DURATION_SEC } from '@/lib/video-format'
+import type { ViewVideoFormat } from '@/lib/dashboard/dashboard-nav'
+import { SHORTS_MAX_DURATION_SEC } from '@/lib/data/video-format'
 import {
   ChannelTopicFilterBar,
   filterVideosByTopicAndChannel,

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
 import {
   listSavedShorts,
   saveShortFromVideo,
   removeSavedShort,
-} from '@/lib/saved-shorts-queries'
+} from '@/lib/data/saved-shorts-queries'
 
 export async function GET() {
   const items = await listSavedShorts()

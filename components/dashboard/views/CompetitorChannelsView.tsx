@@ -2,20 +2,20 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import type { AddToast } from '@/lib/dashboard-types'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import {
   getTierColor,
   getPlatformName,
   getPlatformIcon,
   getPlatformColor,
   formatViews,
-} from '@/lib/dashboard-helpers'
+} from '@/lib/dashboard/dashboard-helpers'
 import {
   fetchChannelFlags,
   patchChannelFlag,
   isChannelTracked,
   type ChannelFlagStored,
-} from '@/lib/dashboard-storage'
+} from '@/lib/dashboard/dashboard-storage'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 
 interface EnrichedChannel {

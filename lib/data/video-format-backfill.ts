@@ -1,5 +1,5 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import { classifyVideoFormat } from '@/lib/video-format'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
+import { classifyVideoFormat } from '@/lib/data/video-format'
 
 export async function backfillVideoFormats(): Promise<{ updated: number; error?: string }> {
   const { data, error } = await supabaseAdmin

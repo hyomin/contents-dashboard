@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import type { AddToast } from '@/lib/dashboard-types'
-import { getPlatformIcon } from '@/lib/dashboard-helpers'
-import { fetchChannelFlags, patchChannelFlag, type ChannelFlagStored } from '@/lib/dashboard-storage'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
+import { getPlatformIcon } from '@/lib/dashboard/dashboard-helpers'
+import { fetchChannelFlags, patchChannelFlag, type ChannelFlagStored } from '@/lib/dashboard/dashboard-storage'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 
 interface ChannelRow {

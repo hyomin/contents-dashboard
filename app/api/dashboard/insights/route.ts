@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server'
 import {
   buildInsights,
   extractTrendingKeywords,
-} from '@/lib/analytics-from-videos'
+} from '@/lib/data/analytics-from-videos'
 import {
   getOutlierVideos,
   getVideoStats,
   getVideosForAnalytics,
   getChannels,
-} from '@/lib/queries'
+} from '@/lib/data/queries'
 
 export async function GET() {
   const [videos, stats, outliers, channels] = await Promise.all([

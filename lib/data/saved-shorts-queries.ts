@@ -1,5 +1,5 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import type { DBVideo } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
+import type { DBVideo } from '@/lib/data/supabase'
 
 export interface SavedShortRow {
   video_id: string

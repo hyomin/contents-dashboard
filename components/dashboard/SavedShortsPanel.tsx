@@ -1,7 +1,7 @@
 'use client'
 
-import { formatViews, getVsAvgColor } from '@/lib/dashboard-helpers'
-import { formatDurationLabel } from '@/lib/video-format'
+import { formatViews, getVsAvgColor } from '@/lib/dashboard/dashboard-helpers'
+import { formatDurationLabel } from '@/lib/data/video-format'
 
 export interface SavedShortItem {
   video_id: string

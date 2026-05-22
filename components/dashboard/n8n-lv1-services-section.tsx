@@ -1,7 +1,7 @@
 'use client'
 
-import type { AddToast } from '@/lib/dashboard-types'
-import { getServicesByView } from '@/lib/n8n-research-roadmap'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
+import { getServicesByView } from '@/lib/n8n/research-roadmap'
 import { N8nLv1ServicePanel } from '@/components/dashboard/n8n-lv1-service-panel'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 

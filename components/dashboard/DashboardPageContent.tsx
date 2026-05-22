@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import type { Video, Toast } from '@/lib/dashboard-types'
+import type { Video, Toast } from '@/lib/dashboard/dashboard-types'
 import { ToastContainer, VideoModal } from '@/components/dashboard/ToastContainer'
 import BenchmarkViewComponent from '@/components/dashboard/BenchmarkView'
 import TopicSuggestView from '@/components/dashboard/TopicSuggestView'
@@ -26,7 +26,7 @@ import {
   Lv1AutomationHubView,
   AnalysisHubView,
 } from '@/components/dashboard/views'
-import { resolveViewMeta } from '@/lib/dashboard-nav'
+import { resolveViewMeta } from '@/lib/dashboard/dashboard-nav'
 import { PageHeader } from '@/components/dashboard/info-hint'
 
 function ComingSoon({ title }: { title: string }) {

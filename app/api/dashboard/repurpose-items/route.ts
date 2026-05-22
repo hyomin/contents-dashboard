@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getRepurposeItems, replaceRepurposeItems } from '@/lib/workspace-queries'
-import type { RepurposeItemStored } from '@/lib/dashboard-storage'
+import { getRepurposeItems, replaceRepurposeItems } from '@/lib/data/workspace-queries'
+import type { RepurposeItemStored } from '@/lib/dashboard/dashboard-storage'
 
 export async function GET() {
   return NextResponse.json(await getRepurposeItems())

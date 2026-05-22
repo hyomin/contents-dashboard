@@ -7,7 +7,7 @@
  *     - 수집 글·영상 링크 목록
  */
 
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
 import {
   notionPost,
   notionPatch,

@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { AddToast } from '@/lib/dashboard-types'
-import { getPlatformIcon } from '@/lib/dashboard-helpers'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
+import { getPlatformIcon } from '@/lib/dashboard/dashboard-helpers'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 
 interface PlatformRevenue {

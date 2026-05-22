@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { getPlatformIcon, getPlatformName } from '@/lib/dashboard-helpers'
-import { isCollectionEnabled, isPlatformComingSoon, isPlatformDummyPreview } from '@/lib/platforms'
+import { getPlatformIcon, getPlatformName } from '@/lib/dashboard/dashboard-helpers'
+import { isCollectionEnabled, isPlatformComingSoon, isPlatformDummyPreview } from '@/lib/dashboard/platforms'
 
 const PLATFORMS = [
   { id: 'youtube', desc: 'Shorts·롱폼 · vs.Avg·Outlier' },

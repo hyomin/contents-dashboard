@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useTheme } from '@/lib/theme'
-import { NAV_TREE, getNavDataBadge, isNavExpandOnly, type DashboardNavItem } from '@/lib/dashboard-nav'
+import { NAV_TREE, getNavDataBadge, isNavExpandOnly, type DashboardNavItem } from '@/lib/dashboard/dashboard-nav'
 
 function TreeNode({
   item, depth = 0, activeId, onSelect,

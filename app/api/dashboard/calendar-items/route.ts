@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCalendarItems, replaceCalendarItems } from '@/lib/workspace-queries'
-import type { CalendarItemStored } from '@/lib/dashboard-storage'
+import { getCalendarItems, replaceCalendarItems } from '@/lib/data/workspace-queries'
+import type { CalendarItemStored } from '@/lib/dashboard/dashboard-storage'
 
 export async function GET() {
   return NextResponse.json(await getCalendarItems())

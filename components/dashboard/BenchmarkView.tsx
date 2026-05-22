@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Category, BenchmarkItem,
   getCategoryStyle, resolveTextColor, autoTextColor,
-} from '@/lib/categories'
+} from '@/lib/dashboard/categories'
 
 // ─── 타입 ─────────────────────────────────────────────────────
 interface DBCategory {

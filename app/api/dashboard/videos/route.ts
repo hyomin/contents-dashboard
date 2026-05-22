@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getVideos, getOutlierVideos, getVideoStats } from '@/lib/queries'
+import { getVideos, getOutlierVideos, getVideoStats } from '@/lib/data/queries'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (type === 'tagged-outliers') {
-    const { getTaggedOutlierVideos } = await import('@/lib/outlier-tagging')
+    const { getTaggedOutlierVideos } = await import('@/lib/data/outlier-tagging')
     const minVsAvg = Number(searchParams.get('minVsAvg') ?? 0)
     const tagged = await getTaggedOutlierVideos(limit)
     const filtered =

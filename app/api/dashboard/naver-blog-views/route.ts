@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyDashboardApiAuth } from '@/lib/api-auth'
-import { runNaverBlogViewsSync } from '@/lib/naver-blog-views'
+import { verifyDashboardApiAuth } from '@/lib/dashboard/api-auth'
+import { runNaverBlogViewsSync } from '@/lib/data/naver-blog-views-sync'
 
 export async function GET() {
   return NextResponse.json({

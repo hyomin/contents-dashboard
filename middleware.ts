@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProvidedSecret, verifyDashboardApiAuth } from '@/lib/api-auth'
+import { getProvidedSecret, verifyDashboardApiAuth } from '@/lib/dashboard/api-auth'
 import { getSessionFromRequest } from '@/lib/auth/session'
 
 const MUTATION_PREFIXES = [

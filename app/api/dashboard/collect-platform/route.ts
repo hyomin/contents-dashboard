@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyDashboardApiAuth } from '@/lib/api-auth'
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import { collectNaverBlogChannelData } from '@/lib/naver-blog-collect'
-import { runNaverBlogViewsSync } from '@/lib/naver-blog-views'
-import { collectYoutubeChannelData } from '@/lib/youtube-channel-collect'
-import { collectTistoryChannelData } from '@/lib/tistory-collect'
-import { getCollectLookbackDays, getCollectMaxVideosPerChannel, getCollectPolicyLabel } from '@/lib/collect-config'
-import { isCollectionEnabled } from '@/lib/platforms'
-import { getChannelFlags } from '@/lib/workspace-queries'
+import { verifyDashboardApiAuth } from '@/lib/dashboard/api-auth'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
+import { collectNaverBlogChannelData } from '@/lib/data/naver-blog-collect'
+import { runNaverBlogViewsSync } from '@/lib/data/naver-blog-views-sync'
+import { collectYoutubeChannelData } from '@/lib/data/youtube-channel-collect'
+import { collectTistoryChannelData } from '@/lib/data/tistory-collect'
+import { getCollectLookbackDays, getCollectMaxVideosPerChannel, getCollectPolicyLabel } from '@/lib/dashboard/collect-config'
+import { isCollectionEnabled } from '@/lib/dashboard/platforms'
+import { getChannelFlags } from '@/lib/data/workspace-queries'
 
 type CollectResult =
   | Awaited<ReturnType<typeof collectYoutubeChannelData>>

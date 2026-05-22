@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { REPO_N8N_WORKFLOW_FILES } from '@/lib/n8n-deploy-status'
+import { REPO_N8N_WORKFLOW_FILES } from '@/lib/n8n/deploy-status'
 import {
   N8N_ARCHIVED_WORKFLOW_FILES,
   N8N_LIVE_WORKFLOWS,
   getLiveWebhookPaths,
-} from '@/lib/n8n-live-workflows'
-import { LOCAL_URLS, webhookUrl } from '@/lib/n8n-urls'
+} from '@/lib/n8n/live-workflows'
+import { LOCAL_URLS, webhookUrl } from '@/lib/n8n/urls'
 
 const N8N_BASE = process.env.N8N_BASE_URL?.trim() || LOCAL_URLS.n8nDirect
 

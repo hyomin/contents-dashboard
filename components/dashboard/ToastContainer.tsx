@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
-import type { Video, Toast } from '@/lib/dashboard-types'
-import { getTierColor, formatViews } from '@/lib/dashboard-helpers'
+import type { Video, Toast } from '@/lib/dashboard/dashboard-types'
+import { getTierColor, formatViews } from '@/lib/dashboard/dashboard-helpers'
 
 interface ToastContainerProps {
   toasts: Toast[]

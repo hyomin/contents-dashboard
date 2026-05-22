@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getCategoryStyle } from '@/lib/categories'
-import type { Category } from '@/lib/categories'
+import { getCategoryStyle } from '@/lib/dashboard/categories'
+import type { Category } from '@/lib/dashboard/categories'
 
 // ─── 타입 ────────────────────────────────────────────────────
 interface RefUrl {

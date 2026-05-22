@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTaggedOutlierVideos, runOutlierTagging } from '@/lib/outlier-tagging'
+import { getTaggedOutlierVideos, runOutlierTagging } from '@/lib/data/outlier-tagging'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)

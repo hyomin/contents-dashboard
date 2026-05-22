@@ -1,4 +1,4 @@
-import type { Video } from '@/lib/dashboard-types'
+import type { Video } from '@/lib/dashboard/dashboard-types'
 
 /** Apify 연동 전 TikTok 숏폼 레퍼런스 미리보기 (대시보드 UI 검증용) */
 export const DUMMY_TIKTOK_CHANNELS = [

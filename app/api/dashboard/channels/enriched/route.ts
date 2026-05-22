@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server'
 import {
   channelDisplayTier,
   extractTopKeyword,
-} from '@/lib/analytics-from-videos'
+} from '@/lib/data/analytics-from-videos'
 import {
   getBestVsAvgByChannel,
   getChannelVideoTitles,
   getChannels,
   getVideoCountByChannel,
-} from '@/lib/queries'
+} from '@/lib/data/queries'
 
 export async function GET() {
   const [channels, titlesByChannel, bestVsAvg, videoCounts] = await Promise.all([

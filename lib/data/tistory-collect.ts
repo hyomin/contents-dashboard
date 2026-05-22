@@ -1,6 +1,6 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
 import { parseRssXml } from '@/lib/data/rss-topic-collect'
-import { getCollectMaxVideosPerChannel } from '@/lib/collect-config'
+import { getCollectMaxVideosPerChannel } from '@/lib/dashboard/collect-config'
 
 /** 티스토리 블로그 ID에서 RSS URL 생성 */
 function rssUrl(blogId: string): string {

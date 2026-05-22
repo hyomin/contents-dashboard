@@ -1,15 +1,16 @@
-import { timingSafeEqual } from 'crypto'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth/session'
 
+// Edge Runtime 호환 타이밍-세이프 문자열 비교 (Web Crypto API 기반)
 function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
-  try {
-    return timingSafeEqual(Buffer.from(a), Buffer.from(b))
-  } catch {
-    return false
-  }
+  const enc = new TextEncoder()
+  const aBytes = enc.encode(a)
+  const bBytes = enc.encode(b)
+  let diff = 0
+  for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ bBytes[i]
+  return diff === 0
 }
 
 export function getProvidedSecret(request: NextRequest): string | null {

@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import type { AddToast } from '@/lib/dashboard-types'
-import type { DataInsight } from '@/lib/analytics-from-videos'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
+import type { DataInsight } from '@/lib/data/analytics-from-videos'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 
 export default function AiInsightView({ addToast }: { addToast: AddToast }) {

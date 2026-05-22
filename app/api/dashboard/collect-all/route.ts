@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import { collectYoutubeChannelData } from '@/lib/youtube-channel-collect'
-import { getCollectLookbackDays, getCollectMaxVideosPerChannel, getCollectPolicyLabel } from '@/lib/collect-config'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
+import { collectYoutubeChannelData } from '@/lib/data/youtube-channel-collect'
+import { getCollectLookbackDays, getCollectMaxVideosPerChannel, getCollectPolicyLabel } from '@/lib/dashboard/collect-config'
 
 /** 등록된 YouTube 채널 전부 순차 수집 (API 할당량 고려 약간 간격) */
 export async function POST() {

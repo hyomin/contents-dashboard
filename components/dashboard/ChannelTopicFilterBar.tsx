@@ -1,8 +1,8 @@
 'use client'
 
 import { useMemo } from 'react'
-import { getCategoryStyle, type Category } from '@/lib/categories'
-import type { Video } from '@/lib/dashboard-types'
+import { getCategoryStyle, type Category } from '@/lib/dashboard/categories'
+import type { Video } from '@/lib/dashboard/dashboard-types'
 
 export interface ChannelCategoryDto {
   id: string

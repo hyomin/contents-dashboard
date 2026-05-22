@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDeployTasks, replaceDeployTasks } from '@/lib/workspace-queries'
-import type { DeployTaskStored } from '@/lib/dashboard-storage'
+import { getDeployTasks, replaceDeployTasks } from '@/lib/data/workspace-queries'
+import type { DeployTaskStored } from '@/lib/dashboard/dashboard-storage'
 
 export async function GET() {
   return NextResponse.json(await getDeployTasks())

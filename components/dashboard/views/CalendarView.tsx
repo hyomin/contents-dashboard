@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { AddToast } from '@/lib/dashboard-types'
-import { getPlatformIcon } from '@/lib/dashboard-helpers'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
+import { getPlatformIcon } from '@/lib/dashboard/dashboard-helpers'
 import {
   fetchCalendarItems,
   saveCalendarItems,
   type CalendarItemStored,
-} from '@/lib/dashboard-storage'
+} from '@/lib/dashboard/dashboard-storage'
 import { useWorkspaceSeed } from '@/components/dashboard/hooks/use-workspace-seed'
 
 const STATUS_CONFIG = {

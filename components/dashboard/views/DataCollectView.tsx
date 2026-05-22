@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import type { AddToast } from '@/lib/dashboard-types'
-import { getPlatformIcon, getPlatformName } from '@/lib/dashboard-helpers'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
+import { getPlatformIcon, getPlatformName } from '@/lib/dashboard/dashboard-helpers'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
-import { PLATFORMS_WITH_COLLECTION } from '@/lib/platforms'
+import { PLATFORMS_WITH_COLLECTION } from '@/lib/dashboard/platforms'
 
 // ─── 타입 ──────────────────────────────────────────────────────────
 interface CollectChannelRow {
@@ -290,7 +290,6 @@ export default function DataCollectView({ addToast }: { addToast: AddToast }) {
 
       {/* 채널 목록 + 플랫폼 수집 버튼 */}
       {(activeTab === 'all' ? [...PLATFORMS_WITH_COLLECTION] : [activeTab]).map((platform) => {
-        if (platform === 'all') return null
         const platformChannels = allChannels.filter((ch) => ch.platform === platform)
         if (activeTab !== 'all' && activeTab !== platform) return null
         if (activeTab === 'all' && platformChannels.length === 0) return null

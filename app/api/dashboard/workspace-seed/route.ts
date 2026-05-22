@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getOutlierVideos } from '@/lib/queries'
+import { getOutlierVideos } from '@/lib/data/queries'
 import {
   getCalendarItems,
   getRepurposeItems,
@@ -7,12 +7,12 @@ import {
   replaceCalendarItems,
   replaceRepurposeItems,
   replaceDeployTasks,
-} from '@/lib/workspace-queries'
+} from '@/lib/data/workspace-queries'
 import {
   seedCalendarFromOutliers,
   seedRepurposeFromOutliers,
   seedDeployFromOutliers,
-} from '@/lib/dashboard-storage'
+} from '@/lib/dashboard/dashboard-storage'
 
 export async function GET() {
   const outliers = await getOutlierVideos(2.0, 6)

@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
 
 export interface ChannelCategoryRow {
   id: string

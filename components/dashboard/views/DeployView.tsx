@@ -1,11 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
-import type { AddToast } from '@/lib/dashboard-types'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import {
   fetchDeployTasks,
   saveDeployTasks,
   type DeployTaskStored,
-} from '@/lib/dashboard-storage'
+} from '@/lib/dashboard/dashboard-storage'
 import { useWorkspaceSeed } from '@/components/dashboard/hooks/use-workspace-seed'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 

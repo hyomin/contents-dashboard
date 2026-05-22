@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import type { AddToast } from '@/lib/dashboard-types'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import {
   ROADMAP_CATEGORY_TABS,
   filterRoadmapServicesForWorkflowUi,
@@ -12,12 +12,12 @@ import {
   isWorkflowRunnable,
   type RoadmapCategory,
   type N8nAutomationService,
-} from '@/lib/n8n-research-roadmap'
-import { N8N_LIVE_WORKFLOWS } from '@/lib/n8n-live-workflows'
+} from '@/lib/n8n/research-roadmap'
+import { N8N_LIVE_WORKFLOWS } from '@/lib/n8n/live-workflows'
 import { N8nLiveWorkflowsPanel } from '@/components/dashboard/n8n-live-workflows-panel'
 import { N8nLv1ServicePanel } from '@/components/dashboard/n8n-lv1-service-panel'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
-import { LOCAL_URLS } from '@/lib/n8n-urls'
+import { LOCAL_URLS } from '@/lib/n8n/urls'
 
 interface N8nStatusPayload {
   n8nHealthy: boolean

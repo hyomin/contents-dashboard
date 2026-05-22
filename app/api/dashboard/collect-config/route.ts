@@ -3,7 +3,7 @@ import {
   getCollectLookbackDays,
   getCollectMaxVideosPerChannel,
   getCollectPolicyLabel,
-} from '@/lib/collect-config'
+} from '@/lib/dashboard/collect-config'
 
 export async function GET() {
   const lookbackDays = getCollectLookbackDays()

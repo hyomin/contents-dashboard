@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { seedWorkspaceIfEmpty } from '@/lib/dashboard-storage'
+import { seedWorkspaceIfEmpty } from '@/lib/dashboard/dashboard-storage'
 
 export function useWorkspaceSeed() {
   const [ready, setReady] = useState(false)

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/data/supabase'
 
 const RPM_BY_PLATFORM: Record<string, number> = {
   youtube: 1500,

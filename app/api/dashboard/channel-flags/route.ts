@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getChannelFlags, upsertChannelFlag } from '@/lib/workspace-queries'
+import { getChannelFlags, upsertChannelFlag } from '@/lib/data/workspace-queries'
 
 export async function GET() {
   const flags = await getChannelFlags()

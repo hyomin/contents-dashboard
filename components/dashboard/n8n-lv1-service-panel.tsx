@@ -2,17 +2,17 @@
 
 import { useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import type { AddToast } from '@/lib/dashboard-types'
-import type { N8nAutomationService } from '@/lib/n8n-research-roadmap'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
+import type { N8nAutomationService } from '@/lib/n8n/research-roadmap'
 import {
   getCategoryLabel,
   getStatusLabel,
   getWorkflowImplementationMeta,
   getWorkflowImplementationStatus,
   isWorkflowRunnable,
-} from '@/lib/n8n-research-roadmap'
-import { getWorkflowDeployMeta } from '@/lib/n8n-deploy-status'
-import { getLiveWorkflowByPath } from '@/lib/n8n-live-workflows'
+} from '@/lib/n8n/research-roadmap'
+import { getWorkflowDeployMeta } from '@/lib/n8n/deploy-status'
+import { getLiveWorkflowByPath } from '@/lib/n8n/live-workflows'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 
 interface N8nLv1ServicePanelProps {

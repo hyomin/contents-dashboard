@@ -1,10 +1,10 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import { classifyVideoFormat, type VideoFormat } from '@/lib/video-format'
+import { supabaseAdmin } from '@/lib/data/supabase-admin'
+import { classifyVideoFormat, type VideoFormat } from '@/lib/data/video-format'
 import {
   getCollectLookbackDays,
   getCollectMaxVideosPerChannel,
   getCollectPublishedAfterIso,
-} from '@/lib/collect-config'
+} from '@/lib/dashboard/collect-config'
 
 const YT_API_KEY = process.env.YOUTUBE_API_KEY!
 const YT_BASE = 'https://www.googleapis.com/youtube/v3'

@@ -1,9 +1,9 @@
 'use client'
 
-import type { N8nLiveWorkflow } from '@/lib/n8n-live-workflows'
-import { N8N_ARCHIVED_WORKFLOW_FILES } from '@/lib/n8n-live-workflows'
+import type { N8nLiveWorkflow } from '@/lib/n8n/live-workflows'
+import { N8N_ARCHIVED_WORKFLOW_FILES } from '@/lib/n8n/live-workflows'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
-import { webhookUrl } from '@/lib/n8n-urls'
+import { webhookUrl } from '@/lib/n8n/urls'
 
 const TRIGGER_LABELS: Record<string, string> = {
   webhook: 'Webhook',
