@@ -7,6 +7,8 @@ const MUTATION_PREFIXES = [
   '/api/dashboard/collect-all',
   '/api/dashboard/collect-platform',
   '/api/dashboard/naver-blog-views',
+  '/api/dashboard/notion-sync',
+  '/api/dashboard/rss-topics',
   '/api/n8n/invoke',
   '/api/n8n/lv1-services',
   '/api/topic-suggest',

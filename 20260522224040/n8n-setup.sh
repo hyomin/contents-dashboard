@@ -56,7 +56,7 @@ import_one() {
   id=$(python3 -c "import json; print(json.load(open('$prepared'))[0]['id'])")
   name=$(python3 -c "import json; print(json.load(open('$prepared'))[0].get('name',''))")
   docker cp "$prepared" "n8n:/tmp/import.json"
-  existing=$(docker exec n8n n8n list:workflow 2>/dev/null | grep -F "|${name}" | head -1 | cut -d'|' -f1 || true)
+  existing=$(docker exec n8n n8n list:workflow 2>/dev/null | grep -F "|${name}" | head -1 | cut -d'|' -f1)
   if [[ -n "$existing" ]]; then
     echo "   ↷ 갱신: $name ($existing) — 동일 이름 워크플로 덮어쓰기"
     python3 - "$prepared" "$existing" <<'PY'

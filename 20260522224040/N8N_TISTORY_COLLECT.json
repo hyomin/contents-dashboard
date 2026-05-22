@@ -129,30 +129,6 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [760, 480]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ ($env.DASHBOARD_API_URL || 'http://host.docker.internal:3000').replace(/\\/$/, '') }}/api/dashboard/notion-sync",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "x-dashboard-api-key", "value": "={{ $env.DASHBOARD_API_SECRET || '' }}" }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ workflowKey: 'tistory-collect', platform: 'tistory', summary: $input.first().json }) }}",
-        "options": { "timeout": 30000 }
-      },
-      "id": "node-notion-log-tistory",
-      "name": "Notion 기록",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1200, 380],
-      "continueOnFail": true
     }
   ],
   "connections": {
@@ -176,12 +152,6 @@
     },
     "대시보드: 티스토리 글 목록 수집": {
       "main": [[{ "node": "완료", "type": "main", "index": 0 }]]
-    },
-    "완료": {
-      "main": [[{ "node": "Notion 기록", "type": "main", "index": 0 }]]
-    },
-    "완료 (설정 오류)": {
-      "main": [[{ "node": "Notion 기록", "type": "main", "index": 0 }]]
     }
   },
   "settings": { "executionOrder": "v1" },

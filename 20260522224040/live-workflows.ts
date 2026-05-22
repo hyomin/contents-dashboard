@@ -113,24 +113,6 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     ],
   },
   {
-    key: 'notion-log',
-    name: 'Notion 자동화 로그 기록',
-    webhookPath: 'notion-log',
-    envWebhookKey: 'N8N_WEBHOOK_NOTION_LOG',
-    workflowFile: '',
-    triggers: ['schedule'],
-    scheduleHint: '각 워크플로 완료 후 자동 호출 (별도 워크플로 불필요)',
-    description:
-      '모든 수집·태깅 워크플로 완료 시 Notion에 날짜/플랫폼/콘텐츠 링크를 자동 기록합니다.',
-    coreNodes: 'HTTP · 대시보드 notion-sync API · Notion API',
-    roadmapServiceIds: [],
-    linkedViewIds: ['data-collect'],
-    dashboardApis: [
-      { method: 'POST', path: '/api/dashboard/notion-sync', label: 'Notion 기록' },
-      { method: 'GET', path: '/api/dashboard/notion-sync', label: 'Notion 설정 확인' },
-    ],
-  },
-  {
     key: 'naver-blog-views',
     name: '네이버 블로그 조회수·vs.Avg 갱신',
     webhookPath: 'naver-blog-views',

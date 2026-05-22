@@ -1,5 +1,5 @@
 {
-  "name": "RSS → 주제 후보 자동 수집",
+  "name": "RSS → 주제 후보 자동 수집 (Gemini 정제)",
   "nodes": [
     {
       "parameters": {
@@ -64,7 +64,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const params = $('기준 설정').first().json;\nconst feeds = [\n  { name: '동아일보', url: 'https://rss.donga.com/total.xml' },\n  { name: '경향신문', url: 'https://www.khan.co.kr/rss/rssdata/total_news.xml' },\n  { name: '이데일리', url: 'https://rss.etoday.co.kr/eto/pol_opi.xml' },\n];\nconst keywords = ['연금','재테크','은퇴','노후','시니어','실버','건강','국민연금','전세','금리','복지','상속','부동산','투자','절약','노인','요양'];\n\nfunction decode(t) {\n  return t.replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/gi,'$1').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();\n}\nfunction tag(block, name) {\n  const m = block.match(new RegExp('<'+name+'[^>]*>([\\\\s\\\\S]*?)<\\\\/'+name+'>','i'));\n  return m ? decode(m[1].replace(/<[^>]+>/g,' ').trim()) : '';\n}\nfunction parseXml(xml) {\n  const out = [];\n  const blocks = xml.match(/<item[\\s>][\\s\\S]*?<\\/item>/gi) || [];\n  for (const b of blocks) {\n    const title = tag(b,'title');\n    const link = tag(b,'link') || tag(b,'guid');\n    if (!title) continue;\n    out.push({ title: title.slice(0,500), link: link.slice(0,2000), pubDate: tag(b,'pubDate'), description: tag(b,'description').slice(0,500) });\n  }\n  return out;\n}\nfunction score(title, desc) {\n  const text = (title+' '+desc).toLowerCase();\n  let s = 0;\n  for (const kw of keywords) {\n    if (text.includes(kw)) s += title.includes(kw) ? 12 : 4;\n  }\n  return s;\n}\nfunction idFor(link, title) {\n  let h = 0;\n  const s = (link || title);\n  for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i);\n  return 'rss' + Math.abs(h).toString(16).padStart(28, '0').slice(0, 28);\n}\n\nconst scored = [];\nlet feedOk = 0;\nfor (const feed of feeds) {\n  try {\n    const res = await this.helpers.httpRequest({ method: 'GET', url: feed.url, headers: { 'User-Agent': 'ContentsDashboard-n8n/1.0' }, timeout: 12000 });\n    const xml = typeof res === 'string' ? res : JSON.stringify(res);\n    const items = parseXml(xml);\n    if (!items.length) continue;\n    feedOk++;\n    for (const it of items) {\n      const rel = score(it.title, it.description || '');\n      if (rel <= 0) continue;\n      scored.push({\n        id: idFor(it.link, it.title),\n        title: it.title,\n        link: it.link || null,\n        source_feed: feed.name,\n        summary: it.description || null,\n        published_at: it.pubDate ? new Date(it.pubDate).toISOString() : null,\n        relevance_score: rel,\n        target_audience: params.targetAudience,\n        source: params.source,\n      });\n    }\n  } catch (e) { /* next feed */ }\n}\n\nscored.sort((a,b) => b.relevance_score - a.relevance_score);\nconst top = scored.slice(0, params.maxTopics);\nconst now = new Date().toISOString();\nconst rows = top.map(r => ({ ...r, collected_at: now, updated_at: now }));\n\nif (!feedOk) {\n  return [{ json: { ok: false, skipSave: true, message: 'RSS 피드 수집 실패', topics: [] } }];\n}\nif (!rows.length) {\n  return [{ json: { ok: true, skipSave: true, preview: !params.persistCollected, message: '관련 기사 없음', topics: [], savedCount: 0 } }];\n}\nif (!params.persistCollected) {\n  return [{ json: { ok: true, skipSave: true, preview: true, message: `미리보기 ${rows.length}개`, topics: rows, savedCount: 0 } }];\n}\nreturn [{ json: { ok: true, skipSave: false, topics: rows, savedCount: rows.length, message: `저장 예정 ${rows.length}개` } }];"
+        "jsCode": "const params = $('기준 설정').first().json;\nconst feeds = [\n  { name: '동아일보', url: 'https://rss.donga.com/total.xml' },\n  { name: '경향신문', url: 'https://www.khan.co.kr/rss/rssdata/total_news.xml' },\n  { name: '매일경제', url: 'https://www.mk.co.kr/rss/30000001/' },\n  { name: '한국경제', url: 'https://www.hankyung.com/feed/economy' },\n  { name: '조선일보 경제', url: 'https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml' },\n];\nconst keywords = ['연금','재테크','은퇴','노후','시니어','실버','건강','국민연금','전세','금리','복지','상속','부동산','투자','절약','노인','요양','의료','물가','경제'];\n\nfunction decode(t) {\n  return t.replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/gi,'$1').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();\n}\nfunction tag(block, name) {\n  const m = block.match(new RegExp('<'+name+'[^>]*>([\\\\s\\\\S]*?)<\\\\/'+name+'>','i'));\n  return m ? decode(m[1]).replace(/<[^>]+>/g,' ').trim() : '';\n}\nfunction parseXml(xml) {\n  const out = [];\n  const blocks = xml.match(/<item[\\s\\S]*?<\\/item>/gi) || [];\n  for (const b of blocks) {\n    const title = tag(b,'title');\n    const link = tag(b,'link') || tag(b,'guid');\n    if (!title) continue;\n    out.push({ title: title.slice(0,500), link: link.slice(0,2000), pubDate: tag(b,'pubDate'), description: tag(b,'description').slice(0,500) });\n  }\n  return out;\n}\nfunction score(title, desc) {\n  const text = (title+' '+desc).toLowerCase();\n  let s = 0;\n  for (const kw of keywords) { if (text.includes(kw)) s += title.includes(kw) ? 12 : 4; }\n  return s;\n}\nfunction idFor(link, title) {\n  let h = 0; const s = (link || title);\n  for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i);\n  return 'rss' + Math.abs(h).toString(16).padStart(28, '0').slice(0, 28);\n}\n\nconst scored = []; let feedOk = 0;\nfor (const feed of feeds) {\n  try {\n    const res = await this.helpers.httpRequest({ method: 'GET', url: feed.url, headers: { 'User-Agent': 'ContentsDashboard-n8n/1.0' }, timeout: 12000 });\n    const xml = typeof res === 'string' ? res : JSON.stringify(res);\n    const items = parseXml(xml);\n    if (!items.length) continue;\n    feedOk++;\n    for (const it of items) {\n      const rel = score(it.title, it.description || '');\n      if (rel <= 0) continue;\n      scored.push({ id: idFor(it.link, it.title), title: it.title, link: it.link || null, source_feed: feed.name, summary: it.description || null, published_at: it.pubDate ? new Date(it.pubDate).toISOString() : null, relevance_score: rel, target_audience: params.targetAudience, source: params.source });\n    }\n  } catch (e) { /* next feed */ }\n}\n\nscored.sort((a,b) => b.relevance_score - a.relevance_score);\nconst top = scored.slice(0, params.maxTopics * 3);\n\nif (!feedOk) return [{ json: { ok: false, skipSave: true, message: 'RSS 피드 수집 실패', topics: [] } }];\nif (!top.length) return [{ json: { ok: true, skipSave: !params.persistCollected, message: '관련 기사 없음', topics: [], savedCount: 0 } }];\nif (!params.persistCollected) return [{ json: { ok: true, skipSave: true, preview: true, message: `미리보기 ${top.length}개`, topics: top, savedCount: 0 } }];\n\nreturn [{ json: { ok: true, skipSave: false, topics: top, savedCount: top.length, maxTopics: params.maxTopics, targetAudience: params.targetAudience, message: `수집 ${top.length}개 (Gemini 정제 대기)` } }];"
       },
       "id": "node-rss-collect",
       "name": "RSS 수집·점수",
@@ -73,6 +73,95 @@
       "position": [
         540,
         380
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rss = $input.first().json;\nconst geminiKey = ($env.GEMINI_API_KEY || '').trim();\n\n// 저장 스킵이거나 키 없으면 Gemini 건너뜀\nif (rss.skipSave || !rss.topics?.length || !geminiKey) {\n  return [{ json: { ...rss, geminiSkip: true, geminiReason: !geminiKey ? 'GEMINI_API_KEY 미설정' : '저장 스킵' } }];\n}\n\nconst topicList = rss.topics.slice(0, 15).map((t, i) => `${i+1}. ${t.title}`).join('\\n');\nconst prompt = `당신은 ${rss.targetAudience || '시니어'} 타겟 유튜브·블로그 콘텐츠 전문 기획자입니다.\\n아래 뉴스 기사 제목 목록에서 실제로 관심 가질 주제 ${rss.maxTopics || 5}개를 선별해 주세요.\\n\\n조건:\\n- 클릭하고 싶은 유튜브 영상 제목으로 재구성 (30자 이내)\\n- 선별 이유를 한 줄로 설명\\n- JSON 배열로만 응답 (앞뒤 다른 텍스트 없이)\\n\\n응답 형식:\\n[\\n  {\"rank\":1,\"original\":\"원본제목\",\"youtube_title\":\"유튜브 제목 제안\",\"reason\":\"선별 이유\"},\\n  ...\\n]\\n\\n뉴스 제목 목록:\\n${topicList}`;\n\nreturn [{ json: {\n  ...rss,\n  geminiSkip: false,\n  geminiKey,\n  geminiPrompt: prompt,\n} }];"
+      },
+      "id": "node-gemini-prep",
+      "name": "Gemini 프롬프트 준비",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip-gemini",
+              "leftValue": "={{ $json.geminiSkip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-gemini-skip",
+      "name": "Gemini 스킵?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        980,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={{ $json.geminiKey }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ contents: [{ parts: [{ text: $json.geminiPrompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-gemini-call",
+      "name": "Gemini: 주제 선별",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        280
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Gemini 프롬프트 준비').first().json;\nconst geminiRaw = $input.first().json;\n\nlet aiTopics = [];\ntry {\n  const text = geminiRaw?.candidates?.[0]?.content?.parts?.[0]?.text || '';\n  const jsonMatch = text.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    const parsed = JSON.parse(jsonMatch[0]);\n    aiTopics = Array.isArray(parsed) ? parsed : [];\n  }\n} catch(e) { /* Gemini 파싱 실패 → 원본 사용 */ }\n\nconst originalTopics = prev.topics || [];\nconst maxTopics = prev.maxTopics || 5;\n\nlet enriched;\nif (aiTopics.length > 0) {\n  const matched = new Set();\n  enriched = aiTopics.map((ai, i) => {\n    const idx = originalTopics.findIndex((t, j) => !matched.has(j) && (t.title.includes(ai.original?.slice(0,10)) || ai.original?.includes(t.title.slice(0,10))));\n    const base = idx >= 0 ? originalTopics[idx] : (originalTopics[i] || originalTopics[0]);\n    if (idx >= 0) matched.add(idx);\n    return {\n      ...base,\n      title: ai.youtube_title || base.title,\n      summary: ai.reason ? `[Gemini] ${ai.reason}` : base.summary,\n      relevance_score: (base?.relevance_score || 0) + 50,\n      ai_title: ai.youtube_title || null,\n      ai_reason: ai.reason || null,\n    };\n  }).slice(0, maxTopics);\n} else {\n  enriched = originalTopics.slice(0, maxTopics);\n}\n\nconst now = new Date().toISOString();\nconst rows = enriched.map(t => ({ ...t, collected_at: now, updated_at: now }));\n\nreturn [{ json: {\n  ok: true,\n  skipSave: false,\n  topics: rows,\n  savedCount: rows.length,\n  aiEnhanced: aiTopics.length > 0,\n  aiProvider: aiTopics.length > 0 ? 'gemini' : null,\n  message: `${rows.length}개 주제${aiTopics.length > 0 ? ' (Gemini 정제 완료)' : ' (키워드 필터)'}`,\n} }];"
+      },
+      "id": "node-gemini-parse",
+      "name": "Gemini 결과 파싱",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        280
       ]
     },
     {
@@ -103,7 +192,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        760,
+        1640,
         380
       ]
     },
@@ -143,35 +232,70 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        980,
+        1860,
         280
       ]
     },
     {
       "parameters": {
-        "jsCode": "const built = $('RSS 수집·점수').first().json;\nreturn [{ json: {\n  ok: true,\n  mode: 'n8n',\n  targetAudience: $('기준 설정').first().json.targetAudience,\n  savedCount: built.savedCount ?? (built.topics || []).length,\n  topics: built.topics || [],\n  message: built.message || 'RSS 주제 수집 완료',\n  timestamp: new Date().toISOString(),\n} }];"
+        "jsCode": "const built = $input.first().json;\nreturn [{ json: {\n  ok: true,\n  mode: 'n8n',\n  savedCount: built.savedCount ?? (built.topics || []).length,\n  aiEnhanced: built.aiEnhanced ?? false,\n  aiProvider: built.aiProvider ?? null,\n  topics: built.topics || [],\n  message: built.message || 'RSS 주제 수집 완료',\n  timestamp: new Date().toISOString(),\n} }];"
       },
       "id": "node-done-save",
       "name": "완료 (저장)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1200,
+        2080,
         280
       ]
     },
     {
       "parameters": {
-        "jsCode": "const j = $input.first().json;\nreturn [{ json: {\n  ok: j.ok !== false,\n  mode: 'n8n',\n  preview: j.preview === true,\n  savedCount: j.savedCount ?? 0,\n  topics: j.topics || [],\n  message: j.message,\n  timestamp: new Date().toISOString(),\n} }];"
+        "jsCode": "const j = $input.first().json;\nreturn [{ json: {\n  ok: j.ok !== false,\n  mode: 'n8n',\n  preview: j.preview === true,\n  savedCount: 0,\n  aiEnhanced: false,\n  topics: j.topics || [],\n  message: j.message || '저장 스킵',\n  timestamp: new Date().toISOString(),\n} }];"
       },
       "id": "node-done-skip",
       "name": "완료 (스킵)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        980,
+        1860,
         480
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.DASHBOARD_API_URL || 'http://host.docker.internal:3000').replace(/\\/$/, '') }}/api/dashboard/notion-sync",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-dashboard-api-key",
+              "value": "={{ $env.DASHBOARD_API_SECRET || '' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ workflowKey: 'rss-topic-collect', summary: $input.first().json }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-notion-log-rss",
+      "name": "Notion 기록",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2300,
+        380
+      ],
+      "continueOnFail": true
     }
   ],
   "connections": {
@@ -197,6 +321,17 @@
         ]
       ]
     },
+    "스케줄 (1일마다)": {
+      "main": [
+        [
+          {
+            "node": "기준 설정",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "기준 설정": {
       "main": [
         [
@@ -209,6 +344,57 @@
       ]
     },
     "RSS 수집·점수": {
+      "main": [
+        [
+          {
+            "node": "Gemini 프롬프트 준비",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 프롬프트 준비": {
+      "main": [
+        [
+          {
+            "node": "Gemini 스킵?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 스킵?": {
+      "main": [
+        [
+          {
+            "node": "완료 (스킵)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gemini: 주제 선별",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: 주제 선별": {
+      "main": [
+        [
+          {
+            "node": "Gemini 결과 파싱",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 결과 파싱": {
       "main": [
         [
           {
@@ -248,11 +434,22 @@
         ]
       ]
     },
-    "스케줄 (1일마다)": {
+    "완료 (저장)": {
       "main": [
         [
           {
-            "node": "기준 설정",
+            "node": "Notion 기록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "완료 (스킵)": {
+      "main": [
+        [
+          {
+            "node": "Notion 기록",
             "type": "main",
             "index": 0
           }
@@ -267,6 +464,9 @@
   "tags": [
     {
       "name": "RSS·주제"
+    },
+    {
+      "name": "Gemini"
     }
   ],
   "pinData": {}
