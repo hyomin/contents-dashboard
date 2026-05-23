@@ -35,7 +35,7 @@
           "interval": [
             {
               "field": "days",
-              "daysInterval": 1
+              "hoursInterval": 12
             }
           ]
         }

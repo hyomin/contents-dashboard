@@ -12,7 +12,10 @@
       "name": "Webhook 수집",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [100, 200],
+      "position": [
+        100,
+        200
+      ],
       "webhookId": "tistory-collect-webhook"
     },
     {
@@ -21,7 +24,10 @@
       "name": "수동 실행",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [100, 380]
+      "position": [
+        100,
+        380
+      ]
     },
     {
       "parameters": {
@@ -29,7 +35,7 @@
           "interval": [
             {
               "field": "days",
-              "daysInterval": 1
+              "hoursInterval": 12
             }
           ]
         }
@@ -38,7 +44,10 @@
       "typeVersion": 1.2,
       "id": "node-schedule-tistory-collect",
       "name": "스케줄 (1일마다)",
-      "position": [100, 560]
+      "position": [
+        100,
+        560
+      ]
     },
     {
       "parameters": {
@@ -48,7 +57,10 @@
       "name": "기준·API 설정",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [320, 380]
+      "position": [
+        320,
+        380
+      ]
     },
     {
       "parameters": {
@@ -77,7 +89,10 @@
       "name": "설정 오류?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [540, 380]
+      "position": [
+        540,
+        380
+      ]
     },
     {
       "parameters": {
@@ -108,7 +123,10 @@
       "name": "대시보드: 티스토리 글 목록 수집",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [760, 280]
+      "position": [
+        760,
+        280
+      ]
     },
     {
       "parameters": {
@@ -118,7 +136,10 @@
       "name": "완료",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [980, 280]
+      "position": [
+        980,
+        280
+      ]
     },
     {
       "parameters": {
@@ -128,7 +149,10 @@
       "name": "완료 (설정 오류)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [760, 480]
+      "position": [
+        760,
+        480
+      ]
     },
     {
       "parameters": {
@@ -137,55 +161,140 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "x-dashboard-api-key", "value": "={{ $env.DASHBOARD_API_SECRET || '' }}" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-dashboard-api-key",
+              "value": "={{ $env.DASHBOARD_API_SECRET || '' }}"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ workflowKey: 'tistory-collect', platform: 'tistory', summary: $input.first().json }) }}",
-        "options": { "timeout": 30000 }
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "node-notion-log-tistory",
       "name": "Notion 기록",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 380],
+      "position": [
+        1200,
+        380
+      ],
       "continueOnFail": true
     }
   ],
   "connections": {
     "Webhook 수집": {
-      "main": [[{ "node": "기준·API 설정", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "기준·API 설정",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "수동 실행": {
-      "main": [[{ "node": "기준·API 설정", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "기준·API 설정",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "스케줄 (1일마다)": {
-      "main": [[{ "node": "기준·API 설정", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "기준·API 설정",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "기준·API 설정": {
-      "main": [[{ "node": "설정 오류?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "설정 오류?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "설정 오류?": {
       "main": [
-        [{ "node": "완료 (설정 오류)", "type": "main", "index": 0 }],
-        [{ "node": "대시보드: 티스토리 글 목록 수집", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "완료 (설정 오류)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "대시보드: 티스토리 글 목록 수집",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "대시보드: 티스토리 글 목록 수집": {
-      "main": [[{ "node": "완료", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "완료",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "완료": {
-      "main": [[{ "node": "Notion 기록", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notion 기록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "완료 (설정 오류)": {
-      "main": [[{ "node": "Notion 기록", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notion 기록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "staticData": null,
-  "tags": [{ "name": "Tistory" }],
+  "tags": [
+    {
+      "name": "Tistory"
+    }
+  ],
   "pinData": {}
 }

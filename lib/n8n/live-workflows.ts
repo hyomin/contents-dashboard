@@ -5,10 +5,14 @@
 
 export type N8nTriggerKind = 'webhook' | 'manual' | 'schedule'
 
-/** 모든 스케줄 트리거 공통 주기 (n8n: daysInterval) */
+/** 자동 수행 주기: 12시간마다 (n8n: hoursInterval) */
+export const N8N_SCHEDULE_INTERVAL_HOURS = 12
+/** @deprecated 하위호환 — N8N_SCHEDULE_INTERVAL_HOURS 사용 권장 */
 export const N8N_SCHEDULE_INTERVAL_DAYS = 1
 
 export interface N8nLiveWorkflow {
+  /** 운영 워크플로 표시 번호 (W01~W07) */
+  no: string
   key: string
   name: string
   webhookPath: string
@@ -25,13 +29,14 @@ export interface N8nLiveWorkflow {
 
 export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
   {
+    no: 'W01',
     key: 'youtube-collect',
     name: 'YouTube 채널 데이터 수집',
     webhookPath: 'youtube-collect',
     envWebhookKey: 'N8N_WEBHOOK_YOUTUBE_COLLECT',
     workflowFile: 'N8N_YOUTUBE_COLLECT.json',
     triggers: ['webhook', 'manual', 'schedule'],
-    scheduleHint: '1일마다 자동 수집',
+    scheduleHint: '12시간마다 자동 수집',
     description:
       'Supabase 채널 목록 → YouTube API 통계·영상 → Supabase 저장. Webhook·수동·1일 스케줄.',
     coreNodes: 'Webhook · Schedule · YouTube API · HTTP · Supabase',
@@ -42,13 +47,14 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     ],
   },
   {
+    no: 'W02',
     key: 'outlier-tagging',
     name: '아웃라이어 자동 태깅',
     webhookPath: 'outlier-tagging',
     envWebhookKey: 'N8N_WEBHOOK_OUTLIER_TAG',
     workflowFile: 'N8N_OUTLIER_TAGGING.json',
     triggers: ['webhook', 'manual', 'schedule'],
-    scheduleHint: '1일마다 자동 태깅',
+    scheduleHint: '12시간마다 자동 태깅',
     description:
       'Supabase videos에서 vs.Avg 기준 이상 영상을 outlier_tags 테이블에 저장.',
     coreNodes: 'Webhook · Schedule · IF · Supabase HTTP',
@@ -60,13 +66,14 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     ],
   },
   {
+    no: 'W03',
     key: 'rss-topic-collect',
     name: 'RSS → 주제 후보 자동 수집',
     webhookPath: 'rss-topic-collect',
     envWebhookKey: 'N8N_WEBHOOK_RSS_TOPICS',
     workflowFile: 'N8N_RSS_TOPIC_COLLECT.json',
     triggers: ['webhook', 'manual', 'schedule'],
-    scheduleHint: '1일마다 자동 수집',
+    scheduleHint: '12시간마다 자동 수집',
     description:
       '경제·사회 RSS에서 시니어 관련 기사를 골라 rss_topic_candidates에 저장.',
     coreNodes: 'Webhook · Schedule · RSS · Code · Supabase',
@@ -78,13 +85,14 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     ],
   },
   {
+    no: 'W04',
     key: 'naver-blog-collect',
     name: '네이버 블로그 글 목록 수집 (검색 Open API)',
     webhookPath: 'naver-blog-collect',
     envWebhookKey: 'N8N_WEBHOOK_NAVER_BLOG_COLLECT',
     workflowFile: 'N8N_NAVER_BLOG_COLLECT.json',
     triggers: ['webhook', 'manual', 'schedule'],
-    scheduleHint: '1일마다 · 글 수집 후 조회수 갱신',
+    scheduleHint: '12시간마다 · 글 수집 후 조회수 갱신',
     description:
       'n8n → 대시보드 collect-platform(naver-blog) → naver-blog-views. Webhook·수동·1일 스케줄.',
     coreNodes: 'Webhook · Schedule · HTTP · 대시보드 API ×2',
@@ -96,13 +104,14 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     ],
   },
   {
+    no: 'W05',
     key: 'tistory-collect',
     name: '티스토리 글 목록 수집 (RSS)',
     webhookPath: 'tistory-collect',
     envWebhookKey: 'N8N_WEBHOOK_TISTORY_COLLECT',
     workflowFile: 'N8N_TISTORY_COLLECT.json',
     triggers: ['webhook', 'manual', 'schedule'],
-    scheduleHint: '1일마다 · RSS 글 목록 갱신',
+    scheduleHint: '12시간마다 · RSS 글 목록 갱신',
     description:
       'n8n → 대시보드 collect-platform(tistory) → Supabase videos 저장. Webhook·수동·1일 스케줄.',
     coreNodes: 'Webhook · Schedule · HTTP · 대시보드 API',
@@ -113,6 +122,7 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     ],
   },
   {
+    no: 'W06',
     key: 'notion-log',
     name: 'Notion 자동화 로그 기록',
     webhookPath: 'notion-log',
@@ -131,13 +141,14 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     ],
   },
   {
+    no: 'W07',
     key: 'naver-blog-views',
     name: '네이버 블로그 조회수·vs.Avg 갱신',
     webhookPath: 'naver-blog-views',
     envWebhookKey: 'N8N_WEBHOOK_NAVER_BLOG_VIEWS',
     workflowFile: 'N8N_NAVER_BLOG_VIEWS.json',
     triggers: ['webhook', 'manual', 'schedule'],
-    scheduleHint: '1일마다 (글 목록 수집 후 권장)',
+    scheduleHint: '12시간마다 (글 목록 수집 후 권장)',
     description:
       'Supabase naver-blog 글에 조회수·좋아요·댓글을 수집해 vs.Avg를 갱신합니다.',
     coreNodes: 'Webhook · Schedule · HTTP · 대시보드 API',

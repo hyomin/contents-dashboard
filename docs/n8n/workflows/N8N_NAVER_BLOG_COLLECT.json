@@ -35,7 +35,7 @@
           "interval": [
             {
               "field": "days",
-              "daysInterval": 1
+              "hoursInterval": 12
             }
           ]
         }
@@ -182,21 +182,32 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "x-dashboard-api-key", "value": "={{ $env.DASHBOARD_API_SECRET || '' }}" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-dashboard-api-key",
+              "value": "={{ $env.DASHBOARD_API_SECRET || '' }}"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ workflowKey: 'naver-blog-collect', platform: 'naver-blog', summary: $input.first().json }) }}",
-        "options": { "timeout": 30000 }
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "node-notion-log-naver-collect",
       "name": "Notion 기록",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1420, 380],
+      "position": [
+        1420,
+        380
+      ],
       "continueOnFail": true
     },
     {

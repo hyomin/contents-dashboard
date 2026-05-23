@@ -35,7 +35,7 @@
           "interval": [
             {
               "field": "days",
-              "daysInterval": 1
+              "hoursInterval": 12
             }
           ]
         }
@@ -324,21 +324,32 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "x-dashboard-api-key", "value": "={{ $env.DASHBOARD_API_SECRET || '' }}" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-dashboard-api-key",
+              "value": "={{ $env.DASHBOARD_API_SECRET || '' }}"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ workflowKey: 'youtube-collect', platform: 'youtube', summary: $input.first().json }) }}",
-        "options": { "timeout": 30000 }
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "node-notion-log-yt",
       "name": "Notion 기록",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2300, 480],
+      "position": [
+        2300,
+        480
+      ],
       "continueOnFail": true
     }
   ],

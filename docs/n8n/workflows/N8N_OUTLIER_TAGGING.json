@@ -35,7 +35,7 @@
           "interval": [
             {
               "field": "days",
-              "daysInterval": 1
+              "hoursInterval": 12
             }
           ]
         }
@@ -208,21 +208,32 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "x-dashboard-api-key", "value": "={{ $env.DASHBOARD_API_SECRET || '' }}" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-dashboard-api-key",
+              "value": "={{ $env.DASHBOARD_API_SECRET || '' }}"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ workflowKey: 'outlier-tagging', summary: $input.first().json }) }}",
-        "options": { "timeout": 30000 }
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "node-notion-log-outlier",
       "name": "Notion 기록",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1640, 380],
+      "position": [
+        1640,
+        380
+      ],
       "continueOnFail": true
     }
   ],
@@ -312,10 +323,26 @@
       ]
     },
     "완료 (저장)": {
-      "main": [[{ "node": "Notion 기록", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notion 기록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "완료 (스킵/미리보기)": {
-      "main": [[{ "node": "Notion 기록", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notion 기록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "스케줄 (1일마다)": {
       "main": [
