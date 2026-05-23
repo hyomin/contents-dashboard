@@ -36,78 +36,155 @@ export interface RssTopicCollectResult {
   aiEnhanced?: boolean
 }
 
+/** 체널 카테고리와 1:1 대응하는 RSS 피드 카테고리 */
 export type RssFeedCategory =
-  | '종합언론'
-  | '경제·금융'
+  | '뉴스·시사'
+  | '경제'
+  | 'IT·테크'
+  | '게임'
+  | '육아'
+  | '교육'
+  | '엔터'
+  | '라이프'
   | '부동산'
   | '건강·의료'
   | '복지·정책'
-  | '라이프'
-  | '방송·뉴스'
 
 export interface RssFeedConfigExtended extends RssFeedConfig {
   category: RssFeedCategory
 }
 
-/** 카테고리별 RSS 피드 목록 (수집 실패 시 다음 피드로 진행) */
+/** 카테고리별 RSS 피드 (체널 카테고리와 동일 분류 — 50개+) */
 export const ALL_RSS_FEEDS: RssFeedConfigExtended[] = [
-  // ── 종합 언론 ─────────────────────────────────────────────────
-  { name: '동아일보', category: '종합언론', url: 'https://rss.donga.com/total.xml' },
-  { name: '경향신문', category: '종합언론', url: 'https://www.khan.co.kr/rss/rssdata/total_news.xml' },
-  { name: '조선일보', category: '종합언론', url: 'https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml' },
-  { name: '중앙일보', category: '종합언론', url: 'https://rss.joins.com/joins_news_list.xml' },
-  { name: '연합뉴스', category: '종합언론', url: 'https://www.yna.co.kr/rss/news.xml' },
-  // ── 경제·금융 ─────────────────────────────────────────────────
-  { name: '매일경제', category: '경제·금융', url: 'https://www.mk.co.kr/rss/30000001/' },
-  { name: '한국경제', category: '경제·금융', url: 'https://www.hankyung.com/feed/economy' },
-  { name: '이데일리', category: '경제·금융', url: 'https://www.edaily.co.kr/rss/all.xml' },
-  { name: '머니투데이', category: '경제·금융', url: 'https://rss.mt.co.kr/rss/010202000000.xml' },
-  { name: '파이낸셜뉴스', category: '경제·금융', url: 'https://www.fnnews.com/rss/fn_realnews_010100.xml' },
-  { name: '헤럴드경제', category: '경제·금융', url: 'https://biz.heraldkorea.co.kr/rss/allNews.xml' },
-  { name: '뉴스1 경제', category: '경제·금융', url: 'https://www.news1.kr/rss/all-news' },
-  { name: '연합뉴스 경제', category: '경제·금융', url: 'https://www.yna.co.kr/rss/economy.xml' },
-  // ── 부동산 ───────────────────────────────────────────────────
+  // ── 뉴스·시사 ─────────────────────────────────────────────────
+  { name: '연합뉴스', category: '뉴스·시사', url: 'https://www.yna.co.kr/rss/news.xml' },
+  { name: '동아일보', category: '뉴스·시사', url: 'https://rss.donga.com/total.xml' },
+  { name: '경향신문', category: '뉴스·시사', url: 'https://www.khan.co.kr/rss/rssdata/total_news.xml' },
+  { name: '조선일보', category: '뉴스·시사', url: 'https://www.chosun.com/arc/outboundfeeds/rss/category/national/?outputType=xml' },
+  { name: '중앙일보', category: '뉴스·시사', url: 'https://rss.joins.com/joins_news_list.xml' },
+  { name: 'KBS 뉴스', category: '뉴스·시사', url: 'https://news.kbs.co.kr/rss/rss_news.htm' },
+  { name: 'MBC 뉴스', category: '뉴스·시사', url: 'https://imnews.imbc.com/rss/news/news_00.xml' },
+  { name: 'YTN', category: '뉴스·시사', url: 'https://www.ytn.co.kr/rss/0801.xml' },
+  { name: '오마이뉴스', category: '뉴스·시사', url: 'https://www.ohmynews.com/NWS_Web/Rss/rss_news.xml' },
+  { name: '시사IN', category: '뉴스·시사', url: 'https://www.sisain.co.kr/rss/allArticle.xml' },
+  // ── 경제 ──────────────────────────────────────────────────────
+  { name: '매일경제', category: '경제', url: 'https://www.mk.co.kr/rss/30000001/' },
+  { name: '한국경제', category: '경제', url: 'https://www.hankyung.com/feed/economy' },
+  { name: '이데일리', category: '경제', url: 'https://www.edaily.co.kr/rss/all.xml' },
+  { name: '머니투데이', category: '경제', url: 'https://rss.mt.co.kr/rss/010202000000.xml' },
+  { name: '파이낸셜뉴스', category: '경제', url: 'https://www.fnnews.com/rss/fn_realnews_010100.xml' },
+  { name: '헤럴드경제', category: '경제', url: 'https://biz.heraldkorea.co.kr/rss/allNews.xml' },
+  { name: '연합뉴스 경제', category: '경제', url: 'https://www.yna.co.kr/rss/economy.xml' },
+  { name: '서울경제', category: '경제', url: 'https://www.sedaily.com/RSS' },
+  { name: '한겨레 경제', category: '경제', url: 'https://www.hani.co.kr/rss/economy/' },
+  // ── IT·테크 ───────────────────────────────────────────────────
+  { name: 'ZDNet Korea', category: 'IT·테크', url: 'https://zdnet.co.kr/rss.xml' },
+  { name: '블로터', category: 'IT·테크', url: 'https://www.bloter.net/feed' },
+  { name: 'IT동아', category: 'IT·테크', url: 'https://it.donga.com/rss/' },
+  { name: '전자신문', category: 'IT·테크', url: 'https://www.etnews.com/rss/all.xml' },
+  { name: '디지털데일리', category: 'IT·테크', url: 'https://www.ddaily.co.kr/rss/allArticle.xml' },
+  { name: '아이뉴스24', category: 'IT·테크', url: 'https://www.inews24.com/rss/' },
+  { name: '테크플러스', category: 'IT·테크', url: 'https://www.techplus.co.kr/rss/allArticle.xml' },
+  // ── 게임 ──────────────────────────────────────────────────────
+  { name: '인벤', category: '게임', url: 'https://www.inven.co.kr/rss/news.xml' },
+  { name: 'GameMeca', category: '게임', url: 'https://www.gamemeca.com/feed.php' },
+  { name: '디스이즈게임', category: '게임', url: 'https://www.thisisgame.com/webzine/rss/nboard.xml' },
+  { name: '게임메카', category: '게임', url: 'https://www.gamemeca.com/rss/all.xml' },
+  { name: '경향게임스', category: '게임', url: 'https://www.khgames.co.kr/rss/allArticle.xml' },
+  // ── 육아 ──────────────────────────────────────────────────────
+  { name: '베이비뉴스', category: '육아', url: 'https://www.ibabynews.com/rss/allArticle.xml' },
+  { name: '베이비타임즈', category: '육아', url: 'https://www.babytimes.co.kr/rss/allArticle.xml' },
+  { name: '뉴스1 육아', category: '육아', url: 'https://www.news1.kr/rss/baby' },
+  { name: '맘앤앙팡', category: '육아', url: 'https://www.mamandenfant.co.kr/rss/allArticle.xml' },
+  // ── 교육 ──────────────────────────────────────────────────────
+  { name: '베리타스알파', category: '교육', url: 'https://www.veritas-a.com/rss/allArticle.xml' },
+  { name: '한국대학신문', category: '교육', url: 'https://news.unn.net/rss/allArticle.xml' },
+  { name: '에듀프레스', category: '교육', url: 'https://www.edupress.kr/rss' },
+  { name: '교육부 정책브리핑', category: '교육', url: 'https://www.korea.kr/rss/education.xml' },
+  { name: '에듀동아', category: '교육', url: 'https://edu.donga.com/rss/' },
+  // ── 엔터 ──────────────────────────────────────────────────────
+  { name: '텐아시아', category: '엔터', url: 'https://tenasia.hankyung.com/rss' },
+  { name: '뉴스엔', category: '엔터', url: 'https://www.newsen.com/rss/news_culture_list.xml' },
+  { name: 'OSEN', category: '엔터', url: 'https://osen.mt.co.kr/rss/osen_news.xml' },
+  { name: '스타뉴스', category: '엔터', url: 'https://star.mt.co.kr/rss/star_all.xml' },
+  { name: '스포츠조선 엔터', category: '엔터', url: 'https://sports.chosun.com/arc/outboundfeeds/rss/category/entertainment/?outputType=xml' },
+  // ── 라이프 ────────────────────────────────────────────────────
+  { name: '위키트리', category: '라이프', url: 'https://www.wikitree.co.kr/rss/allArticle.xml' },
+  { name: '데일리팝', category: '라이프', url: 'https://www.dailypop.kr/rss/allArticle.xml' },
+  { name: '시니어조선', category: '라이프', url: 'https://senior.chosun.com/arc/outboundfeeds/rss/?outputType=xml' },
+  { name: '오마이뉴스 라이프', category: '라이프', url: 'https://www.ohmynews.com/NWS_Web/Rss/life.xml' },
+  // ── 부동산 ────────────────────────────────────────────────────
   { name: '조선비즈 부동산', category: '부동산', url: 'https://biz.chosun.com/arc/outboundfeeds/rss/category/real-estate/?outputType=xml' },
   { name: '한경 부동산', category: '부동산', url: 'https://www.hankyung.com/feed/realestate' },
   { name: '매경 부동산', category: '부동산', url: 'https://www.mk.co.kr/rss/50400012/' },
+  { name: '이데일리 부동산', category: '부동산', url: 'https://www.edaily.co.kr/rss/real-estate.xml' },
   // ── 건강·의료 ─────────────────────────────────────────────────
   { name: '헬스조선', category: '건강·의료', url: 'https://health.chosun.com/arc/outboundfeeds/rss/?outputType=xml' },
   { name: '메디컬투데이', category: '건강·의료', url: 'https://www.mdtoday.co.kr/rss/allArticle.xml' },
-  { name: '청년의사', category: '건강·의료', url: 'https://www.docdocdoc.co.kr/rss/allArticle.xml' },
+  { name: '코메디닷컴', category: '건강·의료', url: 'https://kormedi.com/feed/' },
+  { name: '하이닥', category: '건강·의료', url: 'https://www.hidoc.co.kr/rss/allArticle.xml' },
   // ── 복지·정책 ─────────────────────────────────────────────────
   { name: '정책브리핑', category: '복지·정책', url: 'https://www.korea.kr/rss/policy.xml' },
   { name: '복지타임스', category: '복지·정책', url: 'https://www.bokjitimes.com/rss/allArticle.xml' },
-  // ── 라이프 ───────────────────────────────────────────────────
-  { name: '데일리안', category: '라이프', url: 'https://www.dailian.co.kr/rss/life.xml' },
-  { name: '시니어조선', category: '라이프', url: 'https://senior.chosun.com/arc/outboundfeeds/rss/?outputType=xml' },
-  // ── 방송·뉴스 ─────────────────────────────────────────────────
-  { name: 'KBS 경제', category: '방송·뉴스', url: 'https://news.kbs.co.kr/rss/rss_economy.htm' },
-  { name: 'YTN', category: '방송·뉴스', url: 'https://www.ytn.co.kr/rss/0801.xml' },
+  { name: 'KBS 사회', category: '복지·정책', url: 'https://news.kbs.co.kr/rss/rss_society.htm' },
 ]
 
-/** 기본 수집 피드 (카테고리별 핵심 피드만) */
+/** 기본 수집 피드 = 전체 */
 export const DEFAULT_RSS_FEEDS: RssFeedConfig[] = ALL_RSS_FEEDS
 
-const AUDIENCE_KEYWORDS: Record<string, string[]> = {
-  시니어: [
-    '연금',
-    '재테크',
-    '은퇴',
-    '노후',
-    '시니어',
-    '실버',
-    '건강',
-    '국민연금',
-    '전세',
-    '금리',
-    '복지',
-    '상속',
-    '부동산',
-    '투자',
-    '절약',
-    '노인',
-    '요양',
-    '의료',
+/** 카테고리별 키워드 세트 (스코어링용) */
+export const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  '뉴스·시사': [
+    '정치', '사회', '시사', '국회', '대통령', '정부', '외교', '국제', '사건', '사고',
+    '선거', '법원', '검찰', '청문회', '여당', '야당', '국정',
+  ],
+  '경제': [
+    '주식', '금리', '부동산', '경제', '투자', '재테크', '코스피', '달러', '금융', '연금',
+    '은퇴', '노후', '전세', '상속', '절약', '보험', '펀드', '채권', '환율', '물가',
+    '고금리', '인플레', '증시', '코인', '비트코인',
+  ],
+  'IT·테크': [
+    'AI', '인공지능', '스타트업', '앱', '스마트폰', '테크', 'IT', '클라우드', '빅데이터',
+    '반도체', '삼성', '애플', '구글', '메타', 'GPT', '챗GPT', '로봇', '자율주행',
+    '소프트웨어', '플랫폼', '모바일', '데이터센터',
+  ],
+  '게임': [
+    '게임', '출시', '업데이트', '리그오브레전드', '배틀그라운드', 'RPG', '모바일게임',
+    'e스포츠', '닌텐도', 'PC게임', '콘솔', '스팀', '넥슨', 'NC소프트', '카카오게임즈',
+    '신작', '패치', '서버', '캐릭터',
+  ],
+  '육아': [
+    '육아', '아이', '어린이', '임신', '출산', '어린이집', '유치원', '보육', '태교',
+    '신생아', '육아휴직', '출산휴가', '아기', '엄마', '아빠', '양육', '교육비', '돌봄',
+  ],
+  '교육': [
+    '교육', '입시', '수능', '학교', '학원', '대학교', '전형', '장학금', '영어',
+    '공부', '내신', '논술', '수시', '정시', '교과', '방과후', 'EBS', '시험',
+  ],
+  '엔터': [
+    '연예', '아이돌', '드라마', '영화', '음악', '콘서트', '배우', '가수', 'K팝', '공연',
+    '예능', '방송', '유튜버', '인플루언서', '오디션', '앨범', '시청률', '박스오피스',
+  ],
+  '라이프': [
+    '건강', '다이어트', '요리', '여행', '인테리어', '반려동물', '생활', '취미',
+    '음식', '휴가', '레시피', '패션', '뷰티', '운동', '헬스', '맛집', '카페',
+  ],
+  '부동산': [
+    '아파트', '부동산', '전세', '월세', '주택', '재건축', '청약', '집값', '매매',
+    '분양', '갭투자', '임대차', '임대', '공시가', '세금', '취득세', '양도세',
+  ],
+  '건강·의료': [
+    '건강', '질병', '치료', '병원', '의료', '백신', '암', '당뇨', '고혈압', '약',
+    '수술', '진료', '건강검진', '영양제', '면역', '노화', '심장', '뇌졸중',
+  ],
+  '복지·정책': [
+    '복지', '정책', '지원금', '보조금', '연금', '의료급여', '기초생활', '사회보장',
+    '지원', '혜택', '신청', '자격', '수급', '바우처', '급여', '공공',
+  ],
+  // 하위호환: 기존 시니어 키워드 유지
+  '시니어': [
+    '연금', '재테크', '은퇴', '노후', '시니어', '실버', '건강', '국민연금',
+    '전세', '금리', '복지', '상속', '부동산', '투자', '절약', '노인', '요양', '의료',
   ],
 }
 
@@ -322,6 +399,11 @@ export async function getRssTopicCandidates(limit = 30): Promise<RssTopicCandida
   return (data ?? []) as RssTopicCandidateRow[]
 }
 
+/** feed 이름 → 카테고리 매핑 */
+export const FEED_CATEGORY_MAP: Map<string, RssFeedCategory> = new Map(
+  ALL_RSS_FEEDS.map((f) => [f.name, f.category]),
+)
+
 export async function runRssTopicCollect(options?: {
   targetAudience?: string
   maxTopics?: number
@@ -330,12 +412,17 @@ export async function runRssTopicCollect(options?: {
   source?: string
   useAi?: boolean
 }): Promise<RssTopicCollectResult> {
-  const targetAudience = options?.targetAudience ?? '시니어'
-  const maxTopics = Math.min(Math.max(options?.maxTopics ?? 5, 1), 20)
+  const targetAudience = options?.targetAudience ?? '전체'
+  const maxTopics = Math.min(Math.max(options?.maxTopics ?? 10, 1), 50)
   const persistCollected = options?.persistCollected ?? true
   const feeds = options?.feeds?.length ? options.feeds : DEFAULT_RSS_FEEDS
   const source = options?.source ?? 'dashboard'
-  const keywords = AUDIENCE_KEYWORDS[targetAudience] ?? AUDIENCE_KEYWORDS.시니어
+
+  // 카테고리별 키워드: 타겟 오디언스가 특정 카테고리면 해당 키워드, 전체면 모든 키워드 합산
+  const keywords: string[] =
+    targetAudience === '전체' || !CATEGORY_KEYWORDS[targetAudience]
+      ? Array.from(new Set(Object.values(CATEGORY_KEYWORDS).flat()))
+      : CATEGORY_KEYWORDS[targetAudience]
 
   const feedResults = await Promise.all(feeds.map(fetchFeed))
   const okFeeds = feedResults.filter(Boolean) as NonNullable<
@@ -366,16 +453,24 @@ export async function runRssTopicCollect(options?: {
 
   const scored: Scored[] = []
   for (const { feed, items } of okFeeds) {
+    // 피드 카테고리 전용 키워드로 스코어링 (없으면 공통 키워드)
+    const feedCategory = FEED_CATEGORY_MAP.get(feed.name)
+    const feedKeywords = feedCategory && CATEGORY_KEYWORDS[feedCategory]
+      ? CATEGORY_KEYWORDS[feedCategory]
+      : keywords
+
     for (const item of items) {
-      const relevance_score = scoreTitle(item.title, item.description ?? '', keywords)
-      if (relevance_score <= 0) continue
+      const relevance_score = scoreTitle(item.title, item.description ?? '', feedKeywords)
+      // 전문 카테고리 피드는 기본 점수 1 부여 (키워드 미매칭이어도 수집)
+      const finalScore = relevance_score > 0 ? relevance_score : (feedCategory ? 1 : 0)
+      if (finalScore <= 0) continue
       scored.push({
         title: item.title,
         link: item.link || null,
         source_feed: feed.name,
         summary: item.description ?? null,
         published_at: item.pubDate ? new Date(item.pubDate).toISOString() : null,
-        relevance_score,
+        relevance_score: finalScore,
         sources: [feed.name],
       })
     }

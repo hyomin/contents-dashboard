@@ -14,19 +14,39 @@ import {
 import { dbVideoToVideo } from '@/lib/dashboard/dashboard-helpers'
 import type { RssTopicCandidateRow } from '@/lib/data/rss-topic-collect'
 import type { DBVideo } from '@/lib/data/supabase'
-import type { TrendingTopic, RssTrendingResponse } from '@/app/api/dashboard/rss-trending/route'
+import type { TrendingTopic, RssTrendingResponse, CategoryStat } from '@/app/api/dashboard/rss-trending/route'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
 
-/** 카테고리별 뱃지 색상 */
+/** 체널 카테고리 = RSS 카테고리와 동일 */
+const CATEGORY_TABS = [
+  { id: 'all', label: '전체', emoji: '🌐' },
+  { id: '뉴스·시사', label: '뉴스·시사', emoji: '📰' },
+  { id: '경제', label: '경제', emoji: '💰' },
+  { id: 'IT·테크', label: 'IT·테크', emoji: '💻' },
+  { id: '게임', label: '게임', emoji: '🎮' },
+  { id: '육아', label: '육아', emoji: '👶' },
+  { id: '교육', label: '교육', emoji: '📚' },
+  { id: '엔터', label: '엔터', emoji: '🎭' },
+  { id: '라이프', label: '라이프', emoji: '🏠' },
+  { id: '부동산', label: '부동산', emoji: '🏢' },
+  { id: '건강·의료', label: '건강·의료', emoji: '🏥' },
+  { id: '복지·정책', label: '복지·정책', emoji: '📋' },
+] as const
+
+/** 카테고리별 뱃지 색상 (체널 카테고리 기준) */
 const FEED_CATEGORY_COLORS: Record<string, string> = {
-  '종합언론':   'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200',
-  '경제·금융':  'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300',
+  '뉴스·시사':  'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200',
+  '경제':       'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300',
+  'IT·테크':    'bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300',
+  '게임':       'bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300',
+  '육아':       'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300',
+  '교육':       'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300',
+  '엔터':       'bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300',
+  '라이프':     'bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300',
   '부동산':     'bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300',
   '건강·의료':  'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300',
   '복지·정책':  'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300',
-  '라이프':     'bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300',
-  '방송·뉴스':  'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300',
 }
 
 function FeedBadge({ name, categoryMap }: { name: string; categoryMap: Map<string, string> }) {
@@ -80,22 +100,26 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   // 급상승 주제
   const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([])
   const [allTopics, setAllTopics] = useState<TrendingTopic[]>([])
+  const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([])
   const [trendingLoading, setTrendingLoading] = useState(false)
   const [feedCategoryMap, setFeedCategoryMap] = useState<Map<string, string>>(new Map())
   const [totalFeeds, setTotalFeeds] = useState(0)
   const [trendingTab, setTrendingTab] = useState<'trending' | 'all'>('trending')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
 
-  const loadTrending = useCallback(() => {
+  const loadTrending = useCallback((cat?: string) => {
     setTrendingLoading(true)
-    fetch('/api/dashboard/rss-trending?days=7&limit=50')
+    const catParam = cat && cat !== 'all' ? `&category=${encodeURIComponent(cat)}` : ''
+    fetch(`/api/dashboard/rss-trending?days=7&limit=100${catParam}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d: RssTrendingResponse) => {
         setTrendingTopics(d.trending ?? [])
         setAllTopics(d.allTopics ?? [])
+        setCategoryStats(d.categoryStats ?? [])
         setTotalFeeds(d.totalFeeds ?? 0)
         const map = new Map<string, string>()
-        for (const { category: cat, feeds } of d.feedCategories ?? []) {
-          for (const f of feeds) map.set(f, cat)
+        for (const { category: c, feeds } of d.feedCategories ?? []) {
+          for (const f of feeds) map.set(f, c)
         }
         setFeedCategoryMap(map)
       })
@@ -144,7 +168,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
         }
       })
     loadRssTopics()
-    loadTrending()
+    loadTrending('all')
     return () => {
       cancelled = true
     }
@@ -203,7 +227,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           <TitleWithHint
             as="h3"
             className="text-sm font-bold text-rose-900 dark:text-rose-200"
-            hint={`구독 중인 ${totalFeeds}개 RSS 피드(종합언론·경제·부동산·건강·복지 등)에서 2개 이상 피드가 동시에 다룬 주제를 급상승으로 표시합니다. 피드 뱃지 배열로 어느 소스에서 거론됐는지 확인하세요.`}
+            hint={`${totalFeeds}개 RSS 피드(뉴스·시사/경제/IT·테크/게임/육아/교육/엔터/라이프/부동산/건강 등)에서 2개 이상 피드가 동시에 다룬 주제를 급상승으로 표시합니다. 피드 뱃지 배열로 어느 소스에서 거론됐는지 확인하세요.`}
           >
             🔥 급상승 주제
             {totalFeeds > 0 && (
@@ -214,12 +238,45 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           </TitleWithHint>
           <button
             type="button"
-            onClick={loadTrending}
+            onClick={() => loadTrending(categoryFilter)}
             disabled={trendingLoading}
             className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60"
           >
             {trendingLoading ? '로딩 중…' : '↻ 새로고침'}
           </button>
+        </div>
+
+        {/* 카테고리 필터 탭 (가로 스크롤) */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {CATEGORY_TABS.map((tab) => {
+            const stat = categoryStats.find((s) => s.category === tab.id)
+            const count = tab.id === 'all'
+              ? allTopics.length
+              : (stat?.count ?? 0)
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setCategoryFilter(tab.id)
+                  loadTrending(tab.id)
+                }}
+                className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition ${
+                  categoryFilter === tab.id
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-rose-300'
+                }`}
+              >
+                <span>{tab.emoji}</span>
+                <span>{tab.label}</span>
+                {count > 0 && (
+                  <span className={`rounded-full px-1 text-[10px] font-bold ${categoryFilter === tab.id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
 
         {/* 탭: 급상승 / 전체 */}
@@ -279,8 +336,23 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
                   )}
                 </div>
 
-                {/* 플랫폼(피드) 배열 뱃지 */}
-                <div className="flex flex-wrap gap-1 mt-2">
+                {/* 카테고리 배지 */}
+                {t.categories && t.categories.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {t.categories.map((cat) => {
+                      const color = FEED_CATEGORY_COLORS[cat] ?? 'bg-gray-100 dark:bg-gray-700 text-gray-500'
+                      const tabInfo = CATEGORY_TABS.find((tb) => tb.id === cat)
+                      return (
+                        <span key={cat} className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${color}`}>
+                          {tabInfo?.emoji} {cat}
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* 소스(피드) 배열 뱃지 */}
+                <div className="flex flex-wrap gap-1 mt-1">
                   {t.sources.map((src) => (
                     <FeedBadge key={src} name={src} categoryMap={feedCategoryMap} />
                   ))}
