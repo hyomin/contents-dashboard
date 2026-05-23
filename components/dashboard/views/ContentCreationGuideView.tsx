@@ -313,9 +313,9 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           </div>
         ) : (
           <ul className="space-y-2 max-h-80 overflow-y-auto pr-1">
-            {displayTopics.map((t) => (
+            {displayTopics.map((t, idx) => (
               <li
-                key={t.id}
+                key={`${t.id}-${idx}`}
                 className="rounded-xl bg-white/90 dark:bg-gray-900/60 border border-rose-100 dark:border-rose-900/50 px-3 py-2.5 hover:border-rose-300 dark:hover:border-rose-700 transition"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -407,9 +407,9 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           </p>
         ) : (
           <ul className="space-y-2 max-h-64 overflow-y-auto">
-            {rssTopics.map((t) => (
+            {rssTopics.map((t, idx) => (
               <li
-                key={t.id}
+                key={`${t.id}-${idx}`}
                 className="rounded-xl bg-white/80 dark:bg-gray-900/60 border border-emerald-100 dark:border-emerald-900 px-3 py-2.5"
               >
                 <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2">{t.title}</p>

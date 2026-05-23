@@ -601,7 +601,7 @@ export async function runRssTopicCollect(options?: {
   }
 
   const now = new Date().toISOString()
-  const rows: RssTopicCandidateRow[] = top.map((t) => ({
+  const rowsRaw: RssTopicCandidateRow[] = top.map((t) => ({
     id: topicId(t.link ?? '', t.title),
     title: t.title,
     link: t.link,
@@ -617,6 +617,21 @@ export async function runRssTopicCollect(options?: {
     ai_title: (t as RssTopicCandidateRow).ai_title ?? null,
     ai_reason: (t as RssTopicCandidateRow).ai_reason ?? null,
   }))
+
+  // 동일 id 중복 제거: 같은 id가 여러 개면 sources를 합산하고 하나만 유지
+  const rowMap = new Map<string, RssTopicCandidateRow>()
+  for (const r of rowsRaw) {
+    if (rowMap.has(r.id)) {
+      const existing = rowMap.get(r.id)!
+      existing.sources = Array.from(new Set([...(existing.sources ?? []), ...(r.sources ?? [])]))
+      if (r.relevance_score > existing.relevance_score) {
+        existing.relevance_score = r.relevance_score
+      }
+    } else {
+      rowMap.set(r.id, { ...r })
+    }
+  }
+  const rows = Array.from(rowMap.values())
 
   if (!persistCollected) {
     return {
