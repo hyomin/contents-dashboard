@@ -14,8 +14,30 @@ import {
 import { dbVideoToVideo } from '@/lib/dashboard/dashboard-helpers'
 import type { RssTopicCandidateRow } from '@/lib/data/rss-topic-collect'
 import type { DBVideo } from '@/lib/data/supabase'
+import type { TrendingTopic, RssTrendingResponse } from '@/app/api/dashboard/rss-trending/route'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
+
+/** 카테고리별 뱃지 색상 */
+const FEED_CATEGORY_COLORS: Record<string, string> = {
+  '종합언론':   'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200',
+  '경제·금융':  'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300',
+  '부동산':     'bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300',
+  '건강·의료':  'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300',
+  '복지·정책':  'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300',
+  '라이프':     'bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300',
+  '방송·뉴스':  'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300',
+}
+
+function FeedBadge({ name, categoryMap }: { name: string; categoryMap: Map<string, string> }) {
+  const cat = categoryMap.get(name) ?? '기타'
+  const color = FEED_CATEGORY_COLORS[cat] ?? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+  return (
+    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${color}`}>
+      {name}
+    </span>
+  )
+}
 
 const CATEGORIES: { id: GuideCategory; label: string; icon: string }[] = [
   { id: 'writing', label: '글쓰기', icon: '📝' },
@@ -54,6 +76,32 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const [rssTopics, setRssTopics] = useState<RssTopicCandidateRow[]>([])
   const [rssLoading, setRssLoading] = useState(false)
   const [rssCollecting, setRssCollecting] = useState(false)
+
+  // 급상승 주제
+  const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([])
+  const [allTopics, setAllTopics] = useState<TrendingTopic[]>([])
+  const [trendingLoading, setTrendingLoading] = useState(false)
+  const [feedCategoryMap, setFeedCategoryMap] = useState<Map<string, string>>(new Map())
+  const [totalFeeds, setTotalFeeds] = useState(0)
+  const [trendingTab, setTrendingTab] = useState<'trending' | 'all'>('trending')
+
+  const loadTrending = useCallback(() => {
+    setTrendingLoading(true)
+    fetch('/api/dashboard/rss-trending?days=7&limit=50')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d: RssTrendingResponse) => {
+        setTrendingTopics(d.trending ?? [])
+        setAllTopics(d.allTopics ?? [])
+        setTotalFeeds(d.totalFeeds ?? 0)
+        const map = new Map<string, string>()
+        for (const { category: cat, feeds } of d.feedCategories ?? []) {
+          for (const f of feeds) map.set(f, cat)
+        }
+        setFeedCategoryMap(map)
+      })
+      .catch(() => {})
+      .finally(() => setTrendingLoading(false))
+  }, [])
 
   const loadRssTopics = useCallback(() => {
     setRssLoading(true)
@@ -96,10 +144,11 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
         }
       })
     loadRssTopics()
+    loadTrending()
     return () => {
       cancelled = true
     }
-  }, [loadRssTopics])
+  }, [loadRssTopics, loadTrending])
 
   const runRssCollect = async () => {
     setRssCollecting(true)
@@ -142,9 +191,115 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     [category, references, rssTopics],
   )
 
+  const displayTopics = trendingTab === 'trending' ? trendingTopics : allTopics
+
   return (
     <div className="space-y-8 max-w-4xl">
       <N8nLv1ServicesSection viewId="content-guide" addToast={addToast} />
+
+      {/* ── 급상승 주제 ───────────────────────────────────────────── */}
+      <section className="rounded-2xl border-2 border-rose-200 dark:border-rose-800 bg-rose-50/40 dark:bg-rose-950/20 p-5 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <TitleWithHint
+            as="h3"
+            className="text-sm font-bold text-rose-900 dark:text-rose-200"
+            hint={`구독 중인 ${totalFeeds}개 RSS 피드(종합언론·경제·부동산·건강·복지 등)에서 2개 이상 피드가 동시에 다룬 주제를 급상승으로 표시합니다. 피드 뱃지 배열로 어느 소스에서 거론됐는지 확인하세요.`}
+          >
+            🔥 급상승 주제
+            {totalFeeds > 0 && (
+              <span className="ml-2 text-xs font-normal text-rose-600 dark:text-rose-400">
+                ({totalFeeds}개 피드 구독 중)
+              </span>
+            )}
+          </TitleWithHint>
+          <button
+            type="button"
+            onClick={loadTrending}
+            disabled={trendingLoading}
+            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60"
+          >
+            {trendingLoading ? '로딩 중…' : '↻ 새로고침'}
+          </button>
+        </div>
+
+        {/* 탭: 급상승 / 전체 */}
+        <div className="flex gap-2">
+          {(['trending', 'all'] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setTrendingTab(tab)}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                trendingTab === tab
+                  ? 'bg-rose-600 text-white'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-rose-300'
+              }`}
+            >
+              {tab === 'trending'
+                ? `🔥 급상승 ${trendingTopics.length > 0 ? `(${trendingTopics.length})` : ''}`
+                : `전체 주제 ${allTopics.length > 0 ? `(${allTopics.length})` : ''}`}
+            </button>
+          ))}
+        </div>
+
+        {trendingLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-14 bg-white/60 dark:bg-gray-800 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : displayTopics.length === 0 ? (
+          <div className="text-center py-6 text-sm text-gray-500">
+            {trendingTab === 'trending'
+              ? '아직 급상승 주제가 없습니다. RSS 주제 수집을 실행하면 여러 피드에서 거론된 주제가 여기 표시됩니다.'
+              : '수집된 주제가 없습니다. 아래 RSS 주제 수집 버튼을 눌러보세요.'}
+          </div>
+        ) : (
+          <ul className="space-y-2 max-h-80 overflow-y-auto pr-1">
+            {displayTopics.map((t) => (
+              <li
+                key={t.id}
+                className="rounded-xl bg-white/90 dark:bg-gray-900/60 border border-rose-100 dark:border-rose-900/50 px-3 py-2.5 hover:border-rose-300 dark:hover:border-rose-700 transition"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-1">
+                      {t.ai_title ?? t.title}
+                    </p>
+                    {t.ai_reason && (
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                        {t.ai_reason}
+                      </p>
+                    )}
+                  </div>
+                  {t.isTrending && (
+                    <span className="shrink-0 text-[10px] font-bold bg-rose-500 text-white rounded-full px-2 py-0.5">
+                      🔥 {t.sourceCount}곳
+                    </span>
+                  )}
+                </div>
+
+                {/* 플랫폼(피드) 배열 뱃지 */}
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {t.sources.map((src) => (
+                    <FeedBadge key={src} name={src} categoryMap={feedCategoryMap} />
+                  ))}
+                  {t.link && (
+                    <a
+                      href={t.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block px-1.5 py-0.5 rounded text-[10px] text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      원문 ↗
+                    </a>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="rounded-2xl border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/25 p-5 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">

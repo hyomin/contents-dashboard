@@ -20,8 +20,6 @@ export interface RssTopicCandidateRow {
   updated_at: string
   ai_title?: string | null
   ai_reason?: string | null
-  /** 같은 주제를 다룬 피드 이름 배열 (급상승 감지용) */
-  sources?: string[]
 }
 
 export interface RssTopicCollectResult {
@@ -36,57 +34,14 @@ export interface RssTopicCollectResult {
   aiEnhanced?: boolean
 }
 
-export type RssFeedCategory =
-  | '종합언론'
-  | '경제·금융'
-  | '부동산'
-  | '건강·의료'
-  | '복지·정책'
-  | '라이프'
-  | '방송·뉴스'
-
-export interface RssFeedConfigExtended extends RssFeedConfig {
-  category: RssFeedCategory
-}
-
-/** 카테고리별 RSS 피드 목록 (수집 실패 시 다음 피드로 진행) */
-export const ALL_RSS_FEEDS: RssFeedConfigExtended[] = [
-  // ── 종합 언론 ─────────────────────────────────────────────────
-  { name: '동아일보', category: '종합언론', url: 'https://rss.donga.com/total.xml' },
-  { name: '경향신문', category: '종합언론', url: 'https://www.khan.co.kr/rss/rssdata/total_news.xml' },
-  { name: '조선일보', category: '종합언론', url: 'https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml' },
-  { name: '중앙일보', category: '종합언론', url: 'https://rss.joins.com/joins_news_list.xml' },
-  { name: '연합뉴스', category: '종합언론', url: 'https://www.yna.co.kr/rss/news.xml' },
-  // ── 경제·금융 ─────────────────────────────────────────────────
-  { name: '매일경제', category: '경제·금융', url: 'https://www.mk.co.kr/rss/30000001/' },
-  { name: '한국경제', category: '경제·금융', url: 'https://www.hankyung.com/feed/economy' },
-  { name: '이데일리', category: '경제·금융', url: 'https://www.edaily.co.kr/rss/all.xml' },
-  { name: '머니투데이', category: '경제·금융', url: 'https://rss.mt.co.kr/rss/010202000000.xml' },
-  { name: '파이낸셜뉴스', category: '경제·금융', url: 'https://www.fnnews.com/rss/fn_realnews_010100.xml' },
-  { name: '헤럴드경제', category: '경제·금융', url: 'https://biz.heraldkorea.co.kr/rss/allNews.xml' },
-  { name: '뉴스1 경제', category: '경제·금융', url: 'https://www.news1.kr/rss/all-news' },
-  { name: '연합뉴스 경제', category: '경제·금융', url: 'https://www.yna.co.kr/rss/economy.xml' },
-  // ── 부동산 ───────────────────────────────────────────────────
-  { name: '조선비즈 부동산', category: '부동산', url: 'https://biz.chosun.com/arc/outboundfeeds/rss/category/real-estate/?outputType=xml' },
-  { name: '한경 부동산', category: '부동산', url: 'https://www.hankyung.com/feed/realestate' },
-  { name: '매경 부동산', category: '부동산', url: 'https://www.mk.co.kr/rss/50400012/' },
-  // ── 건강·의료 ─────────────────────────────────────────────────
-  { name: '헬스조선', category: '건강·의료', url: 'https://health.chosun.com/arc/outboundfeeds/rss/?outputType=xml' },
-  { name: '메디컬투데이', category: '건강·의료', url: 'https://www.mdtoday.co.kr/rss/allArticle.xml' },
-  { name: '청년의사', category: '건강·의료', url: 'https://www.docdocdoc.co.kr/rss/allArticle.xml' },
-  // ── 복지·정책 ─────────────────────────────────────────────────
-  { name: '정책브리핑', category: '복지·정책', url: 'https://www.korea.kr/rss/policy.xml' },
-  { name: '복지타임스', category: '복지·정책', url: 'https://www.bokjitimes.com/rss/allArticle.xml' },
-  // ── 라이프 ───────────────────────────────────────────────────
-  { name: '데일리안', category: '라이프', url: 'https://www.dailian.co.kr/rss/life.xml' },
-  { name: '시니어조선', category: '라이프', url: 'https://senior.chosun.com/arc/outboundfeeds/rss/?outputType=xml' },
-  // ── 방송·뉴스 ─────────────────────────────────────────────────
-  { name: 'KBS 경제', category: '방송·뉴스', url: 'https://news.kbs.co.kr/rss/rss_economy.htm' },
-  { name: 'YTN', category: '방송·뉴스', url: 'https://www.ytn.co.kr/rss/0801.xml' },
+/** 시니어·재테크 관련 기본 RSS (수집 실패 시 다음 피드로 진행) */
+export const DEFAULT_RSS_FEEDS: RssFeedConfig[] = [
+  { name: '동아일보', url: 'https://rss.donga.com/total.xml' },
+  { name: '경향신문', url: 'https://www.khan.co.kr/rss/rssdata/total_news.xml' },
+  { name: '매일경제', url: 'https://www.mk.co.kr/rss/30000001/' },
+  { name: '한국경제', url: 'https://www.hankyung.com/feed/economy' },
+  { name: '조선일보 경제', url: 'https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml' },
 ]
-
-/** 기본 수집 피드 (카테고리별 핵심 피드만) */
-export const DEFAULT_RSS_FEEDS: RssFeedConfig[] = ALL_RSS_FEEDS
 
 const AUDIENCE_KEYWORDS: Record<string, string[]> = {
   시니어: [
@@ -361,7 +316,6 @@ export async function runRssTopicCollect(options?: {
     summary: string | null
     published_at: string | null
     relevance_score: number
-    sources: string[]
   }
 
   const scored: Scored[] = []
@@ -376,37 +330,11 @@ export async function runRssTopicCollect(options?: {
         summary: item.description ?? null,
         published_at: item.pubDate ? new Date(item.pubDate).toISOString() : null,
         relevance_score,
-        sources: [feed.name],
       })
     }
   }
 
   scored.sort((a, b) => b.relevance_score - a.relevance_score)
-
-  // 동일 주제를 다룬 피드 집계: 제목 키워드 overlap 기준으로 sources[] 머지
-  const STOP_WORDS = new Set(['이', '가', '을', '를', '의', '에', '은', '는', '도', '와', '과', '로', '으로', '에서', '에게', '부터', '까지'])
-  function extractKeywords(title: string): string[] {
-    return title.split(/[\s,\.\[\]""''·—\-·]+/)
-      .map((w) => w.trim())
-      .filter((w) => w.length >= 2 && !STOP_WORDS.has(w))
-  }
-  function keywordOverlap(a: string, b: string): number {
-    const setA = new Set(extractKeywords(a))
-    const setB = extractKeywords(b)
-    return setB.filter((w) => setA.has(w)).length
-  }
-
-  // 같은 주제(키워드 2개 이상 겹침)를 다룬 articles끼리 sources 합산
-  for (let i = 0; i < scored.length; i++) {
-    for (let j = i + 1; j < scored.length; j++) {
-      if (keywordOverlap(scored[i].title, scored[j].title) >= 2) {
-        const merged = Array.from(new Set([...scored[i].sources, ...scored[j].sources]))
-        scored[i].sources = merged
-        scored[j].sources = merged
-      }
-    }
-  }
-
   let top = scored.slice(0, maxTopics * 3)
 
   let aiEnhanced = false
@@ -434,17 +362,11 @@ export async function runRssTopicCollect(options?: {
         )
         const base = idx >= 0 ? top[idx] : top[aiOrdered.length] ?? top[0]
         if (idx >= 0) matched.add(idx)
-        // 관련 articles의 sources 모두 합산
-        const allSources = Array.from(new Set([
-          ...base.sources,
-          ...(idx >= 0 ? top.filter((_, i) => !matched.has(i) && keywordOverlap(base.title, top[i].title) >= 2).flatMap((t) => t.sources) : []),
-        ]))
         aiOrdered.push({
           ...base,
           title: ai.youtube_title || base.title,
           summary: ai.reason ? `[Gemini] ${ai.reason}` : base.summary,
           relevance_score: (base?.relevance_score ?? 0) + 50,
-          sources: allSources,
           ai_title: ai.youtube_title || null,
           ai_reason: ai.reason || null,
         })
@@ -487,7 +409,6 @@ export async function runRssTopicCollect(options?: {
               summary: `${targetAudience} 타겟 주제 후보 (Claude)`,
               published_at: null,
               relevance_score: 80,
-              sources: ['AI 추천'],
             })
           }
         }
@@ -518,7 +439,6 @@ export async function runRssTopicCollect(options?: {
     collected_at: now,
     source,
     updated_at: now,
-    sources: Array.from(new Set(t.sources ?? [t.source_feed])),
     ai_title: (t as RssTopicCandidateRow).ai_title ?? null,
     ai_reason: (t as RssTopicCandidateRow).ai_reason ?? null,
   }))
@@ -549,19 +469,16 @@ export async function runRssTopicCollect(options?: {
     }
   }
 
-  // ai_title·ai_reason·sources 컬럼이 없는 경우를 대비해 단계적으로 재시도
-  const rowsClean = rows.map(({ ai_title, ai_reason, sources, ...rest }) => ({
-    ...rest,
-    ...(ai_title !== undefined ? { ai_title } : {}),
-    ...(ai_reason !== undefined ? { ai_reason } : {}),
-    ...(sources !== undefined ? { sources } : {}),
-  }))
+  // ai_title·ai_reason 컬럼이 없는 경우를 대비해 제거 후 재시도
+  const rowsClean = rows.map(({ ai_title, ai_reason, ...rest }) =>
+    ai_title !== undefined || ai_reason !== undefined ? { ...rest, ai_title, ai_reason } : rest,
+  )
   let { error } = await supabase
     .from('rss_topic_candidates')
     .upsert(rowsClean, { onConflict: 'id' })
 
-  if (error?.message?.includes('ai_title') || error?.message?.includes('ai_reason') || error?.message?.includes('sources')) {
-    const rowsBase = rows.map(({ ai_title: _a, ai_reason: _r, sources: _s, ...rest }) => rest)
+  if (error?.message?.includes('ai_title') || error?.message?.includes('ai_reason')) {
+    const rowsBase = rows.map(({ ai_title: _a, ai_reason: _r, ...rest }) => rest)
     const result = await supabase.from('rss_topic_candidates').upsert(rowsBase, { onConflict: 'id' })
     error = result.error
   }
