@@ -64,7 +64,7 @@ export function N8nLiveWorkflowsPanel({ workflows, registeredPaths }: N8nLiveWor
                   {w.coreNodes}
                 </li>
                 {w.dashboardApis.map((api) => (
-                  <li key={api.path}>
+                  <li key={`${api.method}-${api.path}`}>
                     <span className="text-gray-500">대시보드 · </span>
                     <code className="font-mono">
                       {api.method} {api.path}
