@@ -102,6 +102,18 @@ export async function POST(req: NextRequest) {
 
   const successCount = results.filter((r) => r.ok).length
 
+  // 수집 완료 후 AI 인사이트 캐시 자동 갱신 (bust=1)
+  let insightsBusted = false
+  try {
+    const insightsRes = await fetch(`${origin}/api/dashboard/insights?bust=1`, {
+      headers: { Authorization: `Bearer ${CRON_SECRET}` },
+      signal: AbortSignal.timeout(30000),
+    })
+    insightsBusted = insightsRes.ok
+  } catch {
+    insightsBusted = false
+  }
+
   return NextResponse.json({
     ok: true,
     startedAt,
@@ -109,6 +121,7 @@ export async function POST(req: NextRequest) {
     total: results.length,
     success: successCount,
     failed: results.length - successCount,
+    insightsBusted,
     results,
   })
 }

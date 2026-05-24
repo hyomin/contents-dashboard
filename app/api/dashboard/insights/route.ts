@@ -23,11 +23,11 @@ export interface InsightSection {
   isAi: boolean
 }
 
-/** 간단한 메모리 캐시 (10분) */
+/** 간단한 메모리 캐시 (30분) */
 const cache: {
   data: { sections: InsightSection[]; cachedAt: number } | null
 } = { data: null }
-const CACHE_TTL = 10 * 60 * 1000
+const CACHE_TTL = 30 * 60 * 1000
 
 function parseJsonItems(text: string): InsightItem[] {
   try {
@@ -50,13 +50,12 @@ async function callGemini(
   const apiKey = process.env.GEMINI_API_KEY?.trim()
   if (!apiKey) return { text: '', sources: [] }
 
-  const model = useSearch ? 'gemini-2.0-flash' : 'gemini-2.5-flash'
+  const model = 'gemini-2.5-flash'
   const body: Record<string, unknown> = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
       temperature: 0.5,
-      maxOutputTokens: 1200,
-      ...(useSearch ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
+      maxOutputTokens: 2000,
     },
   }
   if (useSearch) {
@@ -111,11 +110,11 @@ export async function GET(request: Request) {
 
   // Supabase 데이터 수집
   const [videos, stats, outliers, channels, rssTopics] = await Promise.all([
-    getVideosForAnalytics(200),
+    getVideosForAnalytics(500),
     getVideoStats(),
-    getOutlierVideos(1.5, 5),
+    getOutlierVideos(1.5, 10),
     getChannels('youtube'),
-    getRssTopicCandidates(10),
+    getRssTopicCandidates(15),
   ])
 
   const trending = extractTrendingKeywords(videos, 8)
@@ -150,9 +149,9 @@ export async function GET(request: Request) {
   }
 
   // ── 컨텍스트 준비 ─────────────────────────────────────────────
-  const outlierTitles = outliers.slice(0, 5).map((v, i) => `${i + 1}. "${v.title}" (vs.avg ${Number(v.vs_avg).toFixed(1)}x)`).join('\n')
-  const keywordList = trending.slice(0, 6).map((k) => k.keyword).join(', ')
-  const rssList = rssTopics.slice(0, 8).map((t, i) => `${i + 1}. ${t.ai_title ?? t.title}`).join('\n')
+  const outlierTitles = outliers.slice(0, 10).map((v, i) => `${i + 1}. "${v.title}" (vs.avg ${Number(v.vs_avg).toFixed(1)}x)`).join('\n')
+  const keywordList = trending.slice(0, 10).map((k) => k.keyword).join(', ')
+  const rssList = rssTopics.slice(0, 12).map((t, i) => `${i + 1}. ${t.ai_title ?? t.title}`).join('\n')
   const catList = Array.from(new Set(channels.map((c) => (c as { category?: string }).category).filter(Boolean))).join(', ') || '미분류'
 
   // ── 3개 프롬프트 병렬 실행 ────────────────────────────────────
@@ -230,7 +229,7 @@ ${JSON_FORMAT}`,
     {
       type: 'personal',
       title: '📊 내 데이터 기반 추천',
-      subtitle: `수집 영상 ${stats.total}개 · Outlier ${outliers.length}개 · RSS ${rssTopics.length}개 분석`,
+      subtitle: `수집 영상 ${stats.total}개 · Outlier ${outliers.length}개 · 트렌드 키워드 ${trending.length}개 · RSS ${rssTopics.length}개 분석`,
       items: personalItems.length > 0 ? personalItems : fallbackItems,
       isAi: personalItems.length > 0,
     },

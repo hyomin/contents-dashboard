@@ -272,7 +272,7 @@ interface GeminiRefinedTopic {
   reason: string
 }
 
-/** Gemini 2.0 Flash (무료 한도: 일 1500회, 분 15회) */
+/** Gemini 2.5 Flash (유료 티어: 분 1000회, 일 무제한) */
 async function refineWithGemini(
   topics: Array<{ title: string; summary: string | null }>,
   targetAudience: string,
@@ -282,7 +282,7 @@ async function refineWithGemini(
   if (!apiKey || topics.length === 0) return null
 
   const topicList = topics
-    .slice(0, 15)
+    .slice(0, 30)
     .map((t, i) => `${i + 1}. ${t.title}`)
     .join('\n')
 
@@ -313,8 +313,7 @@ ${topicList}`
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 2048,
-            thinkingConfig: { thinkingBudget: 0 },
+            maxOutputTokens: 4096,
           },
         }),
         signal: AbortSignal.timeout(30000),
