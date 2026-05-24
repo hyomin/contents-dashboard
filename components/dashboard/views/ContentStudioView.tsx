@@ -16,6 +16,7 @@ import type {
 } from '@/app/api/dashboard/content-generate/route'
 import type { TrendingKeyword } from '@/lib/data/analytics-from-videos'
 import type { RssTopicCandidateRow } from '@/lib/data/rss-topic-collect'
+import { Spinner } from '@/components/dashboard/ui/loading'
 
 const STORAGE_KEY = 'content-studio-drafts-v2'
 
@@ -385,7 +386,7 @@ function AiGeneratePanel({
       >
         {loading ? (
           <span className="flex items-center justify-center gap-2">
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <Spinner size="sm" color="border-white" />
             {FORMAT_META[targetFormat].label} 생성 중...
           </span>
         ) : (

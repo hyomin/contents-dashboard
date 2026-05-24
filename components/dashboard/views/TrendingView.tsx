@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import type { TrendingKeyword } from '@/lib/data/analytics-from-videos'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
+import { PageLoadingOverlay } from '@/components/dashboard/ui/loading'
 
 export default function TrendingView({ addToast }: { addToast: AddToast }) {
   const [keywords, setKeywords] = useState<TrendingKeyword[]>([])
@@ -18,6 +19,7 @@ export default function TrendingView({ addToast }: { addToast: AddToast }) {
   }, [addToast])
 
   return (
+    <PageLoadingOverlay loading={loading} label="트렌딩 키워드 분석 중…">
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 text-white">
         <TitleWithHint
@@ -76,5 +78,6 @@ export default function TrendingView({ addToast }: { addToast: AddToast }) {
         )}
       </div>
     </div>
+    </PageLoadingOverlay>
   )
 }

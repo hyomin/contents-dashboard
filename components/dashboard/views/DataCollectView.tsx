@@ -6,6 +6,7 @@ import { getPlatformIcon, getPlatformName } from '@/lib/dashboard/dashboard-help
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
 import { PLATFORMS_WITH_COLLECTION } from '@/lib/dashboard/platforms'
+import { PageLoadingOverlay } from '@/components/dashboard/ui/loading'
 
 // ─── 네이버 블로그 ID 파싱 헬퍼 ───────────────────────────────
 function parseNaverBlogIdInput(raw: string): string | null {
@@ -291,6 +292,7 @@ export default function DataCollectView({ addToast }: { addToast: AddToast }) {
           .reduce((s, [, n]) => s + n, 0)
 
   return (
+    <PageLoadingOverlay loading={loading} label="수집 현황을 불러오는 중…">
     <div className="space-y-5">
       {/* n8n 서비스 */}
       <N8nLv1ServicesSection viewId="data-collect" addToast={addToast} />
@@ -579,5 +581,6 @@ export default function DataCollectView({ addToast }: { addToast: AddToast }) {
         )}
       </div>
     </div>
+    </PageLoadingOverlay>
   )
 }

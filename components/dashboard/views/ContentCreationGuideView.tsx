@@ -18,6 +18,7 @@ import type { DBVideo } from '@/lib/data/supabase'
 import type { TrendingTopic, RssTrendingResponse, CategoryStat } from '@/app/api/dashboard/rss-trending/route'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
+import { PageLoadingOverlay, Spinner } from '@/components/dashboard/ui/loading'
 
 /** 체널 카테고리 = RSS 카테고리와 동일 */
 const CATEGORY_TABS = [
@@ -254,7 +255,10 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
 
   const displayTopics = trendingTab === 'trending' ? trendingTopics : allTopics
 
+  const isPageLoading = rssLoading && rssTopics.length === 0
+
   return (
+    <PageLoadingOverlay loading={isPageLoading} label="콘텐츠 가이드 데이터를 불러오는 중…">
     <div className="space-y-8 max-w-4xl">
       <N8nLv1ServicesSection viewId="content-guide" addToast={addToast} />
 
@@ -495,8 +499,8 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           >
             {aiGuideLoading ? (
               <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                생성 중...
+                <Spinner size="sm" color="border-white" />
+                생성 중…
               </span>
             ) : '✨ AI 가이드 생성'}
           </button>
@@ -698,5 +702,6 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
         </div>
       </div>
     </div>
+    </PageLoadingOverlay>
   )
 }

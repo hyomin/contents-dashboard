@@ -11,6 +11,7 @@ import { useWorkspaceSeed } from '@/components/dashboard/hooks/use-workspace-see
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import type { ContentFormat, ContentGenerateResult } from '@/app/api/dashboard/content-generate/route'
 import { FORMAT_META } from '@/components/dashboard/views/ContentStudioView'
+import { Spinner } from '@/components/dashboard/ui/loading'
 
 const WEBHOOKS = [
   { id: 1, name: 'n8n → YouTube 수집', status: 'active', lastRun: 'youtube-collect', icon: '🔴', runs: '—' },
@@ -111,8 +112,8 @@ function RepurposeModal({
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              변환 중...
+              <Spinner size="sm" color="border-white" />
+              변환 중…
             </span>
           ) : `✨ ${FORMAT_META[targetFormat].label}으로 변환`}
         </button>

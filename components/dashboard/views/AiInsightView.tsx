@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import type { InsightSection, GroundingSource } from '@/app/api/dashboard/insights/route'
+import { PageLoadingOverlay } from '@/components/dashboard/ui/loading'
 
 const SECTION_STYLES: Record<
   InsightSection['type'],
@@ -139,6 +140,7 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
   }, [load])
 
   return (
+    <PageLoadingOverlay loading={loading && sections.length === 0} label="Gemini가 트렌드를 분석 중입니다… (약 10~20초)">
     <div className="space-y-6">
       {/* 페이지 헤더 */}
       <div className="flex items-center justify-between gap-4">
@@ -211,6 +213,7 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
         </div>
       )}
     </div>
+    </PageLoadingOverlay>
   )
 }
 

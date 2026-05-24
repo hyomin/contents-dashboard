@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import type { N8nAutomationService } from '@/lib/n8n/research-roadmap'
@@ -14,6 +14,7 @@ import {
 import { getWorkflowDeployMeta } from '@/lib/n8n/deploy-status'
 import { getLiveWorkflowByPath } from '@/lib/n8n/live-workflows'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
+import { CardRunningBadge, runningRingClass, type RunState } from '@/components/dashboard/ui/loading'
 
 interface N8nLv1ServicePanelProps {
   service: N8nAutomationService
@@ -36,8 +37,18 @@ export function N8nLv1ServicePanel({
   const searchParams = useSearchParams()
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [loading, setLoading] = useState(false)
+  const [runState, setRunState] = useState<RunState>('idle')
+  const [runLabel, setRunLabel] = useState('')
   const [result, setResult] = useState<string | null>(null)
   const [topicInput, setTopicInput] = useState('금리 동결 이후 재테크')
+
+  // 완료/실패 후 3초 뒤 idle로 복귀
+  useEffect(() => {
+    if (runState === 'done' || runState === 'error') {
+      const t = setTimeout(() => setRunState('idle'), 3000)
+      return () => clearTimeout(t)
+    }
+  }, [runState])
 
   const implStatus = getWorkflowImplementationStatus(service, activeWebhookPaths)
   const implMeta = getWorkflowImplementationMeta(implStatus)
@@ -75,9 +86,12 @@ export function N8nLv1ServicePanel({
       return
     }
     setLoading(true)
+    setRunState('running')
+    setRunLabel('요청 전송 중…')
     setResult(null)
     try {
       if (service.integrationMode === 'api' && service.api) {
+        setRunLabel('API 호출 중…')
         const res = await fetch(service.api.path, {
           method: service.api.method,
           ...(service.api.method === 'POST'
@@ -86,10 +100,14 @@ export function N8nLv1ServicePanel({
         })
         const data = await res.json()
         if (!res.ok) {
+          setRunState('error')
+          setRunLabel(data.error ?? '실행 실패')
           addToast(data.error ?? '실행 실패', 'warning')
           setResult(JSON.stringify(data, null, 2))
           return
         }
+        setRunState('done')
+        setRunLabel('완료')
         if (service.id === 'channel-vs-avg' || service.id === 'multi-channel-collect') {
           addToast(data.message ?? '수집을 실행했습니다', data.ok ? 'success' : 'warning')
         } else {
@@ -107,6 +125,7 @@ export function N8nLv1ServicePanel({
       }
 
       if (service.integrationMode === 'hybrid' && service.api) {
+        setRunLabel('기존 데이터 확인 중…')
         const listRes = await fetch(service.api.path)
         const listData = await listRes.json()
         if (listRes.ok) {
@@ -114,6 +133,7 @@ export function N8nLv1ServicePanel({
         }
       }
 
+      setRunLabel('n8n 워크플로 실행 중…')
       const res = await fetch(`/api/n8n/lv1-services/${service.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,8 +142,12 @@ export function N8nLv1ServicePanel({
       const data = await res.json()
       setResult(JSON.stringify(data, null, 2))
       if (data.mode === 'n8n') {
+        setRunState('done')
+        setRunLabel(`«${service.n8nScenarioName}» 완료`)
         addToast(`n8n «${service.n8nScenarioName}» 실행 완료`, 'success')
       } else {
+        setRunState('done')
+        setRunLabel('응답 수신 완료')
         addToast(
           typeof data.message === 'string'
             ? data.message.slice(0, 100)
@@ -132,6 +156,8 @@ export function N8nLv1ServicePanel({
         )
       }
     } catch (e) {
+      setRunState('error')
+      setRunLabel('오류 발생')
       setResult(JSON.stringify({ error: String(e) }, null, 2))
       addToast('실행 중 오류', 'warning')
     } finally {
@@ -147,7 +173,7 @@ export function N8nLv1ServicePanel({
 
   return (
     <div className={compact ? '' : 'mb-4'}>
-      <div className={`rounded-2xl ${cardShellClass} ${compact ? 'p-4' : 'p-5'}`}>
+      <div className={`rounded-2xl transition-all duration-200 ${cardShellClass} ${compact ? 'p-4' : 'p-5'} ${runningRingClass(runState)}`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -200,12 +226,13 @@ export function N8nLv1ServicePanel({
               <p className="text-xs text-gray-500 mt-1">{service.expectedEffect}</p>
             )}
           </div>
-          <div className="flex flex-wrap gap-2 shrink-0">
+          <div className="flex flex-wrap gap-2 shrink-0 items-center">
+            <CardRunningBadge state={runState} label={runState === 'running' ? runLabel : undefined} />
             <button
               type="button"
               onClick={runService}
               disabled={loading || !isRunnable}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition disabled:opacity-50 ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 ${
                 !isRunnable
                   ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500'
                   : implStatus === 'implemented'
@@ -213,8 +240,11 @@ export function N8nLv1ServicePanel({
                     : 'bg-amber-600 text-white hover:bg-amber-700'
               }`}
             >
+              {loading && (
+                <span className="inline-block w-3 h-3 rounded-full border-2 border-transparent border-t-current animate-spin" />
+              )}
               {loading
-                ? '실행 중…'
+                ? '실행 중'
                 : !isRunnable
                   ? '미구현'
                   : isN8nLive

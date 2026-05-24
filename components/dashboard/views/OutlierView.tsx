@@ -8,6 +8,7 @@ import ContentTable from '@/components/dashboard/ContentTable'
 import type { DBVideo } from '@/lib/data/supabase'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
+import { PageLoadingOverlay } from '@/components/dashboard/ui/loading'
 
 export default function OutlierView({ onSelect, addToast }: { onSelect: (v: Video) => void; addToast: AddToast }) {
   const [outliers, setOutliers] = useState<Video[]>([])
@@ -65,6 +66,7 @@ export default function OutlierView({ onSelect, addToast }: { onSelect: (v: Vide
   const filtered = outliers.filter(v => v.vsAvg >= minVsAvg)
 
   return (
+    <PageLoadingOverlay loading={loading} label="아웃라이어 데이터 로딩 중…">
     <div className="space-y-6">
       <N8nLv1ServicesSection viewId="outlier" addToast={addToast} />
 
@@ -127,5 +129,6 @@ export default function OutlierView({ onSelect, addToast }: { onSelect: (v: Vide
         <ContentTable videos={filtered} onSelect={onSelect} addToast={addToast} />
       )}
     </div>
+    </PageLoadingOverlay>
   )
 }

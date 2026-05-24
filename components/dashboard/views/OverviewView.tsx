@@ -7,6 +7,7 @@ import ContentTable from '@/components/dashboard/ContentTable'
 import type { DBVideo, DBChannel } from '@/lib/data/supabase'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import type { InsightSection } from '@/app/api/dashboard/insights/route'
+import { PageLoadingOverlay } from '@/components/dashboard/ui/loading'
 
 interface VideoStats {
   total: number
@@ -67,6 +68,7 @@ export default function OverviewView({ onSelect, addToast }: { onSelect: (v: Vid
   ]
 
   return (
+    <PageLoadingOverlay loading={loading} label="대시보드 데이터를 불러오는 중…">
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
@@ -227,5 +229,6 @@ export default function OverviewView({ onSelect, addToast }: { onSelect: (v: Vid
 
       <ContentTable videos={allVideos} onSelect={onSelect} addToast={addToast} />
     </div>
+    </PageLoadingOverlay>
   )
 }

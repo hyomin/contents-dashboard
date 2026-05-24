@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { getCategoryStyle } from '@/lib/dashboard/categories'
 import type { Category } from '@/lib/dashboard/categories'
+import { Spinner } from '@/components/dashboard/ui/loading'
 
 // ─── 타입 ────────────────────────────────────────────────────
 interface RefUrl {
@@ -357,8 +358,8 @@ export default function TopicSuggestView({
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                AI가 패턴을 분석하고 있습니다...
+                <Spinner size="sm" color="border-gray-400" />
+                AI가 패턴을 분석하고 있습니다…
               </span>
             ) : (
               '🎯 주제 선정 시작'
@@ -380,7 +381,7 @@ export default function TopicSuggestView({
 
           {loading && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-10 flex flex-col items-center justify-center text-center min-h-64">
-              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-5" />
+              <Spinner size="xl" color="border-blue-500" className="mb-5" />
               <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">패턴 분석 중...</p>
               <div className="mt-4 space-y-1.5 text-xs text-gray-400">
                 <p>✅ 레퍼런스 콘텐츠 수집</p>
