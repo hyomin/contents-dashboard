@@ -10,9 +10,9 @@ export default function TrendingView({ addToast }: { addToast: AddToast }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/dashboard/insights')
+    fetch('/api/dashboard/trending')
       .then((r) => r.json())
-      .then((d) => setKeywords(d.trending ?? []))
+      .then((d: { keywords?: TrendingKeyword[] }) => setKeywords(d.keywords ?? []))
       .catch(() => addToast('키워드 로드 실패', 'warning'))
       .finally(() => setLoading(false))
   }, [addToast])

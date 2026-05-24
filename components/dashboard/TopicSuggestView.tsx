@@ -28,55 +28,6 @@ interface SuggestResult {
   analyzedAt: string
 }
 
-// ─── 더미 결과 생성기 ─────────────────────────────────────────
-const DUMMY_RESULTS: Record<string, Suggestion[]> = {
-  'cat-1': [
-    {
-      title: '2025 금리 동결 이후 재테크 전략 TOP 5 (지금 당장 해야 할 것)',
-      hook: '첫 15초: "금리 동결이 오히려 더 위험한 이유" — 반전 오프닝으로 시청 유지율 극대화',
-      structure: ['인트로: 현재 금리 수치 + 충격적 전망 제시', '본론1: 예금/적금 전략 변화', '본론2: 채권·달러 투자 시점', '본론3: 부동산 관망 vs 매수 판단', '결론: 개인 상황별 체크리스트 + CTA'],
-      keywords: ['금리 동결', '재테크 2025', '금리 인하', '투자 전략'],
-      estimatedVsAvg: '3.8x ~ 5.5x',
-      reasoning: '수집된 레퍼런스 중 "금리" 키워드 + "숫자 나열" 제목 패턴이 평균 4.2x 기록. 현재 시의성과 결합',
-    },
-    {
-      title: '월급쟁이가 진짜 부자 되는 법 - 재테크 전문가가 알려주는 3단계',
-      hook: '"당신이 지금 하는 저축이 오히려 가난해지는 이유" — 역설 오프닝',
-      structure: ['인트로: 평범한 직장인의 10년 후 시뮬레이션', '본론1: 1단계 - 부채 최적화', '본론2: 2단계 - 시드머니 만들기', '본론3: 3단계 - 레버리지 투자', '결론: 나이별 포트폴리오 제안'],
-      keywords: ['월급쟁이 재테크', '부자 되는 법', '직장인 투자'],
-      estimatedVsAvg: '4.1x ~ 6.0x',
-      reasoning: '"월급쟁이/직장인 + 부자" 조합 제목이 레퍼런스에서 일관되게 높은 vs.Avg 기록',
-    },
-    {
-      title: '2025 하반기 돈이 몰리는 곳은 여기 - 전문가 5인 공통 픽',
-      hook: '전문가 의견 취합 구조 → 신뢰도 + 궁금증 동시 자극',
-      structure: ['인트로: 경제 불확실성 현황', '본론: 전문가별 핵심 픽 소개', '비교표: 수익률 vs 리스크', '결론: 내 상황에 맞는 선택 가이드'],
-      keywords: ['2025 투자', '전문가 추천', '하반기 재테크'],
-      estimatedVsAvg: '3.2x ~ 4.5x',
-      reasoning: '"전문가 N인" 형식이 신뢰 지표로 작용, 클릭율 상승 패턴 관찰됨',
-    },
-  ],
-  'cat-2': [
-    {
-      title: '매일 30분으로 인생이 바뀌는 루틴 - 3개월 실험 결과 공개',
-      hook: '실험 결과 공개 포맷 → 진정성 + 호기심 유발',
-      structure: ['인트로: 3개월 전/후 비교', '본론1: 아침 루틴 5가지', '본론2: 실패한 것들', '결론: 당신에게 맞는 루틴 찾기'],
-      keywords: ['자기계발 루틴', '아침 루틴', '생산성 향상'],
-      estimatedVsAvg: '3.5x ~ 4.8x',
-      reasoning: '"실험/결과 공개" 패턴이 진정성 있는 콘텐츠로 알고리즘 친화적',
-    },
-  ],
-  'default': [
-    {
-      title: '지금 당장 시작해야 하는 이유 - 전문가가 말하는 핵심',
-      hook: '긴박감 + 권위 호소 조합',
-      structure: ['인트로: 문제 제기', '본론: 핵심 3가지', '결론: 실천 방법'],
-      keywords: ['지금 시작', '전문가 조언'],
-      estimatedVsAvg: '2.8x ~ 4.0x',
-      reasoning: '선택한 레퍼런스 패턴 분석 기반 일반 제안',
-    },
-  ],
-}
 
 const PLATFORMS = [
   { value: 'youtube',    label: 'YouTube',      icon: '🔴' },
@@ -204,7 +155,7 @@ export default function TopicSuggestView({
   const [newVsAvg, setNewVsAvg] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<SuggestResult | null>(null)
-  const [mode] = useState<'dummy' | 'n8n'>('dummy') // 실제 연동 시 'n8n'으로 변경
+  const [mode, setMode] = useState<'gemini' | 'n8n' | 'error' | null>(null)
 
   const selectedCat = categories.find(c => c.id === categoryId)
   const catStyle = selectedCat ? getCategoryStyle(selectedCat) : null
@@ -231,32 +182,24 @@ export default function TopicSuggestView({
     }
     setLoading(true)
     setResult(null)
-
-    if (mode === 'dummy') {
-      // 더미 모드: 2초 딜레이 후 목업 결과
-      await new Promise(r => setTimeout(r, 2200))
-      const suggestions = DUMMY_RESULTS[categoryId] ?? DUMMY_RESULTS['default']
-      setResult({
-        category: selectedCat?.name ?? '',
-        platform,
-        suggestions,
-        analyzedAt: new Date().toLocaleTimeString('ko-KR'),
+    try {
+      const res = await fetch('/api/topic-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoryId, category: selectedCat?.name, platform, urls }),
       })
-      addToast('주제 분석 완료! 추천 결과를 확인하세요 🎯', 'success')
-    } else {
-      // 실제 n8n 연동 모드
-      try {
-        const res = await fetch('/api/topic-suggest', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ categoryId, category: selectedCat?.name, platform, urls }),
-        })
-        const data = await res.json()
+      const data = await res.json() as SuggestResult & { mode?: string; error?: string }
+      if (!res.ok || data.error) {
+        addToast(data.error ?? 'AI 분석 실패. GEMINI_API_KEY를 확인해주세요', 'warning')
+        setMode('error')
+      } else {
         setResult({ ...data, analyzedAt: new Date().toLocaleTimeString('ko-KR') })
-        addToast('주제 분석 완료! 🎯', 'success')
-      } catch {
-        addToast('n8n 연결 실패. .env.local의 WEBHOOK_URL을 확인해주세요', 'warning')
+        setMode((data.mode as 'gemini' | 'n8n') ?? 'gemini')
+        addToast('주제 분석 완료! 추천 결과를 확인하세요 🎯', 'success')
       }
+    } catch {
+      addToast('네트워크 오류가 발생했습니다', 'warning')
+      setMode('error')
     }
     setLoading(false)
   }
@@ -265,12 +208,24 @@ export default function TopicSuggestView({
     <div className="space-y-6">
       {/* 연동 상태 배너 */}
       <div className={`flex items-center gap-3 px-5 py-3 rounded-xl text-sm
-        ${mode === 'dummy' ? 'bg-yellow-50 border border-yellow-200' : 'bg-green-50 border border-green-200'}`}>
-        <span className={`w-2 h-2 rounded-full ${mode === 'dummy' ? 'bg-yellow-400' : 'bg-green-500 animate-pulse'}`} />
-        <span className={mode === 'dummy' ? 'text-yellow-700' : 'text-green-700'}>
-          {mode === 'dummy'
-            ? '더미 모드 · n8n 연동 전 미리보기 상태 (.env.local에 N8N_WEBHOOK_URL 추가 시 실제 분석)'
-            : 'n8n 연결됨 · 실제 AI 분석 활성화'}
+        ${mode === 'n8n' ? 'bg-green-50 border border-green-200'
+          : mode === 'gemini' ? 'bg-blue-50 border border-blue-200'
+          : mode === 'error' ? 'bg-red-50 border border-red-200'
+          : 'bg-gray-50 border border-gray-200'}`}>
+        <span className={`w-2 h-2 rounded-full
+          ${mode === 'n8n' ? 'bg-green-500 animate-pulse'
+            : mode === 'gemini' ? 'bg-blue-500 animate-pulse'
+            : mode === 'error' ? 'bg-red-400'
+            : 'bg-gray-300'}`} />
+        <span className={
+          mode === 'n8n' ? 'text-green-700'
+          : mode === 'gemini' ? 'text-blue-700'
+          : mode === 'error' ? 'text-red-700'
+          : 'text-gray-500'}>
+          {mode === 'n8n' ? 'n8n 연결됨 · 실제 AI 분석 활성화'
+            : mode === 'gemini' ? 'Gemini 2.5 Flash · AI 주제 분석 활성화'
+            : mode === 'error' ? 'AI 분석 불가 · GEMINI_API_KEY 또는 N8N_WEBHOOK_URL을 확인해주세요'
+            : 'AI 주제 분석 준비 완료 · 레퍼런스 URL을 추가하고 분석을 시작해주세요'}
         </span>
       </div>
 

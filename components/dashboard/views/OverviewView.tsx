@@ -6,6 +6,7 @@ import { getTierColor, getPlatformName, getPlatformColor, formatViews, dbVideoTo
 import ContentTable from '@/components/dashboard/ContentTable'
 import type { DBVideo, DBChannel } from '@/lib/data/supabase'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
+import type { InsightSection } from '@/app/api/dashboard/insights/route'
 
 interface VideoStats {
   total: number
@@ -26,10 +27,15 @@ export default function OverviewView({ onSelect, addToast }: { onSelect: (v: Vid
   const loadInsights = () => {
     fetch('/api/dashboard/insights')
       .then((r) => r.json())
-      .then((d) => {
-        setInsights(d.insights ?? [])
-        setTrending(d.trending ?? [])
+      .then((d: { sections?: InsightSection[] }) => {
+        const personal = d.sections?.find((s) => s.type === 'personal')
+        setInsights(personal?.items ?? [])
       })
+      .catch(console.error)
+
+    fetch('/api/dashboard/trending')
+      .then((r) => r.json())
+      .then((d: { keywords?: TrendingKeyword[] }) => setTrending(d.keywords ?? []))
       .catch(console.error)
   }
 
