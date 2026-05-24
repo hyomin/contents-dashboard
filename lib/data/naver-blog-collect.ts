@@ -136,6 +136,8 @@ export interface CollectNaverBlogChannelResult {
   maxPostsPerChannel?: number
   message?: string
   error?: string
+  /** 검색 API 경고 (postRows 수집은 성공) */
+  searchWarning?: string
 }
 
 async function fetchNaverBlogSearch(query: string, display: number): Promise<NaverBlogSearchResponse> {
@@ -185,15 +187,14 @@ export async function collectNaverBlogChannelData(params: {
   // 네이버 블로그는 날짜 범위 없이 최신 N개를 수집 (유튜브와 달리 업로드 주기가 낮음)
   const fetchCount = Math.min(maxPosts * 3, 100)
   const search = await fetchNaverBlogSearch(blogId, fetchCount)
-  if (search.errorCode) {
-    return {
-      ok: false,
-      channel_id: blogId,
-      error: search.errorMessage ?? `Naver API 오류 (${search.errorCode})`,
-    }
-  }
 
-  const rawItems = search.items ?? []
+  // 검색 API 실패 시: ENV 오류(키 미설정)여도 PostTitleListAsync 폴백으로 계속 진행.
+  // 검색 API는 보조 소스이며 PostTitleListAsync가 더 완전한 목록을 제공합니다.
+  const searchError = search.errorCode
+    ? `검색 API 경고: ${search.errorMessage ?? search.errorCode}`
+    : null
+
+  const rawItems = search.errorCode ? [] : (search.items ?? [])
   // bloggerlink 또는 link에서 blogId 추출해 매칭 (대소문자 무관)
   const matched = rawItems.filter((item) => {
     const fromLink = item.link ? blogIdFromBloggerLink(item.link) : null
@@ -344,15 +345,18 @@ export async function collectNaverBlogChannelData(params: {
     }
   }
 
+  const baseMessage =
+    postRows.length > 0
+      ? `${resolvedName} 블로그 ${postRows.length}건 수집`
+      : `${resolvedName}: 글 목록을 가져올 수 없습니다. 비공개 블로그이거나 게시글이 없을 수 있습니다.`
+
   return {
-    ok: true,
+    ok: postRows.length > 0,
     channel_id: blogId,
     channelName: resolvedName,
     postCount: postRows.length,
     maxPostsPerChannel: maxPosts,
-    message:
-      postRows.length > 0
-        ? `${resolvedName} 블로그 ${postRows.length}건 수집`
-        : `${resolvedName}: 글 목록을 가져올 수 없습니다. 비공개 블로그이거나 게시글이 없을 수 있습니다.`,
+    message: searchError ? `${baseMessage} (${searchError})` : baseMessage,
+    ...(searchError ? { searchWarning: searchError } : {}),
   }
 }

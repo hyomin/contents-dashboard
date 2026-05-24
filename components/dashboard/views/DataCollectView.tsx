@@ -7,6 +7,17 @@ import { TitleWithHint } from '@/components/dashboard/info-hint'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
 import { PLATFORMS_WITH_COLLECTION } from '@/lib/dashboard/platforms'
 
+// ─── 네이버 블로그 ID 파싱 헬퍼 ───────────────────────────────
+function parseNaverBlogIdInput(raw: string): string | null {
+  const s = raw.trim()
+  // URL 형식: https://blog.naver.com/myblogid 또는 blog.naver.com/myblogid
+  const urlMatch = s.match(/blog\.naver\.com\/([a-zA-Z0-9_.-]+)/i)
+  if (urlMatch) return urlMatch[1].toLowerCase()
+  // 순수 ID
+  if (/^[a-zA-Z0-9_.-]+$/.test(s) && s.length >= 3) return s.toLowerCase()
+  return null
+}
+
 // ─── 타입 ──────────────────────────────────────────────────────────
 interface CollectChannelRow {
   channel_id: string
@@ -87,6 +98,11 @@ export default function DataCollectView({ addToast }: { addToast: AddToast }) {
   const [runningId, setRunningId] = useState<string | null>(null)
   const [collectingPlatform, setCollectingPlatform] = useState<string | null>(null)
   const [syncingNaverViews, setSyncingNaverViews] = useState(false)
+  // 네이버 블로그 채널 빠른 등록
+  const [naverAddInput, setNaverAddInput] = useState('')
+  const [naverAddName, setNaverAddName] = useState('')
+  const [naverAdding, setNaverAdding] = useState(false)
+  const [naverDeleteId, setNaverDeleteId] = useState<string | null>(null)
 
   const pushLog = useCallback((type: CollectLog['type'], message: string) => {
     const time = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
@@ -175,6 +191,70 @@ export default function DataCollectView({ addToast }: { addToast: AddToast }) {
       setCollectingPlatform(null)
     }
   }
+
+  // ─── 네이버 블로그 채널 등록 + 즉시 수집 ────────────────────────
+  const addNaverChannel = useCallback(async () => {
+    const blogId = parseNaverBlogIdInput(naverAddInput)
+    if (!blogId) {
+      addToast('올바른 블로그 ID 또는 URL을 입력하세요 (예: myblog 또는 blog.naver.com/myblog)', 'warning')
+      return
+    }
+    setNaverAdding(true)
+    try {
+      // 1. 채널 등록
+      const regRes = await fetch('/api/dashboard/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel_id: blogId,
+          channel_name: naverAddName.trim() || blogId,
+          platform: 'naver-blog',
+        }),
+      })
+      if (!regRes.ok) {
+        const d = await regRes.json()
+        addToast(d.error ?? '채널 등록 실패', 'warning')
+        return
+      }
+      addToast(`${blogId} 채널 등록 완료. 수집 시작…`, 'info')
+      setNaverAddInput('')
+      setNaverAddName('')
+
+      // 2. 즉시 수집
+      const res = await fetch('/api/dashboard/collect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel_id: blogId, channel_name: naverAddName.trim() || blogId, platform: 'naver-blog' }),
+      })
+      const data = await res.json()
+      pushLog(data.ok ? 'success' : 'warning', data.message ?? `${blogId} 수집 완료`)
+      addToast(data.message ?? '수집 완료', data.ok ? 'success' : 'warning')
+      await loadStatus()
+    } catch {
+      addToast('채널 등록 중 오류가 발생했습니다', 'warning')
+    } finally {
+      setNaverAdding(false)
+    }
+  }, [naverAddInput, naverAddName, addToast, pushLog, loadStatus])
+
+  // ─── 채널 삭제 ─────────────────────────────────────────────────
+  const deleteChannel = useCallback(async (channelId: string, channelName: string) => {
+    if (!window.confirm(`"${channelName}" 채널을 삭제하시겠습니까? 수집된 글도 함께 삭제됩니다.`)) return
+    setNaverDeleteId(channelId)
+    try {
+      const res = await fetch(`/api/dashboard/channels?channel_id=${encodeURIComponent(channelId)}`, { method: 'DELETE' })
+      if (!res.ok) {
+        addToast('채널 삭제 실패', 'warning')
+        return
+      }
+      addToast(`"${channelName}" 채널 삭제 완료`, 'success')
+      await loadStatus()
+    } catch {
+      addToast('채널 삭제 중 오류', 'warning')
+    } finally {
+      setNaverDeleteId(null)
+    }
+  }, [addToast, loadStatus])
 
   // ─── 네이버 조회수·vs.Avg 갱신 ─────────────────────────────────
   const runNaverViewsSync = async () => {
@@ -338,20 +418,62 @@ export default function DataCollectView({ addToast }: { addToast: AddToast }) {
               </div>
             </div>
 
+            {/* 네이버 블로그 채널 등록 폼 (항상 표시) */}
+            {platform === 'naver-blog' && (
+              <div className="px-5 py-4 bg-green-50/60 dark:bg-green-950/20 border-b border-green-100 dark:border-green-900">
+                <p className="text-xs font-semibold text-green-800 dark:text-green-200 mb-2">
+                  🟢 네이버 블로그 채널 추가
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    type="text"
+                    value={naverAddInput}
+                    onChange={(e) => setNaverAddInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addNaverChannel()}
+                    placeholder="블로그 ID 또는 URL (예: myblog, blog.naver.com/myblog)"
+                    className="flex-1 min-w-[200px] text-sm px-3 py-2 rounded-xl border border-green-200 dark:border-green-700 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
+                    disabled={naverAdding}
+                  />
+                  <input
+                    type="text"
+                    value={naverAddName}
+                    onChange={(e) => setNaverAddName(e.target.value)}
+                    placeholder="블로그 이름 (선택, 자동 감지)"
+                    className="flex-1 min-w-[160px] text-sm px-3 py-2 rounded-xl border border-green-200 dark:border-green-700 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
+                    disabled={naverAdding}
+                  />
+                  <button
+                    type="button"
+                    onClick={addNaverChannel}
+                    disabled={naverAdding || !naverAddInput.trim()}
+                    className="px-4 py-2 text-sm font-semibold rounded-xl bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition"
+                  >
+                    {naverAdding ? '등록+수집 중…' : '+ 등록 & 수집'}
+                  </button>
+                </div>
+                <p className="text-[10px] text-green-700 dark:text-green-400 mt-1.5">
+                  등록 즉시 글 목록을 수집하고 조회수·vs.Avg를 갱신합니다. n8n W04·W07이 12시간마다 자동 실행됩니다.
+                </p>
+              </div>
+            )}
+
             {/* 채널 행 */}
             {loading ? (
               <p className="p-8 text-center text-sm text-gray-400">불러오는 중…</p>
             ) : platformChannels.length === 0 ? (
-              <p className="p-8 text-center text-sm text-gray-500">
-                등록된 {getPlatformName(platform)} 채널이 없습니다. «채널·콘텐츠 등록»에서 채널을 추가하세요.
+              <p className="p-6 text-center text-sm text-gray-500">
+                {platform === 'naver-blog'
+                  ? '위 입력란에 블로그 ID를 입력하고 «+ 등록 & 수집»을 클릭하세요.'
+                  : `등록된 ${getPlatformName(platform)} 채널이 없습니다. «채널·콘텐츠 등록»에서 채널을 추가하세요.`}
               </p>
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
                 {platformChannels.map((ch) => {
                   const isRunning = runningId === ch.channel_id
+                  const isDeleting = naverDeleteId === ch.channel_id
                   const badge = staleBadge(ch.updated_at)
                   return (
-                    <div key={ch.channel_id} className="p-4 flex items-center gap-4">
+                    <div key={ch.channel_id} className="p-4 flex items-center gap-3">
                       <span className="text-xl shrink-0">{getPlatformIcon(ch.platform)}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -368,21 +490,44 @@ export default function DataCollectView({ addToast }: { addToast: AddToast }) {
                           {platform === 'youtube' && ch.avg_views != null && (
                             <span>채널 avg: {ch.avg_views.toLocaleString()}</span>
                           )}
+                          {platform === 'naver-blog' && (
+                            <a
+                              href={`https://blog.naver.com/${ch.channel_id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-green-600 hover:underline"
+                            >
+                              blog.naver.com/{ch.channel_id} ↗
+                            </a>
+                          )}
                           <span className="font-mono text-gray-300 dark:text-gray-600">{ch.channel_id}</span>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => runChannel(ch)}
-                        disabled={isBusy}
-                        className={`px-4 py-2 text-sm rounded-lg font-medium transition shrink-0 ${
-                          isRunning
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
-                        }`}
-                      >
-                        {isRunning ? '수집 중…' : '▶'}
-                      </button>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => runChannel(ch)}
+                          disabled={isBusy}
+                          className={`px-3 py-1.5 text-sm rounded-xl font-medium transition ${
+                            isRunning
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
+                          }`}
+                        >
+                          {isRunning ? '…' : '▶'}
+                        </button>
+                        {platform === 'naver-blog' && (
+                          <button
+                            type="button"
+                            onClick={() => deleteChannel(ch.channel_id, ch.channel_name)}
+                            disabled={isBusy || isDeleting}
+                            className="px-2 py-1.5 text-xs rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-40 transition"
+                            title="채널 삭제"
+                          >
+                            {isDeleting ? '…' : '🗑'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )
                 })}

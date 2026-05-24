@@ -1,5 +1,5 @@
 {
-  "name": "RSS → 주제 후보 자동 수집 (Gemini 정제)",
+  "name": "[W03] RSS → 주제 후보 자동 수집 (Gemini 정제)",
   "nodes": [
     {
       "parameters": {

@@ -314,25 +314,39 @@ export default function PlatformView({
       {isNaverBlog && (
         <>
           <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 px-4 py-3 text-sm text-green-900 dark:text-green-100 space-y-2">
-            <p className="font-medium">글 목록은 검색 API · 조회수·vs.Avg는 n8n 갱신</p>
-            <p className="text-xs text-green-800/90 dark:text-green-200/90">
-              «콘텐츠 새로고침»으로 글을 먼저 수집한 뒤 «조회수·vs.Avg 갱신» 또는 n8n «네이버 블로그 조회수·vs.Avg
-              갱신»을 실행하세요. 조회수가 비공개인 글은 좋아요·댓글 기준으로 vs.Avg를 계산합니다.
-              {hasViewMetrics ? ' · 일부 글에 조회수가 반영되어 있습니다.' : ''}
+            <p className="font-medium flex items-center gap-2">
+              🟢 네이버 블로그
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-600 text-white">W04 · W07</span>
+              {hasViewMetrics && <span className="text-[10px] text-green-600 dark:text-green-400">· 조회수 수집됨</span>}
             </p>
-            <button
-              type="button"
-              onClick={runNaverViewsSync}
-              disabled={syncingViews || loading}
-              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50"
-            >
-              {syncingViews ? '갱신 중…' : '↻ 조회수·vs.Avg 갱신'}
-            </button>
+            <p className="text-xs text-green-800/90 dark:text-green-200/90">
+              «데이터 수집» 탭에서 블로그 ID를 등록하면 12시간마다 자동으로 글 목록·조회수가 수집됩니다.
+              수동으로 갱신하려면 아래 버튼이나 상단 «콘텐츠 새로고침»을 사용하세요.
+              {!hasViewMetrics && ' 아직 조회수가 없습니다 — 아래 «조회수 갱신»을 실행하세요.'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={runNaverViewsSync}
+                disabled={syncingViews || loading}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50"
+              >
+                {syncingViews ? '갱신 중…' : '↻ 조회수·vs.Avg 갱신'}
+              </button>
+              {baseVideos.length === 0 && !loading && (
+                <a
+                  href="/dashboard?view=data-collect"
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg border border-green-500 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition"
+                >
+                  블로그 채널 등록하러 가기 →
+                </a>
+              )}
+            </div>
           </div>
           <N8nLv1ServicesSection
             viewId="naver-blog"
             addToast={addToast}
-            title="🔗 네이버 블로그 조회수 (n8n)"
+            title="🔗 네이버 블로그 자동화 플로우 (n8n)"
           />
         </>
       )}
