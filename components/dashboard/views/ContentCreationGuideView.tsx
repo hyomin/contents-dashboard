@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import type { AddToast, Video } from '@/lib/dashboard/dashboard-types'
-import { TRENDING_KEYWORDS } from '@/lib/dashboard/dummy-data'
+import type { TrendingKeyword } from '@/lib/data/analytics-from-videos'
 import {
   GUIDE_BY_CATEGORY,
   FALLBACK_REFERENCE_TITLES,
@@ -11,6 +11,7 @@ import {
   type GuideCategory,
   type AiScriptGuideRequestContext,
 } from '@/lib/dashboard/content-creation-guide'
+import type { ScriptGuideResult } from '@/app/api/dashboard/script-guide/route'
 import { dbVideoToVideo } from '@/lib/dashboard/dashboard-helpers'
 import type { RssTopicCandidateRow } from '@/lib/data/rss-topic-collect'
 import type { DBVideo } from '@/lib/data/supabase'
@@ -96,6 +97,9 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const [rssTopics, setRssTopics] = useState<RssTopicCandidateRow[]>([])
   const [rssLoading, setRssLoading] = useState(false)
   const [rssCollecting, setRssCollecting] = useState(false)
+  const [trendingKeywords, setTrendingKeywords] = useState<TrendingKeyword[]>([])
+  const [aiGuide, setAiGuide] = useState<ScriptGuideResult | null>(null)
+  const [aiGuideLoading, setAiGuideLoading] = useState(false)
 
   // 급상승 주제
   const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([])
@@ -169,6 +173,12 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
       })
     loadRssTopics()
     loadTrending('all')
+    fetch('/api/dashboard/trending?limit=10')
+      .then((r) => r.json())
+      .then((d: { keywords?: TrendingKeyword[] }) => {
+        if (!cancelled) setTrendingKeywords(d.keywords ?? [])
+      })
+      .catch(() => {})
     return () => {
       cancelled = true
     }
@@ -199,20 +209,47 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     }
   }
 
+  const generateAiGuide = async () => {
+    setAiGuideLoading(true)
+    setAiGuide(null)
+    try {
+      const res = await fetch('/api/dashboard/script-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: guideContext }),
+      })
+      const data = await res.json() as ScriptGuideResult & { error?: string }
+      if (!res.ok || data.error) {
+        addToast(data.error ?? 'AI 가이드 생성 실패', 'warning')
+      } else {
+        setAiGuide(data)
+        addToast('AI 스크립트 가이드 생성 완료 🎬', 'success')
+      }
+    } catch {
+      addToast('네트워크 오류가 발생했습니다', 'warning')
+    } finally {
+      setAiGuideLoading(false)
+    }
+  }
+
   const guide = GUIDE_BY_CATEGORY[category]
 
+  const guideContext = useMemo(
+    (): AiScriptGuideRequestContext => ({
+      category,
+      keywords: [
+        ...trendingKeywords.slice(0, 3).map((k) => k.keyword),
+        ...rssTopics.slice(0, 3).map((t) => (t.ai_title ?? t.title).slice(0, 30)),
+      ],
+      referenceTitles: references.slice(0, 5).map((r) => r.title),
+      intent: mapCategoryToIntent(category),
+    }),
+    [category, references, rssTopics, trendingKeywords],
+  )
+
   const aiPreviewPayload = useMemo(
-    () =>
-      buildAiScriptGuidePayload({
-        category,
-        keywords: [
-          ...TRENDING_KEYWORDS.slice(0, 3).map((k) => k.keyword),
-          ...rssTopics.slice(0, 3).map((t) => t.title.slice(0, 30)),
-        ],
-        referenceTitles: references.slice(0, 5).map((r) => r.title),
-        intent: mapCategoryToIntent(category),
-      }),
-    [category, references, rssTopics],
+    () => buildAiScriptGuidePayload(guideContext),
+    [guideContext],
   )
 
   const displayTopics = trendingTab === 'trending' ? trendingTopics : allTopics
@@ -433,34 +470,106 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
         )}
       </section>
 
-      <div className="rounded-2xl border border-dashed border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/80 dark:bg-indigo-950/30 p-5">
+      <div className="rounded-2xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/80 dark:bg-indigo-950/30 p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
             <TitleWithHint
               as="h3"
               className="text-sm font-bold text-indigo-900 dark:text-indigo-200"
-              hint="RSS 주제·Outlier·키워드를 합쳐 스크립트 가이드 요청 형태를 만듭니다. LLM 연동은 추후입니다."
+              hint="현재 RSS 주제·Outlier 레퍼런스·트렌딩 키워드를 컨텍스트로 Gemini가 스크립트 가이드를 생성합니다."
             >
-              AI 스크립트·대본 가이드 (연동 예정)
+              🤖 AI 스크립트·대본 가이드
             </TitleWithHint>
+            <p className="text-[11px] text-indigo-600 dark:text-indigo-400 mt-1">
+              키워드 {guideContext.keywords.length}개 · 레퍼런스 {guideContext.referenceTitles.length}개 · {guideContext.intent}
+            </p>
           </div>
           <button
             type="button"
-            disabled
-            title="API 연결 후 활성화 예정"
-            className="shrink-0 px-4 py-2 rounded-xl text-xs font-semibold bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 cursor-not-allowed"
+            onClick={generateAiGuide}
+            disabled={aiGuideLoading}
+            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition
+              ${aiGuideLoading
+                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'}`}
           >
-            AI 가이드 생성
+            {aiGuideLoading ? (
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                생성 중...
+              </span>
+            ) : '✨ AI 가이드 생성'}
           </button>
         </div>
-        <details className="mt-4 group">
-          <summary className="text-[11px] font-medium text-indigo-700 dark:text-indigo-400 cursor-pointer select-none">
-            개발용: 예상 요청 페이로드 (script_guide_v1)
-          </summary>
-          <pre className="mt-2 text-[10px] leading-snug overflow-x-auto rounded-lg bg-white/80 dark:bg-gray-900/80 p-3 border border-indigo-100 dark:border-indigo-900 text-gray-700 dark:text-gray-300">
-            {JSON.stringify(aiPreviewPayload, null, 2)}
-          </pre>
-        </details>
+
+        {aiGuide && (
+          <div className="space-y-4 pt-2 border-t border-indigo-100 dark:border-indigo-800">
+            {/* 오프닝 훅 */}
+            <div>
+              <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 mb-2">⚡ 오프닝 훅 (3가지)</p>
+              <div className="space-y-2">
+                {aiGuide.hookVariants.map((h, i) => (
+                  <div key={i} className="flex items-start gap-2 bg-white/70 dark:bg-gray-900/50 rounded-lg p-3">
+                    <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                    <p className="text-xs text-gray-800 dark:text-gray-200">{h}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* 챕터 구성 */}
+            <div>
+              <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 mb-2">📋 챕터 구성</p>
+              <ul className="space-y-1.5">
+                {aiGuide.chapterBullets.map((c, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
+                    <span className="w-4 h-4 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {/* CTA + 자막 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 mb-2">📢 CTA</p>
+                <p className="text-xs text-gray-700 dark:text-gray-300 bg-white/70 dark:bg-gray-900/50 rounded-lg p-3">{aiGuide.ctaLine}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 mb-2">🔤 자막 문구</p>
+                <ul className="space-y-1">
+                  {aiGuide.subtitleLines.map((s, i) => (
+                    <li key={i} className="text-xs text-gray-700 dark:text-gray-300 bg-white/70 dark:bg-gray-900/50 rounded-lg px-3 py-2">{s}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            {/* 톤 힌트 */}
+            {aiGuide.toneHints.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 mb-2">💡 톤 & 금기 사항</p>
+                <ul className="space-y-1">
+                  {aiGuide.toneHints.map((t, i) => (
+                    <li key={i} className="text-xs text-gray-500 dark:text-gray-400">• {t}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="text-[10px] text-indigo-400 text-right">
+              Gemini 2.5 Flash · {new Date(aiGuide.generatedAt).toLocaleTimeString('ko-KR')} 생성
+            </p>
+          </div>
+        )}
+
+        {!aiGuide && (
+          <details className="group">
+            <summary className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 cursor-pointer select-none">
+              요청 컨텍스트 미리보기
+            </summary>
+            <pre className="mt-2 text-[10px] leading-snug overflow-x-auto rounded-lg bg-white/80 dark:bg-gray-900/80 p-3 border border-indigo-100 dark:border-indigo-900 text-gray-700 dark:text-gray-300">
+              {JSON.stringify(aiPreviewPayload, null, 2)}
+            </pre>
+          </details>
+        )}
       </div>
 
       <div className="rounded-2xl border border-violet-200 dark:border-violet-900/50 bg-gradient-to-br from-violet-50 to-white dark:from-violet-950/40 dark:to-gray-900 p-6">
@@ -472,7 +581,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           이번에 다룰 키워드 힌트
         </TitleWithHint>
         <div className="flex flex-wrap gap-2">
-          {TRENDING_KEYWORDS.slice(0, 5).map((kw) => (
+          {(trendingKeywords.length > 0 ? trendingKeywords : []).slice(0, 5).map((kw) => (
             <button
               key={kw.rank}
               type="button"

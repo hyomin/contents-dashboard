@@ -2,6 +2,47 @@ import type { Video } from '@/lib/dashboard/dashboard-types'
 import { supabase } from './supabase'
 import { getOutlierVideos } from './queries'
 
+/** 상위 Outlier 영상 제목에서 공통 성과 패턴을 Gemini로 분석 */
+async function analyzeOutlierPatterns(
+  titles: string[],
+): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY?.trim()
+  if (!apiKey || titles.length === 0) return null
+
+  const list = titles.slice(0, 15).map((t, i) => `${i + 1}. ${t}`).join('\n')
+
+  const prompt = `아래는 유튜브에서 평균 대비 높은 성과를 낸 영상 제목 목록입니다.
+이 영상들의 공통 패턴(제목 구조·후킹 방식·키워드 특징)을 2~3문장으로 분석해주세요.
+콘텐츠 기획자가 다음 영상에 바로 적용할 수 있도록 구체적으로 작성하세요.
+
+영상 제목 목록:
+${list}
+
+한국어로, 2~3문장만 응답하세요. 목록·마크다운 없이 단락으로.`
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 512 },
+        }),
+        signal: AbortSignal.timeout(20000),
+      },
+    )
+    if (!res.ok) return null
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[]
+    }
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null
+  } catch {
+    return null
+  }
+}
+
 export interface OutlierTagRow {
   video_id: string
   title: string
@@ -23,6 +64,7 @@ export interface OutlierTaggingResult {
   tierUpdatedCount: number
   preview?: boolean
   message: string
+  aiInsight?: string | null
 }
 
 function tierForVsAvg(vsAvg: number): 'S' | 'A' | 'B' | 'C' {
@@ -76,11 +118,13 @@ export async function runOutlierTagging(options?: {
   persistTagged?: boolean
   source?: string
   limit?: number
+  includeAiInsight?: boolean
 }): Promise<OutlierTaggingResult> {
   const minVsAvg = options?.minVsAvg ?? 3
   const persistTagged = options?.persistTagged ?? true
   const source = options?.source ?? 'dashboard'
   const limit = options?.limit ?? 100
+  const includeAiInsight = options?.includeAiInsight ?? true
 
   const candidates = await getOutlierVideos(minVsAvg, limit)
   if (candidates.length === 0) {
@@ -148,6 +192,11 @@ export async function runOutlierTagging(options?: {
     if (!error) tierUpdatedCount += 1
   }
 
+  // AI 패턴 분석 (비동기, 실패해도 태깅 결과에 영향 없음)
+  const aiInsight = includeAiInsight
+    ? await analyzeOutlierPatterns(candidates.slice(0, 15).map((v) => v.title))
+    : null
+
   return {
     ok: true,
     minVsAvg,
@@ -155,5 +204,6 @@ export async function runOutlierTagging(options?: {
     taggedCount: tagRows.length,
     tierUpdatedCount,
     message: `아웃라이어 ${tagRows.length}개 태깅 · Tier 상향 ${tierUpdatedCount}건`,
+    aiInsight,
   }
 }
