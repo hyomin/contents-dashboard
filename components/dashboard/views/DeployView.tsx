@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import {
   fetchDeployTasks,
@@ -8,6 +9,8 @@ import {
 } from '@/lib/dashboard/dashboard-storage'
 import { useWorkspaceSeed } from '@/components/dashboard/hooks/use-workspace-seed'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
+import type { ContentFormat, ContentGenerateResult } from '@/app/api/dashboard/content-generate/route'
+import { FORMAT_META } from '@/components/dashboard/views/ContentStudioView'
 
 const WEBHOOKS = [
   { id: 1, name: 'n8n → YouTube 수집', status: 'active', lastRun: 'youtube-collect', icon: '🔴', runs: '—' },
@@ -24,10 +27,108 @@ const STATUS_STYLE = {
   draft:     { label: '초안',      bg: 'bg-gray-100',   text: 'text-gray-500' },
 }
 
+/** 재작성 모달 */
+function RepurposeModal({
+  sourceTitle,
+  onClose,
+  addToast,
+  onDone,
+}: {
+  sourceTitle: string
+  onClose: () => void
+  addToast: AddToast
+  onDone: (format: ContentFormat, result: ContentGenerateResult) => void
+}) {
+  const [targetFormat, setTargetFormat] = useState<ContentFormat>('blog')
+  const [loading, setLoading] = useState(false)
+
+  const FORMATS: ContentFormat[] = ['blog', 'sns-caption', 'shortform', 'carousel', 'longform']
+
+  const generate = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/dashboard/content-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetFormat, sourceContent: sourceTitle, sourceFormat: 'longform' }),
+      })
+      const data = await res.json() as ContentGenerateResult & { error?: string }
+      if (!res.ok || data.error) {
+        addToast(data.error ?? '생성 실패', 'warning')
+      } else {
+        onDone(targetFormat, data)
+        addToast(`${FORMAT_META[targetFormat].label} 변환 완료 ✨`, 'success')
+      }
+    } catch {
+      addToast('네트워크 오류', 'warning')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="font-bold text-gray-900 dark:text-white text-base">🔄 다른 형식으로 재작성</h3>
+            <p className="text-xs text-gray-500 mt-1 line-clamp-2">"{sourceTitle}"</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-gray-500 mb-2">목표 포맷</p>
+          <div className="grid grid-cols-2 gap-2">
+            {FORMATS.map(f => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setTargetFormat(f)}
+                className={`p-3 rounded-xl text-left border transition ${
+                  targetFormat === f
+                    ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/40'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-violet-300'
+                }`}
+              >
+                <span className="text-lg">{FORMAT_META[f].icon}</span>
+                <p className="text-xs font-semibold mt-1 text-gray-800 dark:text-gray-200">{FORMAT_META[f].label}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{FORMAT_META[f].desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={generate}
+          disabled={loading}
+          className={`w-full py-3 rounded-xl text-sm font-bold transition ${
+            loading
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700'
+          }`}
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              변환 중...
+            </span>
+          ) : `✨ ${FORMAT_META[targetFormat].label}으로 변환`}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function DeployView({ addToast }: { addToast: AddToast }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const seeded = useWorkspaceSeed()
   const [tasks, setTasks] = useState<DeployTaskStored[]>([])
   const [deploying, setDeploying] = useState<string | null>(null)
+  const [repurposeTask, setRepurposeTask] = useState<DeployTaskStored | null>(null)
 
   useEffect(() => {
     if (!seeded) return
@@ -65,8 +166,25 @@ export default function DeployView({ addToast }: { addToast: AddToast }) {
   const published  = tasks.filter(t => t.status === 'published').length
   const failed     = tasks.filter(t => t.status === 'failed').length
 
+  const goToStudio = () => {
+    const p = new URLSearchParams(searchParams.toString())
+    p.set('view', 'content-studio')
+    router.push(`${pathname}?${p.toString()}`)
+  }
+
   return (
     <div className="space-y-6">
+      {repurposeTask && (
+        <RepurposeModal
+          sourceTitle={repurposeTask.title}
+          onClose={() => setRepurposeTask(null)}
+          addToast={addToast}
+          onDone={(_fmt, _result) => {
+            setRepurposeTask(null)
+            goToStudio()
+          }}
+        />
+      )}
       <div className="bg-gradient-to-r from-teal-600 to-cyan-600 rounded-2xl p-6 text-white">
         <TitleWithHint
           as="h2"
@@ -140,8 +258,16 @@ export default function DeployView({ addToast }: { addToast: AddToast }) {
                     <span>{task.scheduledAt}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
                   <span className={`px-2.5 py-1 text-xs rounded-full font-medium ${s.bg} ${s.text}`}>{s.label}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRepurposeTask(task)}
+                    className="px-3 py-1.5 text-xs rounded-lg font-medium bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 hover:bg-violet-100 transition"
+                    title="다른 포맷으로 재작성"
+                  >
+                    🔄 재작성
+                  </button>
                   {task.status === 'failed' && (
                     <button onClick={() => retryFailed(task.id)} disabled={isDeploying}
                       className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${isDeploying ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}>
