@@ -37,7 +37,7 @@ export default function PlatformView({
   addToast: AddToast
 }) {
   const [selectedTopicId, setSelectedTopicId] = useState('')
-  const [selectedChannelId, setSelectedChannelId] = useState('')
+  const [channelSearchQuery, setChannelSearchQuery] = useState('')
   const [topicCategories, setTopicCategories] = useState<ChannelCategoryDto[]>([])
   const [channelMeta, setChannelMeta] = useState<ChannelWithCategory[]>([])
   const [baseVideos, setBaseVideos] = useState<Video[]>([])
@@ -119,6 +119,8 @@ export default function PlatformView({
   const loadChannelMeta = useCallback(async () => {
     if (filter !== 'youtube' || isPlatformComingSoon(filter)) return
     try {
+      await fetch('/api/dashboard/channels/sync-categories', { method: 'POST' })
+
       const [catsRes, chRes, flags] = await Promise.all([
         fetch('/api/dashboard/channel-categories'),
         fetch('/api/dashboard/channels?platform=youtube'),
@@ -212,7 +214,7 @@ export default function PlatformView({
 
   const videos =
     filter === 'youtube'
-      ? filterVideosByTopicAndChannel(scopedVideos, channelMeta, selectedTopicId, selectedChannelId)
+      ? filterVideosByTopicAndChannel(scopedVideos, channelMeta, selectedTopicId, channelSearchQuery)
       : scopedVideos
   const outliers = videos.filter((v) => v.vsAvg >= 1.5)
   const avgVsAvg = videos.length ? (videos.reduce((s, v) => s + v.vsAvg, 0) / videos.length).toFixed(1) : '0'
@@ -444,9 +446,9 @@ export default function PlatformView({
           categories={topicCategories}
           channels={channelMeta}
           selectedTopicId={selectedTopicId}
-          selectedChannelId={selectedChannelId}
+          channelSearchQuery={channelSearchQuery}
           onTopicChange={setSelectedTopicId}
-          onChannelChange={setSelectedChannelId}
+          onChannelSearchChange={setChannelSearchQuery}
         />
       )}
 

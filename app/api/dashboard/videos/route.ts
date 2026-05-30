@@ -13,13 +13,18 @@ export async function GET(request: NextRequest) {
   const limit = Number(searchParams.get('limit') ?? 50)
   const tier = searchParams.get('tier') ?? undefined
 
+  const channelParam = searchParams.get('channels') ?? ''
+  const channelIds = channelParam ? channelParam.split(',').filter(Boolean) : undefined
+  const from = searchParams.get('from') ?? undefined
+  const to = searchParams.get('to') ?? undefined
+
   if (type === 'stats') {
     const stats = await getVideoStats()
     return NextResponse.json(stats)
   }
 
   if (type === 'outliers') {
-    const videos = await getOutlierVideos(1.5, limit, format)
+    const videos = await getOutlierVideos(1.5, limit, { format, channelIds, from, to })
     return NextResponse.json(videos)
   }
 
@@ -32,6 +37,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(filtered)
   }
 
-  const videos = await getVideos({ platform, format, limit, tier })
+  const videos = await getVideos({ platform, format, limit, tier, channelIds, from, to })
   return NextResponse.json(videos)
 }

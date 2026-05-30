@@ -37,6 +37,9 @@ interface DBChannel {
   subscribers: number | null
   avg_views: number | null
   video_count: number | null
+  tracking_status: 'active' | 'inactive' | 'untrackable' | null
+  last_upload_at: string | null
+  status_checked_at: string | null
   updated_at: string
 }
 
@@ -45,6 +48,17 @@ import {
   normalizeChannelCategories,
   type ChannelCategoryOption,
 } from '@/components/dashboard/ChannelCategoryField'
+import { BulkImportChannelsModal } from '@/components/dashboard/BulkImportChannelsModal'
+import {
+  formatCollectStatusLabel,
+  getCollectStatus,
+  summarizeCollectStatus,
+  type CollectStatus,
+} from '@/lib/dashboard/channel-collect-status'
+import {
+  formatTrackingStatusLabel,
+  trackingStatusBadgeClass,
+} from '@/lib/dashboard/channel-tracking-status'
 
 // ─── 헬퍼 ─────────────────────────────────────────────────────
 const PLATFORMS = [
@@ -122,6 +136,15 @@ function channelIdHint(platform: string): string {
   return '예: UCsJ6RuBiTVWRX156FVbeaGg 또는 https://youtube.com/channel/UC…'
 }
 
+function getChannelPageUrl(platform: string, channelId: string): string | null {
+  if (platform === 'youtube') return `https://www.youtube.com/channel/${channelId}`
+  if (platform === 'instagram') return `https://www.instagram.com/${channelId}`
+  if (platform === 'naver-blog') return `https://blog.naver.com/${channelId}`
+  if (platform === 'tiktok') return `https://www.tiktok.com/@${channelId.replace(/^@/, '')}`
+  if (platform === 'tistory') return channelId.startsWith('http') ? channelId : `https://${channelId}.tistory.com`
+  return null
+}
+
 function detectPlatform(url: string): BenchmarkItem['platform'] {
   if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube'
   if (url.includes('tiktok.com')) return 'tiktok'
@@ -135,6 +158,14 @@ function formatNum(v?: number | null) {
   if (v == null) return '-'
   return v >= 10000 ? `${(v / 10000).toFixed(1)}만` : v.toLocaleString()
 }
+
+function collectStatusBadgeClass(status: CollectStatus): string {
+  if (status === 'pending') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+  if (status === 'stale') return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+  return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+}
+
+type CollectFilter = 'all' | CollectStatus
 
 function dbCatToCategory(c: DBCategory): Category {
   return {
@@ -371,60 +402,82 @@ function CategoryManagerModal({
 }
 
 // ─── 벤치마킹 추가 모달 ──────────────────────────────────────
+interface AddBenchmarkModalProps {
+  categories: Category[]
+  onAdd: (item: BenchmarkItem) => void
+  onClose: () => void
+  initialUrl?: string
+  initialTitle?: string
+  initialViews?: number | null
+  initialCategoryId?: string
+}
+
 function AddBenchmarkModal({
   categories,
   onAdd,
   onClose,
-}: {
-  categories: Category[]
-  onAdd: (item: BenchmarkItem) => void
-  onClose: () => void
-}) {
-  const [url, setUrl] = useState('')
-  const [title, setTitle] = useState('')
+  initialUrl = '',
+  initialTitle = '',
+  initialViews,
+  initialCategoryId,
+}: AddBenchmarkModalProps) {
+  const [url, setUrl] = useState(initialUrl)
+  const [title, setTitle] = useState(initialTitle)
   const [memo, setMemo] = useState('')
-  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '')
-  const [views, setViews] = useState('')
+  const [categoryId, setCategoryId] = useState(initialCategoryId ?? categories[0]?.id ?? '')
+  const [views, setViews] = useState(initialViews != null ? String(initialViews) : '')
   const [vsAvg, setVsAvg] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const platform = detectPlatform(url)
   const platformInfo = PLATFORMS.find(p => p.value === platform)
   const selectedCat = categories.find(c => c.id === categoryId)
 
   const handleAdd = async () => {
-    if (!url.trim() || !title.trim() || !categoryId) return
+    if (!url.trim() || !title.trim()) return
     setSaving(true)
+    setSaveError('')
     const id = `bm-${Date.now()}`
     const payload = {
       id,
       url: url.trim(),
       title: title.trim(),
       memo: memo.trim(),
-      category_id: categoryId,
+      category_id: categoryId || null,
       platform,
       views: views ? parseInt(views.replace(/,/g, '')) : null,
       vs_avg: vsAvg ? parseFloat(vsAvg) : null,
     }
-    const res = await fetch('/api/dashboard/benchmarks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    setSaving(false)
-    if (!res.ok) return
-    onAdd({
-      id,
-      url: payload.url,
-      title: payload.title,
-      memo: payload.memo,
-      categoryId: payload.category_id,
-      platform: payload.platform as BenchmarkItem['platform'],
-      addedAt: '방금',
-      views: payload.views ?? undefined,
-      vsAvg: payload.vs_avg ?? undefined,
-    })
-    onClose()
+    try {
+      const res = await fetch('/api/dashboard/benchmarks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: '저장에 실패했습니다' }))
+        setSaveError((errData as { error?: string }).error ?? '저장에 실패했습니다')
+        setSaving(false)
+        return
+      }
+      setSaving(false)
+      onAdd({
+        id,
+        url: payload.url,
+        title: payload.title,
+        memo: payload.memo,
+        categoryId: payload.category_id ?? '',
+        platform: payload.platform as BenchmarkItem['platform'],
+        addedAt: '방금',
+        views: payload.views ?? undefined,
+        vsAvg: payload.vs_avg ?? undefined,
+      })
+      onClose()
+    } catch {
+      setSaveError('네트워크 오류가 발생했습니다')
+      setSaving(false)
+    }
   }
 
   return (
@@ -461,14 +514,20 @@ function AddBenchmarkModal({
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 mb-1 block">주제 카테고리 *</label>
+            <label className="text-xs font-semibold text-gray-500 mb-1 block">
+              주제 카테고리
+              {categories.length === 0 && (
+                <span className="ml-1 font-normal text-amber-500">(카테고리가 없으면 미분류로 저장)</span>
+              )}
+            </label>
             <div className="flex items-center gap-2">
               <select
                 value={categoryId}
                 onChange={e => setCategoryId(e.target.value)}
-                className="flex-1 px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={categories.length === 0}
+                className="flex-1 px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
               >
-                <option value="">카테고리 선택</option>
+                <option value="">카테고리 선택 (선택사항)</option>
                 {categories.map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
@@ -507,13 +566,26 @@ function AddBenchmarkModal({
             />
           </div>
         </div>
-        <div className="flex gap-3 mt-6">
+        {saveError && (
+          <div className="mt-4 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-xs text-red-600 dark:text-red-400">
+            ❌ {saveError}
+          </div>
+        )}
+        <div className="flex gap-3 mt-4">
           <button
             onClick={handleAdd}
-            disabled={!url.trim() || !title.trim() || !categoryId || saving}
+            disabled={!url.trim() || !title.trim() || saving}
             className="flex-1 py-2.5 bg-blue-600 text-white text-sm rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium"
           >
-            {saving ? '저장 중...' : '저장'}
+            {saving ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                저장 중...
+              </span>
+            ) : '저장'}
           </button>
           <button onClick={onClose} className="flex-1 py-2.5 bg-gray-100 text-gray-700 text-sm rounded-xl hover:bg-gray-200 transition">
             취소
@@ -522,6 +594,25 @@ function AddBenchmarkModal({
       </div>
     </div>
   )
+}
+
+// ─── 채널 검증 상태 타입 ────────────────────────────────────
+type VerifyStatus = 'idle' | 'loading' | 'valid' | 'invalid'
+
+interface VerifiedInfo {
+  channelId: string
+  title: string
+  handle?: string
+  subscribers?: number
+  videoCount?: number
+  thumbnail?: string
+}
+
+function formatSubCount(n?: number): string {
+  if (n == null) return '비공개'
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 10_000) return `${Math.round(n / 10_000)}만`
+  return n.toLocaleString()
 }
 
 // ─── 채널 추가 모달 ───────────────────────────────────────────
@@ -545,6 +636,77 @@ function AddChannelModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // 검증 상태
+  const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle')
+  const [verifiedInfo, setVerifiedInfo] = useState<VerifiedInfo | null>(null)
+  const [verifyError, setVerifyError] = useState('')
+
+  const isYoutube = platform === 'youtube'
+  // YouTube는 검증 통과 필수, 나머지 플랫폼은 자유 등록
+  const canRegister = isYoutube
+    ? verifyStatus === 'valid' && !!channelName.trim()
+    : !!channelId.trim() && !!channelName.trim()
+
+  // 플랫폼·채널ID 바뀌면 검증 상태 초기화
+  const handleChannelIdChange = (v: string) => {
+    setChannelId(v)
+    setVerifyStatus('idle')
+    setVerifiedInfo(null)
+    setVerifyError('')
+  }
+  const handlePlatformChange = (v: string) => {
+    setPlatform(v)
+    setVerifyStatus('idle')
+    setVerifiedInfo(null)
+    setVerifyError('')
+    setChannelId('')
+    setChannelName('')
+  }
+
+  // 채널 검증 API 호출
+  const handleVerify = async () => {
+    const input = channelId.trim()
+    if (!input) return
+    setVerifyStatus('loading')
+    setVerifyError('')
+    setVerifiedInfo(null)
+
+    try {
+      const res = await fetch(
+        `/api/dashboard/validate-channel?input=${encodeURIComponent(input)}&platform=${platform}`
+      )
+      const data = await res.json()
+
+      if (data.valid && data.channelId) {
+        setVerifyStatus('valid')
+        setVerifiedInfo({
+          channelId: data.channelId,
+          title: data.title ?? '',
+          handle: data.handle,
+          subscribers: data.subscribers,
+          videoCount: data.videoCount,
+          thumbnail: data.thumbnail,
+        })
+        // 채널명이 비어있으면 API에서 가져온 채널명 자동 입력
+        if (!channelName.trim() && data.title) {
+          setChannelName(data.title)
+        }
+        // 실제 channel ID로 갱신 (URL 입력 등 파싱 결과)
+        setChannelId(data.channelId)
+      } else {
+        setVerifyStatus('invalid')
+        setVerifyError(
+          data.reason === 'api_error'
+            ? 'YouTube API 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+            : '채널을 찾을 수 없습니다. Channel ID 또는 @핸들을 확인해 주세요.'
+        )
+      }
+    } catch {
+      setVerifyStatus('invalid')
+      setVerifyError('검증 중 오류가 발생했습니다.')
+    }
+  }
+
   const handleAdd = async () => {
     const rawId = channelId.trim()
     const name = channelName.trim()
@@ -552,7 +714,9 @@ function AddChannelModal({
     setSaving(true)
     setError('')
 
-    const finalId = extractChannelIdFromInput(rawId, platform)
+    const finalId = isYoutube
+      ? (verifiedInfo?.channelId ?? rawId)
+      : extractChannelIdFromInput(rawId, platform)
 
     const res = await fetch('/api/dashboard/channels', {
       method: 'POST',
@@ -586,32 +750,125 @@ function AddChannelModal({
         <div className="space-y-4 min-w-0">
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-2 block">플랫폼</label>
-            <PlatformPicker value={platform} onChange={setPlatform} />
+            <PlatformPicker value={platform} onChange={handlePlatformChange} />
           </div>
 
+          {/* 채널 ID + 검증 버튼 */}
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1 block">
-              채널 ID
+              채널 ID {isYoutube && <span className="text-red-400 ml-0.5">* (검증 필수)</span>}
             </label>
             <p className="text-[11px] text-gray-400 mb-1.5 break-words">
               {channelIdHint(platform)}
             </p>
-            <input
-              value={channelId}
-              onChange={e => setChannelId(e.target.value)}
-              placeholder={channelIdPlaceholder(platform)}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="flex gap-2">
+              <input
+                value={channelId}
+                onChange={e => handleChannelIdChange(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && isYoutube && handleVerify()}
+                placeholder={channelIdPlaceholder(platform)}
+                className={`flex-1 min-w-0 px-3 py-2.5 text-sm border rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 transition
+                  ${verifyStatus === 'valid'
+                    ? 'border-green-400 focus:ring-green-400'
+                    : verifyStatus === 'invalid'
+                      ? 'border-red-400 focus:ring-red-400'
+                      : 'border-gray-200 dark:border-gray-600 focus:ring-blue-500'
+                  }`}
+              />
+              {isYoutube && (
+                <button
+                  type="button"
+                  onClick={handleVerify}
+                  disabled={!channelId.trim() || verifyStatus === 'loading'}
+                  className={`shrink-0 px-4 py-2.5 text-sm rounded-xl font-medium transition
+                    ${verifyStatus === 'valid'
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : verifyStatus === 'invalid'
+                        ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400'
+                        : 'bg-gray-900 text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-900'
+                    } disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
+                  {verifyStatus === 'loading' ? (
+                    <span className="flex items-center gap-1.5">
+                      <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      확인 중
+                    </span>
+                  ) : verifyStatus === 'valid' ? '✓ 확인됨' : verifyStatus === 'invalid' ? '✗ 재검증' : '검증'}
+                </button>
+              )}
+            </div>
+
+            {/* 검증 결과 카드 */}
+            {isYoutube && verifyStatus === 'valid' && verifiedInfo && (
+              <div className="mt-3 flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl">
+                {verifiedInfo.thumbnail && (
+                  <img
+                    src={verifiedInfo.thumbnail}
+                    alt={verifiedInfo.title}
+                    className="w-11 h-11 rounded-full object-cover border-2 border-green-300 shrink-0"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-green-800 dark:text-green-200 truncate">
+                    ✅ {verifiedInfo.title}
+                  </p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                    {verifiedInfo.handle && (
+                      <span className="text-[11px] text-green-600 dark:text-green-400">{verifiedInfo.handle}</span>
+                    )}
+                    <span className="text-[11px] text-green-600 dark:text-green-400">
+                      구독자 {formatSubCount(verifiedInfo.subscribers)}
+                    </span>
+                    {verifiedInfo.videoCount != null && (
+                      <span className="text-[11px] text-green-600 dark:text-green-400">
+                        영상 {verifiedInfo.videoCount.toLocaleString()}개
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] font-mono text-green-500 dark:text-green-500 mt-0.5 truncate">
+                    {verifiedInfo.channelId}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 검증 실패 */}
+            {isYoutube && verifyStatus === 'invalid' && (
+              <div className="mt-2 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl">
+                <span className="text-red-500 shrink-0 text-base">❌</span>
+                <p className="text-xs text-red-600 dark:text-red-400">{verifyError}</p>
+              </div>
+            )}
+
+            {/* YouTube 안내 */}
+            {isYoutube && verifyStatus === 'idle' && channelId.trim() && (
+              <p className="mt-1.5 text-[11px] text-gray-400">
+                Enter 또는 검증 버튼을 눌러 채널을 확인하세요.
+              </p>
+            )}
           </div>
 
+          {/* 채널명 */}
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1 block">채널명 *</label>
             <input
               value={channelName}
               onChange={e => setChannelName(e.target.value)}
-              placeholder="예: 슈카월드"
+              placeholder={isYoutube && verifyStatus === 'valid' ? '검증 후 자동 입력됩니다' : '예: 슈카월드'}
               className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {isYoutube && verifyStatus === 'valid' && verifiedInfo?.title && channelName !== verifiedInfo.title && (
+              <button
+                type="button"
+                onClick={() => setChannelName(verifiedInfo.title)}
+                className="mt-1 text-[11px] text-blue-500 hover:underline"
+              >
+                API 채널명으로 되돌리기: {verifiedInfo.title}
+              </button>
+            )}
           </div>
 
           <ChannelCategoryField
@@ -624,9 +881,12 @@ function AddChannelModal({
 
           {error && <p className="text-xs text-red-500">{error}</p>}
 
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3">
-            <p className="text-xs text-blue-600 dark:text-blue-400">
-              💡 채널을 등록한 뒤 목록의 <strong>데이터 수집</strong>을 누르면 구독자 수·조회수 등이 갱신됩니다. (또는 n8n 자동화로 일괄 수집)
+          {/* 안내 박스 */}
+          <div className={`rounded-xl p-3 ${isYoutube ? 'bg-teal-50 dark:bg-teal-900/20' : 'bg-blue-50 dark:bg-blue-900/20'}`}>
+            <p className={`text-xs ${isYoutube ? 'text-teal-700 dark:text-teal-400' : 'text-blue-600 dark:text-blue-400'}`}>
+              {isYoutube
+                ? '🔍 YouTube 채널은 검증 후에만 등록 가능합니다. 채널 ID(UCxxx), @핸들, 채널 URL 모두 지원합니다.'
+                : '💡 채널을 등록한 뒤 목록의 데이터 수집을 누르면 구독자 수·조회수 등이 갱신됩니다.'}
             </p>
           </div>
         </div>
@@ -634,7 +894,7 @@ function AddChannelModal({
         <div className="flex gap-3 mt-6">
           <button
             onClick={handleAdd}
-            disabled={!channelId.trim() || !channelName.trim() || saving}
+            disabled={!canRegister || saving}
             className="flex-1 py-2.5 bg-blue-600 text-white text-sm rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium"
           >
             {saving ? '등록 중...' : '등록'}
@@ -801,7 +1061,7 @@ function EditChannelModal({
                 onChange={(e) => setIsTracked(e.target.checked)}
                 className="rounded"
               />
-              경쟁 채널로 추적 (경쟁 채널 목록에 표시)
+              분석·수집 대상으로 포함 (YouTube 전체 수집 등)
             </label>
             <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
               <input
@@ -870,31 +1130,52 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
   const [channelCategories, setChannelCategories] = useState<ChannelCategoryOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false)
   const [editingChannel, setEditingChannel] = useState<DBChannel | null>(null)
   const [channelFlagsMap, setChannelFlagsMap] = useState<Record<string, ChannelFlagSnapshot>>({})
   const [collectingIds, setCollectingIds] = useState<Record<string, boolean>>({})
   const [collectAllLoading, setCollectAllLoading] = useState(false)
+  const [collectPendingLoading, setCollectPendingLoading] = useState(false)
+  const [collectFilter, setCollectFilter] = useState<CollectFilter>('all')
+  // 아코디언: youtube 기본 열림, 나머지 접힘
+  const [openPlatforms, setOpenPlatforms] = useState<Set<string>>(new Set(['youtube']))
+
+  const togglePlatform = (platformId: string) => {
+    setOpenPlatforms(prev => {
+      const next = new Set(prev)
+      if (next.has(platformId)) next.delete(platformId)
+      else next.add(platformId)
+      return next
+    })
+  }
+
+  const expandAll = () => setOpenPlatforms(new Set(PLATFORMS.map(p => p.value)))
+  const collapseAll = () => setOpenPlatforms(new Set())
 
   const loadChannels = useCallback(() => {
     setIsLoading(true)
-    Promise.all([
-      fetch('/api/dashboard/channels').then((r) => r.json()),
-      fetch('/api/dashboard/channel-categories').then((r) => r.json()),
-      fetch('/api/dashboard/channel-flags').then((r) => r.json()),
-    ])
-      .then(([data, cats, flags]) => {
-        setChannels(data as DBChannel[])
-        setChannelCategories(normalizeChannelCategories(cats))
-        const map: Record<string, ChannelFlagSnapshot> = {}
-        if (Array.isArray(flags)) {
-          for (const f of flags as { channel_id: string; is_tracked: boolean; is_mine: boolean }[]) {
-            map[f.channel_id] = { is_tracked: f.is_tracked, is_mine: f.is_mine }
-          }
-        }
-        setChannelFlagsMap(map)
-        setIsLoading(false)
+    fetch('/api/dashboard/channels/sync-categories', { method: 'POST' })
+      .catch(() => {})
+      .finally(() => {
+        Promise.all([
+          fetch('/api/dashboard/channels').then((r) => r.json()),
+          fetch('/api/dashboard/channel-categories').then((r) => r.json()),
+          fetch('/api/dashboard/channel-flags').then((r) => r.json()),
+        ])
+          .then(([data, cats, flags]) => {
+            setChannels(data as DBChannel[])
+            setChannelCategories(normalizeChannelCategories(cats))
+            const map: Record<string, ChannelFlagSnapshot> = {}
+            if (Array.isArray(flags)) {
+              for (const f of flags as { channel_id: string; is_tracked: boolean; is_mine: boolean }[]) {
+                map[f.channel_id] = { is_tracked: f.is_tracked, is_mine: f.is_mine }
+              }
+            }
+            setChannelFlagsMap(map)
+            setIsLoading(false)
+          })
+          .catch(() => setIsLoading(false))
       })
-      .catch(() => setIsLoading(false))
   }, [])
 
   const getFlagsForChannel = (channelId: string): ChannelFlagSnapshot => ({
@@ -931,7 +1212,7 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
   }
 
   const handleDeleteChannel = async (channelId: string, channelName: string) => {
-    if (collectingIds[channelId] || collectAllLoading) return
+    if (collectingIds[channelId] || isCollectBusy) return
     const res = await fetch(`/api/dashboard/channels?channel_id=${encodeURIComponent(channelId)}`, { method: 'DELETE' })
     if (!res.ok) { addToast('삭제 실패', 'warning'); return }
     setChannels(prev => prev.filter(c => c.channel_id !== channelId))
@@ -939,7 +1220,7 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
   }
 
   const handleCollect = async (ch: DBChannel) => {
-    if (collectingIds[ch.channel_id] || collectAllLoading) return
+    if (collectingIds[ch.channel_id] || isCollectBusy) return
     setCollectingIds(prev => ({ ...prev, [ch.channel_id]: true }))
     addToast(`"${ch.channel_name}" 데이터 수집 중...`, 'info')
     try {
@@ -969,8 +1250,34 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
 
   const youtubeChannels = channels.filter(c => c.platform === 'youtube')
 
+  const collectSummary = summarizeCollectStatus(
+    youtubeChannels.map((c) => ({
+      channel_id: c.channel_id,
+      channel_name: c.channel_name,
+      platform: c.platform,
+      subscribers: c.subscribers,
+      avg_views: c.avg_views,
+      video_count: c.video_count,
+      updated_at: c.updated_at,
+    }))
+  )
+
+  const getChannelCollectStatus = (ch: DBChannel): CollectStatus =>
+    getCollectStatus({
+      channel_id: ch.channel_id,
+      channel_name: ch.channel_name,
+      platform: ch.platform,
+      subscribers: ch.subscribers,
+      avg_views: ch.avg_views,
+      video_count: ch.video_count,
+      updated_at: ch.updated_at,
+    })
+
+  const matchesCollectFilter = (ch: DBChannel) =>
+    collectFilter === 'all' || getChannelCollectStatus(ch) === collectFilter
+
   const handleCollectAllYoutube = async () => {
-    if (youtubeChannels.length === 0 || collectAllLoading) return
+    if (youtubeChannels.length === 0 || collectAllLoading || collectPendingLoading) return
     setCollectAllLoading(true)
     addToast(`YouTube 채널 ${youtubeChannels.length}개 전체 수집을 시작합니다…`, 'info')
     try {
@@ -988,10 +1295,33 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
       setCollectAllLoading(false)
     }
   }
+
+  const handleCollectPending = async () => {
+    if (collectSummary.pending === 0 || collectAllLoading || collectPendingLoading) return
+    setCollectPendingLoading(true)
+    addToast(`미수집 YouTube 채널 ${collectSummary.pending}개 수집을 시작합니다…`, 'info')
+    try {
+      const res = await fetch('/api/dashboard/collect-pending', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        addToast(data.error ?? '미수집 수집 실패', 'warning')
+      } else {
+        addToast(data.message ?? '미수집 수집 완료', data.failed > 0 ? 'warning' : 'success')
+        loadChannels()
+      }
+    } catch {
+      addToast('미수집 수집 중 오류가 발생했습니다', 'warning')
+    } finally {
+      setCollectPendingLoading(false)
+    }
+  }
+
   const byPlatform = PLATFORMS.map(p => ({
     ...p,
-    channels: channels.filter(c => c.platform === p.value),
+    channels: channels.filter(c => c.platform === p.value && matchesCollectFilter(c)),
   })).filter(p => p.channels.length > 0)
+
+  const isCollectBusy = collectAllLoading || collectPendingLoading
 
   return (
     <>
@@ -1001,6 +1331,14 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
           onClose={() => setShowAddModal(false)}
           categories={channelCategories}
           onCategoriesChange={setChannelCategories}
+          onNotify={addToast}
+        />
+      )}
+
+      {showBulkImportModal && (
+        <BulkImportChannelsModal
+          onClose={() => setShowBulkImportModal(false)}
+          onImported={loadChannels}
           onNotify={addToast}
         />
       )}
@@ -1018,27 +1356,66 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
       )}
 
       <div className="space-y-4">
-        {/* 헤더 */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-gray-500">
-            등록된 채널 목록입니다. <strong>데이터 수집</strong>은 채널별로, <strong>YouTube 전체 수집</strong>은 DB에 등록된 모든 YouTube 채널을 한 번에 현행화합니다.
-          </p>
-          <div className="flex flex-wrap gap-2 shrink-0 justify-end">
-            <button
-              type="button"
-              onClick={handleCollectAllYoutube}
-              disabled={youtubeChannels.length === 0 || collectAllLoading}
-              className="px-4 py-2 text-sm bg-violet-600 text-white rounded-xl hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium"
-            >
-              {collectAllLoading ? '전체 수집 중…' : `▶ YouTube 전체 수집 (${youtubeChannels.length})`}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
-            >
-              + 채널 등록
-            </button>
+        {/* 수집 상태 보드 */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 sm:p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">📊 수집 상태 보드</h3>
+              <p className="text-xs text-gray-400 mt-0.5">
+                YouTube {collectSummary.total}개 · 미수집 {collectSummary.pending} · 갱신 필요 {collectSummary.stale} · 완료 {collectSummary.collected}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setShowBulkImportModal(true)}
+                className="px-3 py-2 text-sm bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition font-medium"
+              >
+                📥 검증 채널 일괄 등록
+              </button>
+              <button
+                type="button"
+                onClick={handleCollectPending}
+                disabled={collectSummary.pending === 0 || isCollectBusy}
+                className="px-3 py-2 text-sm bg-amber-600 text-white rounded-xl hover:bg-amber-700 disabled:opacity-40 transition font-medium"
+              >
+                {collectPendingLoading ? '미수집 수집 중…' : `▶ 미수집 ${collectSummary.pending}개 수집`}
+              </button>
+              <button
+                type="button"
+                onClick={handleCollectAllYoutube}
+                disabled={youtubeChannels.length === 0 || isCollectBusy}
+                className="px-3 py-2 text-sm bg-violet-600 text-white rounded-xl hover:bg-violet-700 disabled:opacity-40 transition font-medium"
+              >
+                {collectAllLoading ? '전체 수집 중…' : `▶ YouTube 전체 (${youtubeChannels.length})`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="px-3 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
+              >
+                + 채널 등록
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {([
+              ['all', '전체', collectSummary.total, 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'],
+              ['pending', '수집 대기', collectSummary.pending, 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'],
+              ['stale', '갱신 필요', collectSummary.stale, 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'],
+              ['collected', '수집 완료', collectSummary.collected, 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'],
+            ] as const).map(([key, label, count, cls]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setCollectFilter(key)}
+                className={`rounded-xl p-3 text-left transition ring-2 ${collectFilter === key ? 'ring-teal-500' : 'ring-transparent'} ${cls}`}
+              >
+                <p className="text-lg font-bold">{count}</p>
+                <p className="text-[11px] opacity-80">{label}</p>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -1049,114 +1426,224 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
         ) : byPlatform.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-gray-400 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100">
             <p className="text-3xl mb-3">📭</p>
-            <p className="text-sm font-medium">등록된 채널이 없습니다</p>
-            <button onClick={() => setShowAddModal(true)} className="mt-3 text-sm text-blue-600 hover:underline">
-              + 첫 채널 등록하기
-            </button>
+            <p className="text-sm font-medium">
+              {channels.length === 0 ? '등록된 채널이 없습니다' : '선택한 필터에 해당하는 채널이 없습니다'}
+            </p>
+            {channels.length === 0 ? (
+              <div className="flex gap-3 mt-3">
+                <button onClick={() => setShowBulkImportModal(true)} className="text-sm text-teal-600 hover:underline">
+                  검증 채널 일괄 등록
+                </button>
+                <button onClick={() => setShowAddModal(true)} className="text-sm text-blue-600 hover:underline">
+                  + 첫 채널 등록
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setCollectFilter('all')} className="mt-3 text-sm text-blue-600 hover:underline">
+                필터 초기화
+              </button>
+            )}
           </div>
         ) : (
-          <div className="space-y-5">
-            {byPlatform.map(({ value, label, icon, channels: chList }) => (
-              <div key={value} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                <div className="px-5 py-3 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex items-center gap-2">
-                  <span className="text-base">{icon}</span>
-                  <span className="font-bold text-sm text-gray-800 dark:text-white">{label}</span>
-                  <span className="text-xs text-gray-400 ml-1">{chList.length}개 채널</span>
-                </div>
-                <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {chList.map(ch => {
-                    const isCollecting = !!collectingIds[ch.channel_id]
-                    return (
-                      <div
-                        key={ch.id}
-                        className="px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 group hover:bg-gray-50 dark:hover:bg-gray-700 transition min-w-0"
-                      >
-                        {/* 채널 정보 */}
-                        <div className="flex-1 min-w-0 w-full sm:w-auto">
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{ch.channel_name}</p>
-                          <p className="text-xs text-gray-400 mt-0.5 font-mono">{ch.channel_id}</p>
-                        </div>
+          <div className="space-y-2">
+            {/* 전체 펼치기/접기 */}
+            <div className="flex items-center justify-end gap-2 px-1">
+              <button
+                type="button"
+                onClick={expandAll}
+                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+              >
+                모두 펼치기
+              </button>
+              <span className="text-gray-300 text-xs">|</span>
+              <button
+                type="button"
+                onClick={collapseAll}
+                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+              >
+                모두 접기
+              </button>
+            </div>
 
-                        <ChannelCategoryField
-                          compact
-                          value={ch.category_id ?? ''}
-                          onChange={(id) => handleQuickCategoryChange(ch.channel_id, id)}
-                          categories={channelCategories}
-                          onCategoriesChange={setChannelCategories}
-                          onNotify={addToast}
-                        />
-
-                        {/* 통계 */}
-                        <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs text-gray-500 w-full sm:w-auto sm:shrink-0">
-                          {ch.subscribers != null ? (
-                            <>
-                              <div className="text-right">
-                                <p className="font-medium text-gray-700 dark:text-gray-300">{formatNum(ch.subscribers)}</p>
-                                <p>구독자</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-medium text-gray-700 dark:text-gray-300">{formatNum(ch.avg_views)}</p>
-                                <p>평균 조회</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-medium text-gray-700 dark:text-gray-300">{ch.video_count ?? '-'}</p>
-                                <p>영상 수</p>
-                              </div>
-                              <span className="text-gray-300 hidden group-hover:inline">
-                                {ch.updated_at ? new Date(ch.updated_at).toLocaleDateString('ko-KR') : '-'}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="text-xs text-amber-500 bg-amber-50 px-2 py-1 rounded-lg">수집 대기중</span>
+            {byPlatform.map(({ value, label, icon, channels: chList }) => {
+              const isOpen = openPlatforms.has(value)
+              return (
+                <div key={value} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                  {/* 아코디언 헤더 */}
+                  <button
+                    type="button"
+                    onClick={() => togglePlatform(value)}
+                    className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition text-left"
+                  >
+                    <span className="text-lg leading-none">{icon}</span>
+                    <span className="font-bold text-sm text-gray-800 dark:text-white flex-1">{label}</span>
+                    <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full font-medium">
+                      {chList.length}개
+                    </span>
+                    {/* 수집 상태 미니 뱃지 (YouTube만) */}
+                    {value === 'youtube' && (() => {
+                      const pendingCount = chList.filter(ch => getChannelCollectStatus(ch) === 'pending').length
+                      const staleCount = chList.filter(ch => getChannelCollectStatus(ch) === 'stale').length
+                      return (
+                        <div className="flex gap-1 ml-1">
+                          {pendingCount > 0 && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+                              대기 {pendingCount}
+                            </span>
+                          )}
+                          {staleCount > 0 && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
+                              갱신 {staleCount}
+                            </span>
                           )}
                         </div>
+                      )
+                    })()}
+                    <span className={`text-gray-400 transition-transform duration-200 text-sm ml-1 ${isOpen ? 'rotate-180' : ''}`}>
+                      ▾
+                    </span>
+                  </button>
 
-                        {/* 액션 버튼 */}
-                        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:shrink-0">
-                          <button
-                            onClick={() => handleCollect(ch)}
-                            disabled={isCollecting || collectAllLoading}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium transition
-                              ${isCollecting
-                                ? 'bg-blue-100 text-blue-400 cursor-not-allowed'
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
-                              }`}
+                  {/* 아코디언 콘텐츠 */}
+                  {isOpen && (
+                    <div className="border-t border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+                      {chList.map(ch => {
+                        const isCollecting = !!collectingIds[ch.channel_id]
+                        const status = getChannelCollectStatus(ch)
+                        return (
+                          <div
+                            key={ch.id}
+                            className="px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 group hover:bg-gray-50 dark:hover:bg-gray-700 transition min-w-0"
                           >
-                            {isCollecting ? (
-                              <>
-                                <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                </svg>
-                                수집 중...
-                              </>
-                            ) : (
-                              <>▶ 데이터 수집</>
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingChannel(ch)}
-                            disabled={isCollecting || collectAllLoading}
-                            className="opacity-0 group-hover:opacity-100 transition px-2 py-1.5 text-xs text-gray-600 hover:text-blue-600 dark:text-gray-400 disabled:opacity-30"
-                          >
-                            수정
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteChannel(ch.channel_id, ch.channel_name)}
-                            disabled={isCollecting || collectAllLoading}
-                            className="opacity-0 group-hover:opacity-100 transition px-2 py-1.5 text-xs text-red-400 hover:text-red-600 disabled:opacity-30"
-                          >
-                            삭제
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
+                            {/* 채널 정보 */}
+                            <div className="flex-1 min-w-0 w-full sm:w-auto">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{ch.channel_name}</p>
+                                {(() => {
+                                  const pageUrl = getChannelPageUrl(value, ch.channel_id)
+                                  if (!pageUrl) return null
+                                  return (
+                                    <a
+                                      href={pageUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-950/40 dark:hover:text-blue-400 shrink-0"
+                                      title="채널 페이지 열기"
+                                      aria-label={`${ch.channel_name} 채널 페이지 열기`}
+                                    >
+                                      ↗
+                                    </a>
+                                  )
+                                })()}
+                                {value === 'youtube' && (
+                                  <>
+                                    {ch.tracking_status && (
+                                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${trackingStatusBadgeClass(ch.tracking_status)}`}>
+                                        {formatTrackingStatusLabel(ch.tracking_status)}
+                                      </span>
+                                    )}
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${collectStatusBadgeClass(status)}`}>
+                                      {formatCollectStatusLabel(status)}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-400 mt-0.5 font-mono">{ch.channel_id}</p>
+                              {value === 'youtube' && ch.last_upload_at && (
+                                <p className="text-[10px] text-gray-400 mt-0.5">
+                                  최근 업로드: {new Date(ch.last_upload_at).toLocaleDateString('ko-KR')}
+                                </p>
+                              )}
+                              {ch.updated_at && status !== 'pending' && (
+                                <p className="text-[10px] text-gray-400 mt-0.5">
+                                  마지막 수집: {new Date(ch.updated_at).toLocaleString('ko-KR')}
+                                </p>
+                              )}
+                            </div>
+
+                            <ChannelCategoryField
+                              compact
+                              value={ch.category_id ?? ''}
+                              onChange={(id) => handleQuickCategoryChange(ch.channel_id, id)}
+                              categories={channelCategories}
+                              onCategoriesChange={setChannelCategories}
+                              onNotify={addToast}
+                            />
+
+                            {/* 통계 */}
+                            <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs text-gray-500 w-full sm:w-auto sm:shrink-0">
+                              {ch.subscribers != null ? (
+                                <>
+                                  <div className="text-right">
+                                    <p className="font-medium text-gray-700 dark:text-gray-300">{formatNum(ch.subscribers)}</p>
+                                    <p>구독자</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-medium text-gray-700 dark:text-gray-300">{formatNum(ch.avg_views)}</p>
+                                    <p>평균 조회</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-medium text-gray-700 dark:text-gray-300">{ch.video_count ?? '-'}</p>
+                                    <p>영상 수</p>
+                                  </div>
+                                  <span className="text-gray-300 hidden group-hover:inline">
+                                    {ch.updated_at ? new Date(ch.updated_at).toLocaleDateString('ko-KR') : '-'}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-lg">통계 없음</span>
+                              )}
+                            </div>
+
+                            {/* 액션 버튼 */}
+                            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:shrink-0">
+                              <button
+                                onClick={() => handleCollect(ch)}
+                                disabled={isCollecting || isCollectBusy}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium transition
+                                  ${isCollecting
+                                    ? 'bg-blue-100 text-blue-400 cursor-not-allowed'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                  }`}
+                              >
+                                {isCollecting ? (
+                                  <>
+                                    <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                    </svg>
+                                    수집 중...
+                                  </>
+                                ) : (
+                                  <>▶ 데이터 수집</>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingChannel(ch)}
+                                disabled={isCollecting || isCollectBusy}
+                                className="opacity-0 group-hover:opacity-100 transition px-2 py-1.5 text-xs text-gray-600 hover:text-blue-600 dark:text-gray-400 disabled:opacity-30"
+                              >
+                                수정
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteChannel(ch.channel_id, ch.channel_name)}
+                                disabled={isCollecting || isCollectBusy}
+                                className="opacity-0 group-hover:opacity-100 transition px-2 py-1.5 text-xs text-red-400 hover:text-red-600 disabled:opacity-30"
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -1222,8 +1709,948 @@ function BenchmarkItemRow({
   )
 }
 
+// ─── 네이버 블로그 검색 탭 ────────────────────────────────────
+interface NaverBlogItem {
+  title: string
+  link: string
+  description: string
+  bloggername: string
+  bloggerlink: string
+  postdate: string
+}
+
+interface CategorySearchState {
+  status: 'idle' | 'loading' | 'done' | 'error'
+  items: NaverBlogItem[]
+  total: number
+  error?: string
+  isOpen: boolean
+}
+
+function NaverBlogSearchTab() {
+  const [categories, setCategories] = useState<ChannelCategoryOption[]>([])
+  const [isCatsLoading, setIsCatsLoading] = useState(true)
+
+  // 검색 상태
+  const [inputKeyword, setInputKeyword] = useState('')
+  const [activeKeyword, setActiveKeyword] = useState('')
+  const [sort, setSort] = useState<'sim' | 'date'>('sim')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [results, setResults] = useState<NaverBlogItem[]>([])
+  const [total, setTotal] = useState(0)
+  const [searchError, setSearchError] = useState('')
+
+  const isSearchMode = activeKeyword !== ''
+
+  useEffect(() => {
+    fetch('/api/dashboard/channel-categories')
+      .then(r => r.json())
+      .then((data: ChannelCategoryOption[]) => setCategories(data))
+      .catch(() => {})
+      .finally(() => setIsCatsLoading(false))
+  }, [])
+
+  const doSearch = async (q: string, sortOrder: 'sim' | 'date') => {
+    if (!q.trim()) return
+    setStatus('loading')
+    setSearchError('')
+    setResults([])
+    setTotal(0)
+    try {
+      const res = await fetch(
+        `/api/dashboard/naver-blog-search?keyword=${encodeURIComponent(q)}&display=10&sort=${sortOrder}`
+      )
+      const data = await res.json()
+      if (!res.ok) {
+        setStatus('error')
+        setSearchError(data.error ?? '검색 중 오류가 발생했습니다')
+        return
+      }
+      setResults(data.items ?? [])
+      setTotal(data.total ?? 0)
+      setStatus('done')
+    } catch {
+      setStatus('error')
+      setSearchError('네트워크 오류가 발생했습니다')
+    }
+  }
+
+  const handleSearch = (q: string) => {
+    if (!q.trim()) return
+    setActiveKeyword(q.trim())
+    void doSearch(q.trim(), sort)
+  }
+
+  const handleSortChange = (newSort: 'sim' | 'date') => {
+    setSort(newSort)
+    if (isSearchMode) void doSearch(activeKeyword, newSort)
+  }
+
+  const clearSearch = () => {
+    setActiveKeyword('')
+    setInputKeyword('')
+    setResults([])
+    setTotal(0)
+    setStatus('idle')
+    setSearchError('')
+  }
+
+  if (isCatsLoading) {
+    return (
+      <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
+        <span className="animate-spin mr-2">⏳</span> 카테고리 로딩 중...
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* 검색 바 + 정렬 */}
+      <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border border-green-100 dark:border-green-800 rounded-2xl p-4 sm:p-5 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">🔍 네이버 블로그 검색</h3>
+            <p className="text-xs text-gray-500 mt-0.5">카테고리를 클릭하거나 키워드를 입력해 블로그 글을 검색합니다.</p>
+          </div>
+          {/* 정렬 토글 */}
+          <div className="flex items-center gap-1 bg-white dark:bg-gray-700 rounded-lg p-1 border border-gray-200 dark:border-gray-600">
+            <button
+              type="button"
+              onClick={() => handleSortChange('sim')}
+              className={`px-3 py-1 text-xs rounded-md font-medium transition ${sort === 'sim' ? 'bg-green-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              🔗 관련도순
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSortChange('date')}
+              className={`px-3 py-1 text-xs rounded-md font-medium transition ${sort === 'date' ? 'bg-green-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              🕐 최신순
+            </button>
+          </div>
+        </div>
+
+        {/* 키워드 검색 입력 */}
+        <form
+          onSubmit={e => { e.preventDefault(); handleSearch(inputKeyword) }}
+          className="flex gap-2"
+        >
+          <input
+            value={inputKeyword}
+            onChange={e => setInputKeyword(e.target.value)}
+            placeholder="직접 키워드 검색 (예: 부동산 투자 방법)"
+            className="flex-1 px-3 py-2 text-sm border border-green-200 dark:border-green-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <button
+            type="submit"
+            disabled={!inputKeyword.trim() || status === 'loading'}
+            className="px-4 py-2 text-sm bg-gray-900 text-white rounded-xl hover:bg-gray-700 disabled:opacity-40 transition font-medium"
+          >
+            검색
+          </button>
+          {isSearchMode && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+            >
+              ✕
+            </button>
+          )}
+        </form>
+      </div>
+
+      {/* ── 일반 모드: 카테고리 그리드 ── */}
+      {!isSearchMode && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
+          <p className="text-xs text-gray-400 mb-3">카테고리를 클릭하면 해당 주제의 블로그 글을 검색합니다</p>
+          {categories.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">
+              채널 등록 탭에서 채널에 카테고리를 지정하면 여기서 검색할 수 있습니다.
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => handleSearch(cat.name)}
+                  className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 hover:border-green-300 hover:bg-green-50 dark:hover:border-green-700 dark:hover:bg-green-900/20 transition text-center group"
+                >
+                  <span className="text-xl leading-none">{cat.icon}</span>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-green-700 dark:group-hover:text-green-400 leading-tight">
+                    {cat.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 검색 모드: 결과 패널 ── */}
+      {isSearchMode && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+          {/* 결과 헤더 */}
+          <div className="px-5 py-3.5 flex items-center justify-between border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-gray-900 dark:text-white">
+                「{activeKeyword}」 블로그
+              </span>
+              <span className="text-xs text-gray-400 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-600">
+                {sort === 'sim' ? '🔗 관련도순' : '🕐 최신순'}
+              </span>
+              {status === 'done' && total > 0 && (
+                <span className="text-xs text-gray-400">총 {total.toLocaleString()}건 중 상위 {results.length}개</span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="text-xs text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 transition"
+            >
+              ✕ 초기화
+            </button>
+          </div>
+
+          {/* 카테고리 빠른 전환 */}
+          <div className="px-5 py-2.5 flex gap-1.5 flex-wrap border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => handleSearch(cat.name)}
+                disabled={status === 'loading'}
+                className={`px-2.5 py-1 text-xs rounded-full font-medium transition border
+                  ${activeKeyword === cat.name
+                    ? 'bg-green-600 text-white border-green-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-transparent hover:border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20'
+                  } disabled:opacity-50`}
+              >
+                {cat.icon} {cat.name}
+              </button>
+            ))}
+          </div>
+
+          {/* 검색 결과 */}
+          {status === 'loading' && (
+            <div className="py-12 text-center text-sm text-gray-400">
+              <svg className="animate-spin w-6 h-6 mx-auto mb-2 text-green-400" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              네이버 블로그 검색 중…
+            </div>
+          )}
+          {status === 'error' && (
+            <div className="py-10 text-center text-sm text-red-500">❌ {searchError}</div>
+          )}
+          {status === 'done' && results.length === 0 && (
+            <div className="py-10 text-center text-sm text-gray-400">검색 결과가 없습니다.</div>
+          )}
+          {status === 'done' && results.length > 0 && (
+            <div className="divide-y divide-gray-50 dark:divide-gray-700/60">
+              {results.map((item, idx) => (
+                <div key={idx} className="px-5 py-4 flex gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition">
+                  {/* 순위 */}
+                  <span className="shrink-0 w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
+                    {idx + 1}
+                  </span>
+
+                  {/* 본문 */}
+                  <div className="flex-1 min-w-0">
+                    <a
+                      href={item.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-semibold text-gray-900 dark:text-white hover:text-green-600 hover:underline line-clamp-1"
+                    >
+                      {item.title}
+                    </a>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{item.description}</p>
+
+                    {/* 메타 + 채널 액션 */}
+                    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px]">
+                      {/* 블로거명 → 채널 링크 */}
+                      {item.bloggerlink ? (
+                        <a
+                          href={item.bloggerlink.startsWith('http') ? item.bloggerlink : `https://${item.bloggerlink}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-green-700 dark:text-green-400 hover:underline"
+                        >
+                          ✍️ {item.bloggername}
+                        </a>
+                      ) : (
+                        <span className="font-medium text-green-700 dark:text-green-400">✍️ {item.bloggername}</span>
+                      )}
+                      <span className="text-gray-400">{item.postdate}</span>
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:underline"
+                      >
+                        글 보기 ↗
+                      </a>
+                      {item.bloggerlink && (
+                        <>
+                          <a
+                            href={item.bloggerlink.startsWith('http') ? item.bloggerlink : `https://${item.bloggerlink}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-0.5 rounded-md border border-green-200 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-600 hover:text-white hover:border-green-600 transition"
+                          >
+                            채널 방문
+                          </a>
+                          <a
+                            href={item.bloggerlink.startsWith('http') ? item.bloggerlink : `https://${item.bloggerlink}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-0.5 rounded-md bg-green-600 text-white hover:bg-green-700 dark:hover:bg-green-500 transition"
+                          >
+                            + 구독
+                          </a>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="px-5 py-2 bg-gray-50 dark:bg-gray-700/40 text-[11px] text-gray-400 text-right">
+                네이버 블로그 · {sort === 'sim' ? '관련도 높은 순' : '최신 등록 순'} · 상위 {results.length}개
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** 채널 카테고리 → AddBenchmarkModal용 Category 변환 */
+function channelCatToCategory(c: ChannelCategoryOption): Category {
+  return {
+    id: c.id,
+    name: `${c.icon} ${c.name}`,
+    bgColor: c.bg_color ?? '#6B7280',
+    textColor: 'auto',
+    createdAt: '',
+  }
+}
+
+// ─── YouTube 숏폼 검색 탭 ────────────────────────────────────
+interface YoutubeItem {
+  videoId: string
+  title: string
+  channelTitle: string
+  publishedAt: string
+  thumbnailUrl: string
+  viewCount: number | null
+  likeCount: number | null
+  duration: string
+  url: string
+}
+
+interface YtCategorySearchState {
+  status: 'idle' | 'loading' | 'done' | 'error'
+  items: YoutubeItem[]
+  error?: string
+  isOpen: boolean
+}
+
+function fmtViews(n: number | null): string {
+  if (n == null) return '-'
+  if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)}억`
+  if (n >= 10_000) return `${Math.floor(n / 10_000)}만`
+  return n.toLocaleString()
+}
+
+function YoutubeSearchTab({ addToast }: { addToast: (m: string, t?: 'success' | 'info' | 'warning') => void }) {
+  const [categories, setCategories] = useState<ChannelCategoryOption[]>([])
+  const [isCatsLoading, setIsCatsLoading] = useState(true)
+  const [registerTarget, setRegisterTarget] = useState<YoutubeItem | null>(null)
+
+  // 검색 상태
+  const [inputKeyword, setInputKeyword] = useState('')
+  const [activeKeyword, setActiveKeyword] = useState('') // 비어있으면 일반모드
+  const [sort, setSort] = useState<'viewCount' | 'date'>('viewCount')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [results, setResults] = useState<YoutubeItem[]>([])
+  const [searchError, setSearchError] = useState('')
+
+  const isSearchMode = activeKeyword !== ''
+
+  // 채널 카테고리 → 모달용 Category[] (검색에 쓴 카테고리와 동일하게 표시)
+  const modalCategories = categories.map(channelCatToCategory)
+
+  // 현재 검색 키워드와 이름이 일치하는 카테고리 ID (모달 초기 선택)
+  const matchedCategoryId = categories.find(c => c.name === activeKeyword)?.id ?? ''
+
+  useEffect(() => {
+    fetch('/api/dashboard/channel-categories')
+      .then(r => r.json())
+      .then((data: ChannelCategoryOption[]) => setCategories(data))
+      .catch(() => {})
+      .finally(() => setIsCatsLoading(false))
+  }, [])
+
+  const doSearch = async (q: string, sortOrder: 'viewCount' | 'date') => {
+    if (!q.trim()) return
+    setStatus('loading')
+    setSearchError('')
+    setResults([])
+    try {
+      const res = await fetch(
+        `/api/dashboard/youtube-search?keyword=${encodeURIComponent(q)}&type=shorts&display=10&order=${sortOrder}`
+      )
+      const data = await res.json()
+      if (!res.ok) {
+        setStatus('error')
+        setSearchError(data.error ?? '검색 중 오류가 발생했습니다')
+        return
+      }
+      setResults(data.items ?? [])
+      setStatus('done')
+    } catch {
+      setStatus('error')
+      setSearchError('네트워크 오류가 발생했습니다')
+    }
+  }
+
+  const handleSearch = (q: string) => {
+    if (!q.trim()) return
+    setActiveKeyword(q.trim())
+    void doSearch(q.trim(), sort)
+  }
+
+  const handleSortChange = (newSort: 'viewCount' | 'date') => {
+    setSort(newSort)
+    if (isSearchMode) void doSearch(activeKeyword, newSort)
+  }
+
+  const clearSearch = () => {
+    setActiveKeyword('')
+    setInputKeyword('')
+    setResults([])
+    setStatus('idle')
+    setSearchError('')
+  }
+
+  if (isCatsLoading) {
+    return (
+      <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
+        <span className="animate-spin mr-2">⏳</span> 카테고리 로딩 중...
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* 콘텐츠 등록 모달 */}
+      {registerTarget && (
+        <AddBenchmarkModal
+          categories={modalCategories}
+          initialUrl={registerTarget.url}
+          initialTitle={registerTarget.title}
+          initialViews={registerTarget.viewCount}
+          initialCategoryId={matchedCategoryId}
+          onAdd={(bm) => {
+            addToast(`"${bm.title}" 콘텐츠가 등록됐습니다 📌`, 'success')
+            setRegisterTarget(null)
+          }}
+          onClose={() => setRegisterTarget(null)}
+        />
+      )}
+
+      {/* 검색 바 + 정렬 */}
+      <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/30 border border-red-100 dark:border-red-800 rounded-2xl p-4 sm:p-5 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">📺 YouTube Shorts 검색</h3>
+            <p className="text-xs text-gray-500 mt-0.5">카테고리를 클릭하거나 키워드를 입력해 Shorts를 검색합니다.</p>
+          </div>
+          {/* 정렬 토글 */}
+          <div className="flex items-center gap-1 bg-white dark:bg-gray-700 rounded-lg p-1 border border-gray-200 dark:border-gray-600">
+            <button
+              type="button"
+              onClick={() => handleSortChange('viewCount')}
+              className={`px-3 py-1 text-xs rounded-md font-medium transition ${sort === 'viewCount' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              👁 조회수순
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSortChange('date')}
+              className={`px-3 py-1 text-xs rounded-md font-medium transition ${sort === 'date' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              🕐 최신순
+            </button>
+          </div>
+        </div>
+
+        {/* 키워드 검색 입력 */}
+        <form
+          onSubmit={e => { e.preventDefault(); handleSearch(inputKeyword) }}
+          className="flex gap-2"
+        >
+          <input
+            value={inputKeyword}
+            onChange={e => setInputKeyword(e.target.value)}
+            placeholder="직접 키워드 검색 (예: 주식 투자 방법)"
+            className="flex-1 px-3 py-2 text-sm border border-red-200 dark:border-red-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+          />
+          <button
+            type="submit"
+            disabled={!inputKeyword.trim() || status === 'loading'}
+            className="px-4 py-2 text-sm bg-gray-900 text-white rounded-xl hover:bg-gray-700 disabled:opacity-40 transition font-medium"
+          >
+            검색
+          </button>
+          {isSearchMode && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+            >
+              ✕
+            </button>
+          )}
+        </form>
+      </div>
+
+      {/* ── 일반 모드: 카테고리 그리드 ── */}
+      {!isSearchMode && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
+          <p className="text-xs text-gray-400 mb-3">카테고리를 클릭하면 해당 주제의 YouTube Shorts를 검색합니다</p>
+          {categories.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">
+              채널 등록 탭에서 채널에 카테고리를 지정하면 여기서 검색할 수 있습니다.
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => handleSearch(cat.name)}
+                  className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 hover:border-red-300 hover:bg-red-50 dark:hover:border-red-700 dark:hover:bg-red-900/20 transition text-center group"
+                >
+                  <span className="text-xl leading-none">{cat.icon}</span>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-red-700 dark:group-hover:text-red-400 leading-tight">
+                    {cat.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 검색 모드: 결과 패널 ── */}
+      {isSearchMode && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+          {/* 결과 헤더 */}
+          <div className="px-5 py-3.5 flex items-center justify-between border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-gray-900 dark:text-white">
+                「{activeKeyword}」 Shorts
+              </span>
+              <span className="text-xs text-gray-400 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-600">
+                {sort === 'viewCount' ? '👁 조회수순' : '🕐 최신순'}
+              </span>
+              {status === 'done' && results.length > 0 && (
+                <span className="text-xs text-gray-400">{results.length}개</span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="text-xs text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 transition"
+            >
+              ✕ 초기화
+            </button>
+          </div>
+
+          {/* 카테고리 빠른 전환 */}
+          <div className="px-5 py-2.5 flex gap-1.5 flex-wrap border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => handleSearch(cat.name)}
+                disabled={status === 'loading'}
+                className={`px-2.5 py-1 text-xs rounded-full font-medium transition border
+                  ${activeKeyword === cat.name
+                    ? 'bg-red-600 text-white border-red-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-transparent hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20'
+                  } disabled:opacity-50`}
+              >
+                {cat.icon} {cat.name}
+              </button>
+            ))}
+          </div>
+
+          {/* 검색 결과 */}
+          {status === 'loading' && (
+            <div className="py-12 text-center text-sm text-gray-400">
+              <svg className="animate-spin w-6 h-6 mx-auto mb-2 text-red-400" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              YouTube Shorts 검색 중…
+            </div>
+          )}
+          {status === 'error' && (
+            <div className="py-10 text-center text-sm text-red-500">❌ {searchError}</div>
+          )}
+          {status === 'done' && results.length === 0 && (
+            <div className="py-10 text-center text-sm text-gray-400">검색 결과가 없습니다.</div>
+          )}
+          {status === 'done' && results.length > 0 && (
+            <div className="divide-y divide-gray-50 dark:divide-gray-700/60">
+              {results.map((item, idx) => (
+                <div key={item.videoId} className="px-4 sm:px-5 py-3.5 flex items-center gap-3 sm:gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition">
+                  {/* 순위 */}
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-bold flex items-center justify-center">
+                    {idx + 1}
+                  </span>
+
+                  {/* 썸네일 */}
+                  {item.thumbnailUrl && (
+                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                      <div className="relative w-[72px] h-[40px] rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.thumbnailUrl} alt={item.title} className="w-full h-full object-cover" />
+                        {item.duration && (
+                          <span className="absolute bottom-0.5 right-0.5 px-1 py-0.5 text-[9px] bg-black/80 text-white rounded font-mono leading-none">
+                            {item.duration}
+                          </span>
+                        )}
+                      </div>
+                    </a>
+                  )}
+
+                  {/* 정보 */}
+                  <div className="flex-1 min-w-0">
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-semibold text-gray-900 dark:text-white hover:text-red-600 hover:underline line-clamp-2 leading-snug"
+                    >
+                      {item.title}
+                    </a>
+                    <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-gray-400">
+                      <span className="font-medium text-red-700 dark:text-red-400">🔴 {item.channelTitle}</span>
+                      <span>👁 {fmtViews(item.viewCount)}</span>
+                      {item.likeCount != null && <span>👍 {fmtViews(item.likeCount)}</span>}
+                      <span>{item.publishedAt}</span>
+                      <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                        Shorts ↗
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* 콘텐츠 등록 버튼 */}
+                  <button
+                    type="button"
+                    onClick={() => setRegisterTarget(item)}
+                    className="shrink-0 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:border-blue-700 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-600 dark:hover:text-white transition whitespace-nowrap"
+                  >
+                    + 등록
+                  </button>
+                </div>
+              ))}
+              <div className="px-5 py-2 bg-gray-50 dark:bg-gray-700/40 text-[11px] text-gray-400 text-right">
+                YouTube Shorts · {sort === 'viewCount' ? '조회수 높은 순' : '최신 등록 순'} · 상위 10개
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── 티스토리 검색 탭 ────────────────────────────────────────
+interface TistoryItem {
+  title: string
+  link: string
+  description: string
+  blogId: string
+  blogHome: string
+}
+
+function TistorySearchTab() {
+  const [categories, setCategories] = useState<ChannelCategoryOption[]>([])
+  const [isCatsLoading, setIsCatsLoading] = useState(true)
+
+  const [inputKeyword, setInputKeyword] = useState('')
+  const [activeKeyword, setActiveKeyword] = useState('')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [results, setResults] = useState<TistoryItem[]>([])
+  const [total, setTotal] = useState(0)
+  const [searchError, setSearchError] = useState('')
+
+  const isSearchMode = activeKeyword !== ''
+
+  useEffect(() => {
+    fetch('/api/dashboard/channel-categories')
+      .then(r => r.json())
+      .then((data: ChannelCategoryOption[]) => setCategories(data))
+      .catch(() => {})
+      .finally(() => setIsCatsLoading(false))
+  }, [])
+
+  const doSearch = async (q: string) => {
+    if (!q.trim()) return
+    setStatus('loading')
+    setSearchError('')
+    setResults([])
+    setTotal(0)
+    try {
+      const res = await fetch(
+        `/api/dashboard/tistory-search?keyword=${encodeURIComponent(q)}&display=10`
+      )
+      const data = await res.json()
+      if (!res.ok) {
+        setStatus('error')
+        setSearchError(data.error ?? '검색 중 오류가 발생했습니다')
+        return
+      }
+      setResults(data.items ?? [])
+      setTotal(data.total ?? 0)
+      setStatus('done')
+    } catch {
+      setStatus('error')
+      setSearchError('네트워크 오류가 발생했습니다')
+    }
+  }
+
+  const handleSearch = (q: string) => {
+    if (!q.trim()) return
+    setActiveKeyword(q.trim())
+    void doSearch(q.trim())
+  }
+
+  const clearSearch = () => {
+    setActiveKeyword('')
+    setInputKeyword('')
+    setResults([])
+    setTotal(0)
+    setStatus('idle')
+    setSearchError('')
+  }
+
+  if (isCatsLoading) {
+    return (
+      <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
+        <span className="animate-spin mr-2">⏳</span> 카테고리 로딩 중...
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* 검색 바 */}
+      <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 border border-orange-100 dark:border-orange-800 rounded-2xl p-4 sm:p-5 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">🟠 티스토리 검색</h3>
+            <p className="text-xs text-gray-500 mt-0.5">카테고리를 클릭하거나 키워드를 입력해 티스토리 글을 검색합니다.</p>
+          </div>
+          {isSearchMode && total > 0 && (
+            <span className="text-xs text-gray-400 bg-white dark:bg-gray-700 px-2 py-1 rounded-full border border-orange-100 dark:border-orange-800">
+              총 {total.toLocaleString()}건 중 상위 {results.length}개
+            </span>
+          )}
+        </div>
+
+        {/* 키워드 입력 */}
+        <form
+          onSubmit={e => { e.preventDefault(); handleSearch(inputKeyword) }}
+          className="flex gap-2"
+        >
+          <input
+            value={inputKeyword}
+            onChange={e => setInputKeyword(e.target.value)}
+            placeholder="직접 키워드 검색 (예: 주식 투자 전략)"
+            className="flex-1 px-3 py-2 text-sm border border-orange-200 dark:border-orange-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          <button
+            type="submit"
+            disabled={!inputKeyword.trim() || status === 'loading'}
+            className="px-4 py-2 text-sm bg-gray-900 text-white rounded-xl hover:bg-gray-700 disabled:opacity-40 transition font-medium"
+          >
+            검색
+          </button>
+          {isSearchMode && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+            >
+              ✕
+            </button>
+          )}
+        </form>
+      </div>
+
+      {/* ── 일반 모드: 카테고리 그리드 ── */}
+      {!isSearchMode && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
+          <p className="text-xs text-gray-400 mb-3">카테고리를 클릭하면 해당 주제의 티스토리 글을 검색합니다</p>
+          {categories.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">
+              채널 등록 탭에서 채널에 카테고리를 지정하면 여기서 검색할 수 있습니다.
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => handleSearch(cat.name)}
+                  className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 hover:border-orange-300 hover:bg-orange-50 dark:hover:border-orange-700 dark:hover:bg-orange-900/20 transition text-center group"
+                >
+                  <span className="text-xl leading-none">{cat.icon}</span>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-orange-700 dark:group-hover:text-orange-400 leading-tight">
+                    {cat.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 검색 모드: 결과 패널 ── */}
+      {isSearchMode && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+          {/* 결과 헤더 */}
+          <div className="px-5 py-3.5 flex items-center justify-between border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+            <span className="text-sm font-bold text-gray-900 dark:text-white">
+              「{activeKeyword}」 티스토리
+            </span>
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="text-xs text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 transition"
+            >
+              ✕ 초기화
+            </button>
+          </div>
+
+          {/* 카테고리 빠른 전환 */}
+          <div className="px-5 py-2.5 flex gap-1.5 flex-wrap border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => handleSearch(cat.name)}
+                disabled={status === 'loading'}
+                className={`px-2.5 py-1 text-xs rounded-full font-medium transition border
+                  ${activeKeyword === cat.name
+                    ? 'bg-orange-600 text-white border-orange-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-transparent hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-900/20'
+                  } disabled:opacity-50`}
+              >
+                {cat.icon} {cat.name}
+              </button>
+            ))}
+          </div>
+
+          {/* 검색 결과 */}
+          {status === 'loading' && (
+            <div className="py-12 text-center text-sm text-gray-400">
+              <svg className="animate-spin w-6 h-6 mx-auto mb-2 text-orange-400" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              티스토리 검색 중…
+            </div>
+          )}
+          {status === 'error' && (
+            <div className="py-10 text-center text-sm text-red-500">❌ {searchError}</div>
+          )}
+          {status === 'done' && results.length === 0 && (
+            <div className="py-10 text-center text-sm text-gray-400">검색 결과가 없습니다.</div>
+          )}
+          {status === 'done' && results.length > 0 && (
+            <div className="divide-y divide-gray-50 dark:divide-gray-700/60">
+              {results.map((item, idx) => (
+                <div key={idx} className="px-5 py-4 flex gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition">
+                  {/* 순위 */}
+                  <span className="shrink-0 w-5 h-5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
+                    {idx + 1}
+                  </span>
+
+                  {/* 본문 */}
+                  <div className="flex-1 min-w-0">
+                    <a
+                      href={item.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-semibold text-gray-900 dark:text-white hover:text-orange-600 hover:underline line-clamp-1"
+                    >
+                      {item.title}
+                    </a>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{item.description}</p>
+
+                    {/* 메타 + 채널 액션 */}
+                    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px]">
+                      {/* 블로그 ID → 홈 링크 */}
+                      <a
+                        href={item.blogHome}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-orange-700 dark:text-orange-400 hover:underline"
+                      >
+                        ✍️ {item.blogId}.tistory.com
+                      </a>
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:underline"
+                      >
+                        글 보기 ↗
+                      </a>
+                      <a
+                        href={item.blogHome}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-0.5 rounded-md border border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-400 hover:bg-orange-600 hover:text-white hover:border-orange-600 transition"
+                      >
+                        채널 방문
+                      </a>
+                      <a
+                        href={`${item.blogHome}/guestbook`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-0.5 rounded-md bg-orange-600 text-white hover:bg-orange-700 dark:hover:bg-orange-500 transition"
+                      >
+                        + 구독
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="px-5 py-2 bg-gray-50 dark:bg-gray-700/40 text-[11px] text-gray-400 text-right">
+                티스토리 · 관련도 높은 순 · 상위 {results.length}개
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── 메인 뷰 ─────────────────────────────────────────────────
-type TabType = 'benchmarks' | 'channels'
+type TabType = 'benchmarks' | 'channels' | 'blog-search' | 'youtube-search' | 'tistory-search'
 
 export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 'success' | 'info' | 'warning') => void }) {
   const [activeTab, setActiveTab] = useState<TabType>('channels')
@@ -1306,7 +2733,7 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
 
       <div className="space-y-5">
         {/* 상단 탭 */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
             <button
               onClick={() => setActiveTab('channels')}
@@ -1319,6 +2746,24 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
               className={`px-4 py-1.5 text-sm rounded-lg font-medium transition ${activeTab === 'benchmarks' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}
             >
               🔖 콘텐츠 등록
+            </button>
+            <button
+              onClick={() => setActiveTab('blog-search')}
+              className={`px-4 py-1.5 text-sm rounded-lg font-medium transition ${activeTab === 'blog-search' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              🔍 블로그
+            </button>
+            <button
+              onClick={() => setActiveTab('youtube-search')}
+              className={`px-4 py-1.5 text-sm rounded-lg font-medium transition ${activeTab === 'youtube-search' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              📺 Shorts
+            </button>
+            <button
+              onClick={() => setActiveTab('tistory-search')}
+              className={`px-4 py-1.5 text-sm rounded-lg font-medium transition ${activeTab === 'tistory-search' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              🟠 티스토리
             </button>
           </div>
 
@@ -1342,6 +2787,15 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
 
         {/* 채널 등록 탭 (기본) */}
         {activeTab === 'channels' && <ChannelStatusTab addToast={addToast} />}
+
+        {/* 블로그 검색 탭 */}
+        {activeTab === 'blog-search' && <NaverBlogSearchTab />}
+
+        {/* YouTube 숏폼 검색 탭 */}
+        {activeTab === 'youtube-search' && <YoutubeSearchTab addToast={addToast} />}
+
+        {/* 티스토리 검색 탭 */}
+        {activeTab === 'tistory-search' && <TistorySearchTab />}
 
         {/* 콘텐츠(레퍼런스) 탭 */}
         {activeTab === 'benchmarks' && (

@@ -2,6 +2,7 @@
 
 export interface CalendarItemStored {
   id: string
+  /** ISO 날짜 문자열 (YYYY-MM-DD). 구형 데이터는 '오늘'/'내일' 등 레이블일 수 있음 */
   day: string
   title: string
   platform: string
@@ -65,19 +66,28 @@ export function seedRepurposeFromOutliers(
     }))
 }
 
+function addDays(base: Date, n: number): string {
+  const d = new Date(base)
+  d.setDate(d.getDate() + n)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export function seedCalendarFromOutliers(
   outliers: { title: string; platform: string }[],
 ): CalendarItemStored[] {
-  const days = ['오늘', '내일', '모레', '3일 후', '4일 후']
+  const base = new Date()
   return outliers
     .filter((v) => v.platform !== 'instagram')
     .slice(0, 5)
     .map((v, i) => ({
       id: `cal-seed-${i}`,
-      day: days[i] ?? `${i + 1}일 후`,
+      day: addDays(base, i),
       title: v.title.slice(0, 60),
       platform: v.platform,
-      status: i === 0 ? 'scheduled' : i === 1 ? 'draft' : 'idea',
+      status: (i === 0 ? 'scheduled' : i === 1 ? 'draft' : 'idea') as CalendarItemStored['status'],
       time: i === 0 ? '오후 6시' : '미정',
     }))
 }

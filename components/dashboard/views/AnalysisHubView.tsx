@@ -1,48 +1,175 @@
 'use client'
 
-import Link from 'next/link'
+import { useState, useCallback } from 'react'
+import type { Video, AddToast } from '@/lib/dashboard/dashboard-types'
 import { getPlatformIcon, getPlatformName } from '@/lib/dashboard/dashboard-helpers'
 import { isCollectionEnabled, isPlatformComingSoon, isPlatformDummyPreview } from '@/lib/dashboard/platforms'
+import PlatformView from '@/components/dashboard/views/PlatformView'
+import type { ViewVideoFormat } from '@/lib/dashboard/dashboard-nav'
 
-const PLATFORMS = [
-  { id: 'youtube', desc: 'Shorts·롱폼 · vs.Avg·Outlier' },
-  { id: 'naver-blog', desc: 'n8n·검색 API 수집 · 조회수·vs.Avg 갱신' },
-  { id: 'tiktok', desc: 'Apify 연동 전 · 더미 미리보기' },
-  { id: 'instagram', desc: '수집 준비 중' },
-  { id: 'tistory', desc: 'RSS 수집 · 제목·날짜·링크 (조회수 미제공)' },
-] as const
+interface Platform {
+  id: string
+  label: string
+  icon: string
+  badge?: string
+  badgeColor?: string
+  subFormats?: { value: ViewVideoFormat | null; label: string }[]
+}
 
-export function AnalysisHubView() {
+const PLATFORMS: Platform[] = [
+  {
+    id: 'youtube',
+    label: 'YouTube',
+    icon: '🔴',
+    subFormats: [
+      { value: null, label: '전체' },
+      { value: 'short', label: 'Shorts' },
+      { value: 'long', label: '롱폼' },
+    ],
+  },
+  {
+    id: 'naver-blog',
+    label: '네이버 블로그',
+    icon: '🟢',
+  },
+  {
+    id: 'tistory',
+    label: '티스토리',
+    icon: '🟠',
+  },
+  {
+    id: 'tiktok',
+    label: 'TikTok',
+    icon: '🎵',
+    badge: '더미',
+    badgeColor: 'bg-gray-800 text-gray-100',
+  },
+  {
+    id: 'instagram',
+    label: 'Instagram',
+    icon: '💗',
+    badge: '준비중',
+    badgeColor: 'bg-pink-100 text-pink-700',
+    subFormats: [
+      { value: null, label: '전체' },
+      { value: 'short', label: 'Reels' },
+    ],
+  },
+]
+
+const PLATFORM_STATUS = {
+  ready: { label: '수집됨', color: 'text-emerald-600 dark:text-emerald-400' },
+  dummy: { label: '더미', color: 'text-amber-600 dark:text-amber-400' },
+  soon: { label: '준비중', color: 'text-gray-400' },
+}
+
+function getPlatformStatus(id: string) {
+  if (isCollectionEnabled(id)) return 'ready'
+  if (isPlatformDummyPreview(id)) return 'dummy'
+  if (isPlatformComingSoon(id)) return 'soon'
+  return 'ready'
+}
+
+interface AnalysisHubViewProps {
+  onSelect: (v: Video) => void
+  addToast: AddToast
+}
+
+export function AnalysisHubView({ onSelect, addToast }: AnalysisHubViewProps) {
+  const [activePlatform, setActivePlatform] = useState<string>('youtube')
+  const [activeFormat, setActiveFormat] = useState<ViewVideoFormat | null>(null)
+
+  const platform = PLATFORMS.find(p => p.id === activePlatform) ?? PLATFORMS[0]
+  const hasSubFormats = (platform.subFormats?.length ?? 0) > 1
+
+  const handlePlatformChange = useCallback((id: string) => {
+    setActivePlatform(id)
+    setActiveFormat(null)
+  }, [])
+
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-gray-600 dark:text-gray-400 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-3">
-        왼쪽 메뉴에서 플랫폼을 선택하세요. 상위 «콘텐츠 분석»만 누르면 이 화면이 열립니다.
-      </p>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {PLATFORMS.map((p) => {
-          const ready = isCollectionEnabled(p.id)
-          const soon = isPlatformComingSoon(p.id)
-          const dummy = isPlatformDummyPreview(p.id)
-          return (
-            <Link
-              key={p.id}
-              href={`/dashboard?view=${p.id}`}
-              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 hover:border-blue-400 dark:hover:border-blue-600 transition shadow-sm"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">{getPlatformIcon(p.id)}</span>
-                <span className="font-bold text-gray-900 dark:text-white">
-                  {getPlatformName(p.id)}
+    <div className="space-y-4">
+      {/* ── 플랫폼 선택 (데스크탑: 탭 / 모바일: 콤보박스) ── */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        {/* 모바일 콤보박스 */}
+        <div className="sm:hidden px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+          <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">
+            플랫폼 선택
+          </label>
+          <select
+            value={activePlatform}
+            onChange={e => handlePlatformChange(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {PLATFORMS.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.icon} {p.label}{p.badge ? ` (${p.badge})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* 데스크탑 탭 */}
+        <div className="hidden sm:flex overflow-x-auto scrollbar-none">
+          {PLATFORMS.map(p => {
+            const isActive = p.id === activePlatform
+            const status = getPlatformStatus(p.id)
+            const statusMeta = PLATFORM_STATUS[status]
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => handlePlatformChange(p.id)}
+                className={`
+                  relative flex-shrink-0 flex flex-col items-center gap-0.5 px-5 py-3.5 text-sm font-medium transition border-b-2
+                  ${isActive
+                    ? 'border-blue-600 text-blue-700 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/40'
+                  }
+                `}
+              >
+                <span className="text-lg leading-none">{p.icon}</span>
+                <span className="whitespace-nowrap text-xs font-semibold mt-0.5">{p.label}</span>
+                <span className={`text-[9px] font-medium ${statusMeta.color}`}>
+                  {p.badge ?? statusMeta.label}
                 </span>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{p.desc}</p>
-              <p className="text-[11px] mt-3 font-medium text-blue-600 dark:text-blue-400">
-                {ready ? '수집 연동됨 →' : dummy ? '더미 보기 →' : soon ? '준비 중 →' : '열기 →'}
-              </p>
-            </Link>
-          )
-        })}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* 현재 플랫폼 서브 포맷 탭 (Shorts/롱폼 등) */}
+        {hasSubFormats && (
+          <div className="flex border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-3 py-1.5 gap-1">
+            {platform.subFormats!.map(fmt => (
+              <button
+                key={String(fmt.value)}
+                type="button"
+                onClick={() => setActiveFormat(fmt.value)}
+                className={`
+                  px-3 py-1 text-xs font-semibold rounded-lg transition
+                  ${activeFormat === fmt.value
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200'
+                  }
+                `}
+              >
+                {fmt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* ── 콘텐츠 영역 ── */}
+      <PlatformView
+        key={`${activePlatform}-${activeFormat ?? 'all'}`}
+        filter={activePlatform}
+        videoFormat={activeFormat ?? undefined}
+        mineOnly={false}
+        onSelect={onSelect}
+        addToast={addToast}
+      />
     </div>
   )
 }

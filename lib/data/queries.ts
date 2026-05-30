@@ -9,8 +9,11 @@ export async function getVideos(options?: {
   limit?: number
   orderBy?: 'vs_avg' | 'views' | 'published_at' | 'score'
   tier?: string
+  channelIds?: string[]
+  from?: string
+  to?: string
 }): Promise<DBVideo[]> {
-  const { platform, format, limit = 50, orderBy = 'published_at', tier } = options ?? {}
+  const { platform, format, limit = 50, orderBy = 'published_at', tier, channelIds, from, to } = options ?? {}
 
   let query = supabase
     .from('videos')
@@ -21,17 +24,32 @@ export async function getVideos(options?: {
   if (platform) query = query.eq('platform', platform)
   if (format) query = query.eq('format', format)
   if (tier) query = query.eq('tier', tier)
+  if (channelIds?.length) query = query.in('channel_id', channelIds)
+  if (from) query = query.gte('published_at', from)
+  if (to) query = query.lte('published_at', to)
 
   const { data, error } = await query
   if (error) { console.error('getVideos error:', error); return [] }
   return data ?? []
 }
 
+export interface VideoFilterOptions {
+  format?: VideoFormat
+  channelIds?: string[]
+  /** ISO 날짜 문자열 예: '2026-04-01' */
+  from?: string
+  to?: string
+}
+
 export async function getOutlierVideos(
   minVsAvg = 1.5,
   limit = 30,
-  format?: VideoFormat,
+  options?: VideoFilterOptions | VideoFormat,
 ): Promise<DBVideo[]> {
+  // 하위호환: 세 번째 인자로 VideoFormat 문자열을 받던 이전 방식 지원
+  const opts: VideoFilterOptions =
+    typeof options === 'string' ? { format: options } : (options ?? {})
+
   let query = supabase
     .from('videos')
     .select('*')
@@ -39,7 +57,10 @@ export async function getOutlierVideos(
     .order('vs_avg', { ascending: false })
     .limit(limit)
 
-  if (format) query = query.eq('format', format)
+  if (opts.format) query = query.eq('format', opts.format)
+  if (opts.channelIds?.length) query = query.in('channel_id', opts.channelIds)
+  if (opts.from) query = query.gte('published_at', opts.from)
+  if (opts.to) query = query.lte('published_at', opts.to)
 
   const { data, error } = await query
 
@@ -104,12 +125,22 @@ export async function getVideoCountByChannel(): Promise<Record<string, number>> 
   return counts
 }
 
-export async function getVideosForAnalytics(limit = 200): Promise<DBVideo[]> {
-  const { data, error } = await supabase
+export async function getVideosForAnalytics(
+  limit = 200,
+  options?: VideoFilterOptions,
+): Promise<DBVideo[]> {
+  let query = supabase
     .from('videos')
-    .select('title, platform, published_at, vs_avg, channel_id, channel_name, video_id')
+    .select('title, platform, published_at, vs_avg, channel_id, channel_name, video_id, format, duration')
     .order('published_at', { ascending: false, nullsFirst: false })
     .limit(limit)
+
+  if (options?.format) query = query.eq('format', options.format)
+  if (options?.channelIds?.length) query = query.in('channel_id', options.channelIds)
+  if (options?.from) query = query.gte('published_at', options.from)
+  if (options?.to) query = query.lte('published_at', options.to)
+
+  const { data, error } = await query
 
   if (error) {
     console.error('getVideosForAnalytics error:', error)

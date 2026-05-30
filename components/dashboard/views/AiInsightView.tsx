@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react'
 import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import type { InsightSection, GroundingSource } from '@/app/api/dashboard/insights/route'
 import { PageLoadingOverlay } from '@/components/dashboard/ui/loading'
+import { usePlanningQueue } from '@/lib/hooks/use-planning-queue'
+import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
 
 const SECTION_STYLES: Record<
   InsightSection['type'],
@@ -120,103 +122,155 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
   const [sections, setSections] = useState<InsightSection[]>([])
   const [loading, setLoading] = useState(true)
   const [cached, setCached] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [cachedAt, setCachedAt] = useState<Date | null>(null)
+  const [fetchError, setFetchError] = useState(false)
+  const { addItem: addToQueue } = usePlanningQueue()
 
-  const load = useCallback((bust = false) => {
-    setLoading(true)
-    fetch(`/api/dashboard/insights${bust ? '?bust=1' : ''}`)
-      .then((r) => r.json())
-      .then((d: { sections?: InsightSection[]; cached?: boolean }) => {
-        setSections(d.sections ?? [])
-        setCached(d.cached ?? false)
-        setLastUpdated(new Date())
-      })
-      .catch(() => addToast('인사이트 로드 실패', 'warning'))
-      .finally(() => setLoading(false))
-  }, [addToast])
+  const load = useCallback(
+    (bust = false) => {
+      setLoading(true)
+      setFetchError(false)
+      fetch(`/api/dashboard/insights${bust ? '?bust=1' : ''}`)
+        .then((r) => r.json())
+        .then((d: { sections?: InsightSection[]; cached?: boolean }) => {
+          setSections(d.sections ?? [])
+          setCached(d.cached ?? false)
+          setCachedAt(new Date())
+        })
+        .catch(() => {
+          setFetchError(true)
+          addToast('인사이트 로드 실패', 'warning')
+        })
+        .finally(() => setLoading(false))
+    },
+    [addToast],
+  )
 
   useEffect(() => {
     load()
   }, [load])
 
-  return (
-    <PageLoadingOverlay loading={loading && sections.length === 0} label="Gemini가 트렌드를 분석 중입니다… (약 10~20초)">
-    <div className="space-y-6">
-      {/* 페이지 헤더 */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            🤖 AI 인사이트 &amp; 추천 액션
-          </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {cached
-              ? '캐시된 결과 (10분 유효)'
-              : lastUpdated
-                ? `최근 업데이트: ${lastUpdated.toLocaleTimeString('ko-KR')}`
-                : 'Gemini + Google Search 실시간 분석'}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            // 캐시 무효화 후 재조회 — API route에서 bust 파라미터 무시하고 캐시 만료
-            cache_bust_flag = true
-            load(true)
-            addToast('인사이트를 새로 분석합니다 (약 15초 소요)', 'success')
-          }}
-          className="shrink-0 text-xs bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-80 px-4 py-2 rounded-xl font-semibold transition"
-        >
-          ↻ 새로 분석
-        </button>
-      </div>
+  const aiSuccessCount = sections.filter((s) => s.isAi).length
 
-      {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-2xl overflow-hidden animate-pulse">
-              <div className="h-16 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600" />
-              <div className="bg-white dark:bg-gray-800 p-4 space-y-3 border border-gray-100 dark:border-gray-700 rounded-b-2xl">
-                {[1, 2, 3].map((j) => (
-                  <div key={j} className="h-16 bg-gray-100 dark:bg-gray-700 rounded-xl" />
-                ))}
+  return (
+    <PageLoadingOverlay
+      loading={loading && sections.length === 0}
+      label="Gemini가 트렌드를 분석 중입니다… (약 20~40초)"
+    >
+      <div className="space-y-6">
+        <N8nLv1ServicesSection viewId="ai-insight" addToast={addToast} />
+
+        {/* 헤더 */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              🤖 AI 인사이트 &amp; 추천 액션
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {cached && cachedAt
+                ? `캐시된 결과 · ${cachedAt.toLocaleTimeString('ko-KR')} 기준 (최대 30분 유효)`
+                : cachedAt
+                  ? `업데이트: ${cachedAt.toLocaleTimeString('ko-KR')} · Gemini + Google Search 실시간 분석`
+                  : 'Gemini 2.5 Flash + Google Search Grounding 실시간 분석'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* AI 성공 지표 */}
+            {!loading && sections.length > 0 && (
+              <span
+                className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                  aiSuccessCount === sections.length
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : aiSuccessCount > 0
+                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                }`}
+              >
+                {aiSuccessCount === sections.length
+                  ? `✦ AI ${aiSuccessCount}/${sections.length} 성공`
+                  : aiSuccessCount > 0
+                    ? `⚡ AI ${aiSuccessCount}/${sections.length} 부분 성공`
+                    : '⚠ AI 분석 실패'}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                load(true)
+                addToast('인사이트를 새로 분석합니다 (약 20~40초 소요)', 'success')
+              }}
+              disabled={loading}
+              className="shrink-0 text-xs bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-80 disabled:opacity-40 px-4 py-2 rounded-xl font-semibold transition"
+            >
+              {loading ? '분석 중…' : '↻ 새로 분석'}
+            </button>
+          </div>
+        </div>
+
+        {/* 로딩 스켈레톤 */}
+        {loading && sections.length === 0 ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="rounded-2xl overflow-hidden animate-pulse">
+                <div className="h-16 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600" />
+                <div className="bg-white dark:bg-gray-800 p-4 space-y-3 border border-gray-100 dark:border-gray-700 rounded-b-2xl">
+                  {[1, 2, 3].map((j) => (
+                    <div key={j} className="h-16 bg-gray-100 dark:bg-gray-700 rounded-xl" />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-          <p className="text-center text-sm text-gray-400 py-2">
-            Gemini가 한국·글로벌 트렌드를 검색 중입니다… (약 10~20초)
-          </p>
-        </div>
-      ) : sections.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-4xl mb-3">🤖</p>
-          <p className="text-sm">인사이트를 불러오지 못했습니다.</p>
-          <button
-            type="button"
-            onClick={() => load()}
-            className="mt-4 text-xs px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl"
-          >
-            다시 시도
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {sections.map((sec) => (
-            <InsightCard
-              key={sec.type}
-              section={sec}
-              onAddPlan={(text) => addToast(`기획 추가: "${text.slice(0, 30)}…"`, 'success')}
-            />
-          ))}
-          <p className="text-center text-[11px] text-gray-400">
-            ✦ AI 분석은 Gemini 2.0/2.5 Flash + Google Search Grounding 기반입니다
-          </p>
-        </div>
-      )}
-    </div>
+            ))}
+            <p className="text-center text-sm text-gray-400 py-2">
+              Gemini가 한국·글로벌 트렌드를 검색 중입니다…
+            </p>
+          </div>
+        ) : fetchError || sections.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <p className="text-4xl mb-3">🤖</p>
+            <p className="text-sm font-medium">인사이트를 불러오지 못했습니다.</p>
+            <p className="text-xs mt-1 text-gray-300">
+              GEMINI_API_KEY 설정 여부나 네트워크 상태를 확인해주세요.
+            </p>
+            <button
+              type="button"
+              onClick={() => load()}
+              className="mt-4 text-xs px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:opacity-80 transition"
+            >
+              다시 시도
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* 재분석 중 오버레이 */}
+            {loading && (
+              <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 px-4 py-3 text-sm text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                <svg className="animate-spin w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Gemini가 새 분석을 요청 중입니다… 완료되면 자동으로 업데이트됩니다.
+              </div>
+            )}
+
+            {sections.map((sec) => (
+              <InsightCard
+                key={sec.type}
+                section={sec}
+                onAddPlan={(text) => {
+                  const added = addToQueue(text.slice(0, 80), 'insight')
+                  addToast(
+                    added ? `기획 큐에 추가됨 ✓` : `이미 큐에 있는 항목입니다`,
+                    added ? 'success' : 'warning',
+                  )
+                }}
+              />
+            ))}
+            <p className="text-center text-[11px] text-gray-400">
+              ✦ Gemini 2.5 Flash + Google Search Grounding 기반 · 30분 캐시
+            </p>
+          </div>
+        )}
+      </div>
     </PageLoadingOverlay>
   )
 }
-
-// 컴포넌트 외부 flag — 실제론 API bust param으로 처리
-let cache_bust_flag = false
-void cache_bust_flag

@@ -17,6 +17,7 @@ import type {
 import type { TrendingKeyword } from '@/lib/data/analytics-from-videos'
 import type { RssTopicCandidateRow } from '@/lib/data/rss-topic-collect'
 import { Spinner } from '@/components/dashboard/ui/loading'
+import { usePlanningQueue, SOURCE_LABELS } from '@/lib/hooks/use-planning-queue'
 
 const STORAGE_KEY = 'content-studio-drafts-v2'
 
@@ -223,6 +224,8 @@ function AiGeneratePanel({
   const [result, setResult] = useState<ContentGenerateResult | null>(null)
   const [trendingKeywords, setTrendingKeywords] = useState<string[]>([])
   const [rssTopics, setRssTopics] = useState<string[]>([])
+  const { items: queueItems, removeItem: removeFromQueue, markUsed, clearUsed } = usePlanningQueue()
+  const pendingQueue = queueItems.filter((q) => !q.used)
 
   useEffect(() => {
     fetch('/api/dashboard/trending?limit=6')
@@ -333,6 +336,54 @@ function AiGeneratePanel({
           })}
         </div>
       </div>
+
+      {/* 기획 큐 */}
+      {pendingQueue.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1">
+              📋 기획 큐
+              <span className="ml-1 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full px-1.5 py-0.5 text-[10px]">
+                {pendingQueue.length}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => clearUsed()}
+              className="text-[10px] text-amber-600 hover:text-amber-800 transition"
+            >
+              사용됨 정리
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+            {pendingQueue.map((item) => (
+              <div key={item.id} className="flex items-center gap-1 bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-700 rounded-lg pl-2 pr-1 py-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTopic(item.keyword)
+                    setMode('create')
+                    markUsed(item.id)
+                  }}
+                  className="text-[11px] text-gray-800 dark:text-gray-200 hover:text-violet-600 dark:hover:text-violet-400 transition font-medium"
+                >
+                  {item.keyword.slice(0, 30)}{item.keyword.length > 30 ? '…' : ''}
+                </button>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${SOURCE_LABELS[item.source].color}`}>
+                  {SOURCE_LABELS[item.source].label}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeFromQueue(item.id)}
+                  className="text-gray-300 hover:text-red-400 transition text-[10px] ml-0.5"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 모드별 입력 */}
       {mode === 'create' ? (

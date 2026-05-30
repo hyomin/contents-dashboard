@@ -12,6 +12,7 @@ import { TitleWithHint } from '@/components/dashboard/info-hint'
 import type { ContentFormat, ContentGenerateResult } from '@/app/api/dashboard/content-generate/route'
 import { FORMAT_META } from '@/components/dashboard/views/ContentStudioView'
 import { Spinner } from '@/components/dashboard/ui/loading'
+import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
 
 const WEBHOOKS = [
   { id: 1, name: 'n8n → YouTube 수집', status: 'active', lastRun: 'youtube-collect', icon: '🔴', runs: '—' },
@@ -196,6 +197,8 @@ export default function DeployView({ addToast }: { addToast: AddToast }) {
           📤 배포 자동화
         </TitleWithHint>
       </div>
+
+      <N8nLv1ServicesSection viewId="deploy" addToast={addToast} />
 
       {/* KPI */}
       <div className="grid grid-cols-3 gap-4">

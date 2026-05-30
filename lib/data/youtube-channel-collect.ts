@@ -6,6 +6,10 @@ import {
   getCollectPublishedAfterIso,
 } from '@/lib/dashboard/collect-config'
 import { clampInt } from '@/lib/utils/number'
+import {
+  pickLatestUploadAt,
+  resolveTrackingStatus,
+} from '@/lib/dashboard/channel-tracking-status'
 
 const YT_API_KEY = process.env.YOUTUBE_API_KEY!
 const YT_BASE = 'https://www.googleapis.com/youtube/v3'
@@ -53,6 +57,16 @@ export async function collectYoutubeChannelData(params: {
   const chData = await chRes.json()
   const chItem = chData.items?.[0]
   if (!chItem) {
+    const checkedAt = new Date().toISOString()
+    await supabaseAdmin
+      .from('channels')
+      .update({
+        tracking_status: 'untrackable',
+        last_upload_at: null,
+        status_checked_at: checkedAt,
+        updated_at: checkedAt,
+      })
+      .eq('channel_id', channel_id)
     return { ok: false, channel_id, error: '채널을 찾을 수 없습니다' }
   }
 
@@ -97,13 +111,22 @@ export async function collectYoutubeChannelData(params: {
     .join(',')
 
   if (!videoIds) {
+    const checkedAt = new Date().toISOString()
+    await supabaseAdmin
+      .from('channels')
+      .update({
+        tracking_status: 'inactive',
+        last_upload_at: null,
+        status_checked_at: checkedAt,
+      })
+      .eq('channel_id', channel_id)
     return {
       ok: true,
       channel_id,
       channelName: resolvedName,
       videoCount: 0,
       avgViews,
-      message: `${resolvedName}: 영상 없음`,
+      message: `${resolvedName}: 영상 없음 (비활성)`,
     }
   }
 
@@ -214,6 +237,22 @@ export async function collectYoutubeChannelData(params: {
       score: Math.min(Math.round(vsAvg * 16), 100),
     }
   })
+
+  const checkedAt = new Date().toISOString()
+  const lastUploadAt = pickLatestUploadAt(parsed.map((row) => row.published_at))
+  const trackingStatus = resolveTrackingStatus({
+    channelFound: true,
+    lastUploadAt,
+  })
+
+  await supabaseAdmin
+    .from('channels')
+    .update({
+      tracking_status: trackingStatus,
+      last_upload_at: lastUploadAt,
+      status_checked_at: checkedAt,
+    })
+    .eq('channel_id', channel_id)
 
   const { error: vidErr } = await supabaseAdmin
     .from('videos')

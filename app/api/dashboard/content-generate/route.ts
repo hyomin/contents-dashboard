@@ -7,7 +7,11 @@
  *
  * 지원 targetFormat:
  *   longform | shortform | carousel | blog | sns-caption
- */
+ *
+ * YT 컨텍스트 자동 주입:
+ *   클라이언트가 context를 전달하지 않거나 부족한 경우,
+ *   서버에서 최신 Outlier 제목·트렌딩 키워드·RSS 주제를 자동으로 fetch해 merge한다.
+*/
 import { NextRequest, NextResponse } from 'next/server'
 
 export type ContentFormat = 'longform' | 'shortform' | 'carousel' | 'blog' | 'sns-caption'
@@ -208,6 +212,63 @@ ${topicLine}${ctx}${src}
   }
 }
 
+// ─── YT 컨텍스트 자동 fetch ───────────────────────────────────────────────────
+
+interface AutoContext {
+  outlierTitles: string[]
+  trendingKeywords: string[]
+  rssTopics: string[]
+}
+
+let autoCtxCache: { data: AutoContext; cachedAt: number } | null = null
+const AUTO_CTX_TTL = 15 * 60 * 1000
+
+async function fetchAutoContext(): Promise<AutoContext> {
+  if (autoCtxCache && Date.now() - autoCtxCache.cachedAt < AUTO_CTX_TTL) {
+    return autoCtxCache.data
+  }
+
+  try {
+    const { getOutlierVideos, getVideosForAnalytics } = await import('@/lib/data/queries')
+    const { getRssTopicCandidates } = await import('@/lib/data/rss-topic-collect')
+    const { extractTrendingKeywords } = await import('@/lib/data/analytics-from-videos')
+
+    const [outliers, videos, rssTopics] = await Promise.all([
+      getOutlierVideos(1.5, 10),
+      getVideosForAnalytics(300),
+      getRssTopicCandidates(8),
+    ])
+
+    const data: AutoContext = {
+      outlierTitles: outliers.map((v) => v.title).filter(Boolean),
+      trendingKeywords: extractTrendingKeywords(videos, 10).map((k) => k.keyword),
+      rssTopics: rssTopics.map((t) => t.ai_title ?? t.title).filter(Boolean),
+    }
+
+    autoCtxCache = { data, cachedAt: Date.now() }
+    return data
+  } catch (err) {
+    console.warn('[content-generate] auto-context fetch failed, skipping:', err)
+    return { outlierTitles: [], trendingKeywords: [], rssTopics: [] }
+  }
+}
+
+/** 클라이언트 context의 누락된 필드를 자동 fetch된 값으로 채워 merge */
+function mergeContext(
+  client: ContentGenerateRequest['context'],
+  auto: AutoContext,
+): ContentGenerateRequest['context'] {
+  return {
+    platform: client?.platform,
+    outlierTitles:
+      client?.outlierTitles?.length ? client.outlierTitles : auto.outlierTitles,
+    trendingKeywords:
+      client?.trendingKeywords?.length ? client.trendingKeywords : auto.trendingKeywords,
+    rssTopics:
+      client?.rssTopics?.length ? client.rssTopics : auto.rssTopics,
+  }
+}
+
 // ─── 메인 핸들러 ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -222,6 +283,18 @@ export async function POST(req: NextRequest) {
 
   if (!body.topic?.trim() && !body.sourceContent?.trim())
     return NextResponse.json({ error: 'topic 또는 sourceContent 중 하나가 필요합니다.' }, { status: 400 })
+
+  // YT 컨텍스트 자동 주입: 클라이언트 context가 없거나 비어있으면 서버에서 자동 fetch
+  const needsAutoCtx =
+    !body.context ||
+    (!body.context.outlierTitles?.length &&
+      !body.context.trendingKeywords?.length &&
+      !body.context.rssTopics?.length)
+
+  if (needsAutoCtx) {
+    const auto = await fetchAutoContext()
+    body.context = mergeContext(body.context, auto)
+  }
 
   const { prompt, maxOutputTokens } = promptFor(body)
 

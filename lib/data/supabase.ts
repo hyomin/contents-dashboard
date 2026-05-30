@@ -38,6 +38,9 @@ export interface DBChannel {
   total_views: number | null
   video_count: number | null
   avg_views: number | null
+  tracking_status: 'active' | 'inactive' | 'untrackable' | null
+  last_upload_at: string | null
+  status_checked_at: string | null
   created_at: string
   updated_at: string
 }

@@ -7,6 +7,7 @@ import { TitleWithHint } from '@/components/dashboard/info-hint'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
 import { PLATFORMS_WITH_COLLECTION } from '@/lib/dashboard/platforms'
 import { PageLoadingOverlay } from '@/components/dashboard/ui/loading'
+import type { QualityCheckResult } from '@/app/api/dashboard/quality-check/route'
 
 // ─── 네이버 블로그 ID 파싱 헬퍼 ───────────────────────────────
 function parseNaverBlogIdInput(raw: string): string | null {
@@ -104,6 +105,8 @@ export default function DataCollectView({ addToast }: { addToast: AddToast }) {
   const [naverAddName, setNaverAddName] = useState('')
   const [naverAdding, setNaverAdding] = useState(false)
   const [naverDeleteId, setNaverDeleteId] = useState<string | null>(null)
+  const [quality, setQuality] = useState<QualityCheckResult | null>(null)
+  const [qualityLoading, setQualityLoading] = useState(false)
 
   const pushLog = useCallback((type: CollectLog['type'], message: string) => {
     const time = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
@@ -549,6 +552,130 @@ export default function DataCollectView({ addToast }: { addToast: AddToast }) {
           <p className="text-sm mt-1">«채널·콘텐츠 등록»에서 채널을 추가하세요.</p>
         </div>
       )}
+
+      {/* 데이터 품질 검증 */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-700">
+          <div>
+            <h3 className="font-bold text-gray-900 dark:text-white text-sm">🔍 데이터 품질 검증</h3>
+            {quality && (
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                검증 시각: {new Date(quality.checkedAt).toLocaleTimeString('ko-KR')}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setQualityLoading(true)
+              fetch('/api/dashboard/quality-check?bust=1')
+                .then((r) => r.json())
+                .then((d: QualityCheckResult) => setQuality(d))
+                .catch(() => addToast('품질 검증 실패', 'warning'))
+                .finally(() => setQualityLoading(false))
+            }}
+            disabled={qualityLoading}
+            className="text-xs px-3 py-1.5 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-80 disabled:opacity-50 transition font-medium"
+          >
+            {qualityLoading ? '검증 중…' : quality ? '↻ 재검증' : '▶ 품질 검증 실행'}
+          </button>
+        </div>
+
+        {quality && (
+          <div className="p-5 space-y-5">
+            {/* 품질 점수 */}
+            <div className="flex items-center gap-4">
+              <div className="relative w-16 h-16 shrink-0">
+                <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                  <circle
+                    cx="18" cy="18" r="15.9" fill="none"
+                    stroke={quality.summary.quality_score >= 80 ? '#22c55e' : quality.summary.quality_score >= 60 ? '#f59e0b' : '#ef4444'}
+                    strokeWidth="3"
+                    strokeDasharray={`${quality.summary.quality_score} ${100 - quality.summary.quality_score}`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-sm font-black text-gray-800 dark:text-white">
+                  {quality.summary.quality_score}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
+                {[
+                  { label: '총 영상', value: quality.summary.total.toLocaleString(), color: 'text-gray-800 dark:text-white' },
+                  { label: '포맷 미분류', value: quality.summary.unclassified.toLocaleString(), color: quality.summary.unclassified > 0 ? 'text-amber-600' : 'text-green-600' },
+                  { label: 'vs.Avg 없음', value: quality.summary.no_vs_avg.toLocaleString(), color: quality.summary.no_vs_avg > 0 ? 'text-orange-600' : 'text-green-600' },
+                  { label: '중복 video_id', value: quality.summary.duplicate_video_ids.toLocaleString(), color: quality.summary.duplicate_video_ids > 0 ? 'text-red-600' : 'text-green-600' },
+                ].map((s) => (
+                  <div key={s.label} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 text-center">
+                    <p className={`text-lg font-black ${s.color}`}>{s.value}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 채널별 품질 */}
+            {quality.channels.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">채널별 품질</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-[10px] text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                        <th className="text-left pb-2 font-medium">채널</th>
+                        <th className="text-right pb-2 font-medium">영상</th>
+                        <th className="text-right pb-2 font-medium">미분류</th>
+                        <th className="text-right pb-2 font-medium">vs.Avg없음</th>
+                        <th className="text-right pb-2 font-medium">평균 vs.Avg</th>
+                        <th className="text-right pb-2 font-medium">마지막 수집</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                      {quality.channels.slice(0, 10).map((ch) => (
+                        <tr key={ch.channel_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                          <td className="py-2 pr-3 font-medium text-gray-800 dark:text-gray-200 max-w-[120px] truncate">{ch.channel_name}</td>
+                          <td className="py-2 text-right text-gray-600 dark:text-gray-400">{ch.total}</td>
+                          <td className={`py-2 text-right font-medium ${ch.unclassified > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                            {ch.unclassified > 0 ? ch.unclassified : '—'}
+                          </td>
+                          <td className={`py-2 text-right font-medium ${ch.no_vs_avg > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                            {ch.no_vs_avg > 0 ? ch.no_vs_avg : '—'}
+                          </td>
+                          <td className="py-2 text-right text-gray-600 dark:text-gray-400">
+                            {ch.avg_vs_avg != null ? `${ch.avg_vs_avg}x` : '—'}
+                          </td>
+                          <td className="py-2 text-right text-gray-400">
+                            {ch.latest_scraped_at
+                              ? new Date(ch.latest_scraped_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })
+                              : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {quality.summary.unclassified > 0 && (
+                  <p className="text-[10px] text-amber-600 mt-2">
+                    ⚠️ 포맷 미분류 영상 {quality.summary.unclassified}개 — 수집 후 «영상 수집 API»에서 format 재분류를 권장합니다.
+                  </p>
+                )}
+                {quality.summary.duplicate_video_ids > 0 && (
+                  <p className="text-[10px] text-red-600 mt-1">
+                    🔴 중복 video_id {quality.summary.duplicate_video_ids}건 — DB에서 중복 제거가 필요합니다.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!quality && !qualityLoading && (
+          <p className="px-5 py-6 text-sm text-gray-400 text-center">
+            «품질 검증 실행» 버튼을 클릭하면 DB 내 영상 데이터의 포맷 분류율, vs.Avg 충족률, 중복 여부를 확인합니다.
+          </p>
+        )}
+      </div>
 
       {/* 수집 로그 */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">

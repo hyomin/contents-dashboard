@@ -102,6 +102,29 @@ export async function replaceCalendarItems(items: CalendarItemStored[]): Promise
   }))
 }
 
+export async function upsertCalendarItem(item: CalendarItemStored): Promise<boolean> {
+  const { error } = await supabaseAdmin.from('calendar_items').upsert(
+    {
+      id: item.id,
+      day: item.day,
+      title: item.title,
+      platform: item.platform,
+      status: item.status,
+      time_label: item.time,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'id' },
+  )
+  if (error) console.error('upsertCalendarItem:', error)
+  return !error
+}
+
+export async function deleteCalendarItem(id: string): Promise<boolean> {
+  const { error } = await supabaseAdmin.from('calendar_items').delete().eq('id', id)
+  if (error) console.error('deleteCalendarItem:', error)
+  return !error
+}
+
 export async function getRepurposeItems(): Promise<RepurposeItemStored[]> {
   const { data, error } = await supabaseAdmin
     .from('repurpose_items')

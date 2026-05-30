@@ -12,7 +12,6 @@ import {
   OutlierView,
   TrendingView,
   AiInsightView,
-  CompetitorChannelsView,
   MyChannelsView,
   CalendarView,
   DataCollectView,
@@ -70,7 +69,7 @@ export function DashboardPageContent() {
       )
     }
     switch (view) {
-      case 'analysis':             return <AnalysisHubView />
+      case 'analysis':             return <AnalysisHubView onSelect={setSelectedVideo} addToast={addToast} />
       case 'overview':             return <OverviewView onSelect={setSelectedVideo} addToast={addToast} />
       case 'outlier':              return <OutlierView onSelect={setSelectedVideo} addToast={addToast} />
       case 'trending':             return <TrendingView addToast={addToast} />
@@ -79,8 +78,6 @@ export function DashboardPageContent() {
       case 'topic-suggest':        return <TopicSuggestView addToast={addToast} />
       case 'my-channels':
       case 'channels-mine':        return <MyChannelsView addToast={addToast} />
-      case 'channels':
-      case 'channels-competitor':  return <CompetitorChannelsView addToast={addToast} />
       case 'calendar':             return <CalendarView addToast={addToast} />
       case 'repurpose':            return <RepurposeView addToast={addToast} />
       case 'deploy':               return <DeployView addToast={addToast} />
@@ -99,7 +96,13 @@ export function DashboardPageContent() {
   return (
     <>
       <ToastContainer toasts={toasts} onRemove={removeToast} dismissMs={4500} />
-      {selectedVideo && <VideoModal video={selectedVideo} onClose={() => setSelectedVideo(null)} />}
+      {selectedVideo && (
+        <VideoModal
+          video={selectedVideo}
+          onClose={() => setSelectedVideo(null)}
+          addToast={addToast}
+        />
+      )}
 
       <div className="p-6 md:p-8">
         <PageHeader title={meta.title} description={meta.desc} />

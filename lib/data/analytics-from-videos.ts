@@ -28,13 +28,19 @@ function tokenizeTitle(title: string): string[] {
 }
 
 export function extractTrendingKeywords(
-  videos: Pick<DBVideo, 'title' | 'published_at' | 'vs_avg'>[],
+  videos: Pick<DBVideo, 'title' | 'published_at' | 'vs_avg' | 'format'>[],
   limit = 8,
+  formatFilter?: 'short' | 'long' | 'all',
 ): TrendingKeyword[] {
   const now = Date.now()
   const counts = new Map<string, { score: number; count: number }>()
 
-  for (const v of videos) {
+  const filtered =
+    formatFilter && formatFilter !== 'all'
+      ? videos.filter((v) => v.format === formatFilter)
+      : videos
+
+  for (const v of filtered) {
     const days =
       v.published_at != null
         ? (now - new Date(v.published_at).getTime()) / (1000 * 60 * 60 * 24)
@@ -64,6 +70,18 @@ export function extractTrendingKeywords(
       count,
     }
   })
+}
+
+/** 전체/숏폼/롱폼 키워드를 한 번에 추출 */
+export function extractTrendingByFormat(
+  videos: Pick<DBVideo, 'title' | 'published_at' | 'vs_avg' | 'format'>[],
+  limit = 10,
+): { all: TrendingKeyword[]; short: TrendingKeyword[]; long: TrendingKeyword[] } {
+  return {
+    all: extractTrendingKeywords(videos, limit, 'all'),
+    short: extractTrendingKeywords(videos, limit, 'short'),
+    long: extractTrendingKeywords(videos, limit, 'long'),
+  }
 }
 
 export function extractTopKeyword(titles: string[]): string {

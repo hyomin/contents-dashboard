@@ -30,70 +30,117 @@ const cache: {
 const CACHE_TTL = 30 * 60 * 1000
 
 function parseJsonItems(text: string): InsightItem[] {
+  if (!text) return []
   try {
-    const match = text.match(/\[[\s\S]*\]/)
-    if (!match) return []
-    const parsed = JSON.parse(match[0])
+    // 마크다운 코드 펜스 제거 (```json ... ``` 또는 ``` ... ```)
+    const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
+    const cleaned = fenceMatch ? fenceMatch[1].trim() : text
+
+    // JSON 배열 추출
+    const arrayMatch = cleaned.match(/\[[\s\S]*\]/)
+    if (!arrayMatch) return []
+
+    // trailing comma 수정 (Gemini 자주 생성하는 오류)
+    const fixedJson = arrayMatch[0].replace(/,\s*([}\]])/g, '$1')
+
+    const parsed = JSON.parse(fixedJson)
     if (!Array.isArray(parsed)) return []
     return parsed
-      .filter((x): x is InsightItem => typeof x?.text === 'string')
-      .map((x) => ({ icon: x.icon ?? '💡', text: x.text, action: x.action }))
+      .filter((x): x is InsightItem => x != null && typeof x.text === 'string')
+      .map((x) => ({
+        icon: typeof x.icon === 'string' && x.icon ? x.icon : '💡',
+        text: String(x.text).trim(),
+        action: x.action ? String(x.action) : undefined,
+      }))
   } catch {
     return []
   }
 }
 
+/**
+ * Gemini API 호출 (모델 순차 시도 + Thinking 모델 대응)
+ *
+ * Gemini 2.5 Flash는 "Thinking 모델"이라 응답 parts에 { thought: true } 파츠가
+ * 먼저 나오고 실제 텍스트가 그 뒤에 온다. parts[0].text를 무조건 읽으면
+ * 내부 추론 텍스트를 읽게 되어 JSON 파싱이 항상 실패한다.
+ * thought 파츠를 제외한 실제 출력 텍스트만 수집한다.
+ */
 async function callGemini(
   prompt: string,
   useSearch = false,
-): Promise<{ text: string; sources: GroundingSource[] }> {
+): Promise<{ text: string; sources: GroundingSource[]; modelUsed?: string }> {
   const apiKey = process.env.GEMINI_API_KEY?.trim()
   if (!apiKey) return { text: '', sources: [] }
 
-  const model = 'gemini-2.5-flash'
-  const body: Record<string, unknown> = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.5,
-      maxOutputTokens: 2000,
-    },
-  }
-  if (useSearch) {
-    body.tools = [{ google_search: {} }]
-  }
+  // 시도 순서: 2.5 Flash → 2.0 Flash (fallback)
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash']
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(25000),
-    },
-  )
-
-  if (!res.ok) {
-    console.error('[insights] gemini error', res.status, await res.text())
-    return { text: '', sources: [] }
-  }
-
-  const data = (await res.json()) as {
-    candidates?: {
-      content?: { parts?: { text?: string }[] }
-      groundingMetadata?: {
-        groundingChunks?: { web?: { title?: string; uri?: string } }[]
+  for (const model of models) {
+    try {
+      const body: Record<string, unknown> = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 2048,
+          // 2.5 Flash Thinking 모드 비활성화 → 빠르고 예측 가능한 JSON 출력
+          ...(model === 'gemini-2.5-flash' ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+        },
       }
-    }[]
+      if (useSearch) {
+        body.tools = [{ googleSearch: {} }]
+      }
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(40000),
+        },
+      )
+
+      if (!res.ok) {
+        const errText = await res.text()
+        console.warn(`[insights] ${model} HTTP ${res.status}:`, errText.slice(0, 200))
+        continue // 다음 모델 시도
+      }
+
+      const data = (await res.json()) as {
+        candidates?: {
+          content?: { parts?: { text?: string; thought?: boolean }[] }
+          groundingMetadata?: {
+            groundingChunks?: { web?: { title?: string; uri?: string } }[]
+          }
+        }[]
+      }
+
+      const parts = data.candidates?.[0]?.content?.parts ?? []
+
+      // Thinking 모델: thought:true 파츠를 제외한 실제 응답 텍스트만 수집
+      const nonThoughtParts = parts.filter((p) => !p.thought)
+      const text =
+        nonThoughtParts.map((p) => p.text ?? '').join('') ||
+        parts.map((p) => p.text ?? '').join('')
+
+      if (!text) {
+        console.warn(`[insights] ${model} empty response`)
+        continue
+      }
+
+      const chunks = data.candidates?.[0]?.groundingMetadata?.groundingChunks ?? []
+      const sources: GroundingSource[] = chunks
+        .filter((c) => c.web?.uri)
+        .map((c) => ({ title: c.web?.title ?? c.web?.uri ?? '', url: c.web?.uri ?? '' }))
+        .slice(0, 5)
+
+      return { text, sources, modelUsed: model }
+    } catch (err) {
+      console.warn(`[insights] ${model} exception:`, err instanceof Error ? err.message : err)
+    }
   }
 
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-  const chunks = data.candidates?.[0]?.groundingMetadata?.groundingChunks ?? []
-  const sources: GroundingSource[] = chunks
-    .filter((c) => c.web?.uri)
-    .map((c) => ({ title: c.web?.title ?? c.web?.uri ?? '', url: c.web?.uri ?? '' }))
-    .slice(0, 5)
-
-  return { text, sources }
+  return { text: '', sources: [] }
 }
 
 const JSON_FORMAT = `[{"icon":"이모지","text":"설명 2-3문장","action":"추천 액션"}]`
@@ -217,12 +264,17 @@ ${JSON_FORMAT}`,
     topKeyword: trending[0]?.keyword,
   })
 
+  const AI_FAIL_ITEM: InsightItem = {
+    icon: '⚠️',
+    text: 'AI 분석을 가져오지 못했습니다. "↻ 새로 분석" 버튼으로 다시 시도해주세요.',
+  }
+
   sections = [
     {
       type: 'korea',
       title: '🇰🇷 지금 한국 트렌드',
       subtitle: 'Google 실시간 검색 기반 · Gemini 분석',
-      items: koreaItems.length > 0 ? koreaItems : [{ icon: '📡', text: '한국 트렌드 데이터를 불러오는 중입니다. 잠시 후 새로고침해주세요.' }],
+      items: koreaItems.length > 0 ? koreaItems : [AI_FAIL_ITEM],
       sources: koreaRes.status === 'fulfilled' ? koreaRes.value.sources : [],
       isAi: koreaItems.length > 0,
     },
@@ -230,14 +282,14 @@ ${JSON_FORMAT}`,
       type: 'personal',
       title: '📊 내 데이터 기반 추천',
       subtitle: `수집 영상 ${stats.total}개 · Outlier ${outliers.length}개 · 트렌드 키워드 ${trending.length}개 · RSS ${rssTopics.length}개 분석`,
-      items: personalItems.length > 0 ? personalItems : fallbackItems,
+      items: personalItems.length > 0 ? personalItems : fallbackItems.length > 0 ? fallbackItems : [AI_FAIL_ITEM],
       isAi: personalItems.length > 0,
     },
     {
       type: 'global',
       title: '🌐 지금 글로벌 트렌드',
       subtitle: 'Google 실시간 검색 기반 · Gemini 분석',
-      items: globalItems.length > 0 ? globalItems : [{ icon: '🌍', text: '글로벌 트렌드 데이터를 불러오는 중입니다. 잠시 후 새로고침해주세요.' }],
+      items: globalItems.length > 0 ? globalItems : [AI_FAIL_ITEM],
       sources: globalRes.status === 'fulfilled' ? globalRes.value.sources : [],
       isAi: globalItems.length > 0,
     },

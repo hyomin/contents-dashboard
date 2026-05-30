@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import { getPlatformIcon } from '@/lib/dashboard/dashboard-helpers'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
+import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
 
 interface PlatformRevenue {
   platform: string
@@ -39,6 +40,7 @@ export default function RevenueView({ addToast }: { addToast: AddToast }) {
 
   return (
     <div className="space-y-4">
+      <N8nLv1ServicesSection viewId="revenue" addToast={addToast} />
       <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-6 text-white">
         <TitleWithHint
           as="p"

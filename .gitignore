@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# agent snapshot backups (YYYYMMDDHHMMSS) — git에 올리지 않음
+/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]/
+
 # vercel
 .vercel
 

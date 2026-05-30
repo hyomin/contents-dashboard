@@ -72,6 +72,8 @@ interface ReferenceRow {
   platform: string
   vsAvg?: number
   channel?: string
+  url?: string
+  isCustom?: boolean
 }
 
 function mapVideoToRef(v: Video): ReferenceRow {
@@ -95,7 +97,13 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const searchParams = useSearchParams()
   const [category, setCategory] = useState<GuideCategory>('writing')
   const [references, setReferences] = useState<ReferenceRow[]>([])
+  const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set())
+  const [showAddRef, setShowAddRef] = useState(false)
+  const [newRefTitle, setNewRefTitle] = useState('')
+  const [newRefPlatform, setNewRefPlatform] = useState('youtube')
+  const [newRefUrl, setNewRefUrl] = useState('')
   const [rssTopics, setRssTopics] = useState<RssTopicCandidateRow[]>([])
+  const [hiddenRssIds, setHiddenRssIds] = useState<Set<string | number>>(new Set())
   const [rssLoading, setRssLoading] = useState(false)
   const [rssCollecting, setRssCollecting] = useState(false)
   const [trendingKeywords, setTrendingKeywords] = useState<TrendingKeyword[]>([])
@@ -231,6 +239,54 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     } finally {
       setAiGuideLoading(false)
     }
+  }
+
+  const removeReference = (index: number) => {
+    setReferences((prev) => prev.filter((_, i) => i !== index))
+    addToast('레퍼런스가 제거되었습니다', 'info')
+  }
+
+  const addCustomRef = () => {
+    if (!newRefTitle.trim()) return
+    setReferences((prev) => [
+      ...prev,
+      {
+        title: newRefTitle.trim(),
+        platform: newRefPlatform,
+        url: newRefUrl.trim() || undefined,
+        isCustom: true,
+      },
+    ])
+    setNewRefTitle('')
+    setNewRefUrl('')
+    setShowAddRef(false)
+    addToast('레퍼런스가 추가되었습니다', 'success')
+  }
+
+  const reloadReferences = () => {
+    fetch('/api/dashboard/videos?type=outliers&limit=8')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: unknown) => {
+        if (Array.isArray(data) && data.length > 0 && typeof (data[0] as DBVideo)?.title === 'string') {
+          const videos = (data as DBVideo[]).map((v, i) => dbVideoToVideo(v, i))
+          setReferences(videos.map(mapVideoToRef))
+        } else {
+          setReferences(
+            FALLBACK_REFERENCE_TITLES.map((f) => ({ title: f.title, platform: f.platform, channel: f.hint })),
+          )
+        }
+        addToast('레퍼런스를 다시 불러왔습니다', 'success')
+      })
+      .catch(() => addToast('레퍼런스 불러오기 실패', 'warning'))
+  }
+
+  const toggleCheck = (index: number) => {
+    setCheckedItems((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
   }
 
   const guide = GUIDE_BY_CATEGORY[category]
@@ -447,30 +503,55 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
             저장된 주제가 없습니다. 위 버튼으로 RSS 수집을 실행하세요.
           </p>
         ) : (
-          <ul className="space-y-2 max-h-64 overflow-y-auto">
-            {rssTopics.map((t, idx) => (
-              <li
-                key={`${t.id}-${idx}`}
-                className="rounded-xl bg-white/80 dark:bg-gray-900/60 border border-emerald-100 dark:border-emerald-900 px-3 py-2.5"
-              >
-                <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2">{t.title}</p>
-                <div className="flex flex-wrap gap-2 mt-1 text-[10px] text-gray-500">
-                  <span>{t.source_feed}</span>
-                  <span className="text-emerald-600 font-semibold">점수 {Number(t.relevance_score)}</span>
-                  {t.link && (
-                    <a
-                      href={t.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
+          <>
+            <ul className="space-y-2 max-h-64 overflow-y-auto">
+              {rssTopics
+                .filter((t) => !hiddenRssIds.has(t.id))
+                .map((t, idx) => (
+                  <li
+                    key={`${t.id}-${idx}`}
+                    className="group rounded-xl bg-white/80 dark:bg-gray-900/60 border border-emerald-100 dark:border-emerald-900 px-3 py-2.5 relative"
+                  >
+                    {/* 숨기기 버튼 */}
+                    <button
+                      type="button"
+                      onClick={() => setHiddenRssIds((prev) => new Set([...prev, t.id]))}
+                      title="이 주제 숨기기"
+                      className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full
+                        text-gray-300 dark:text-gray-600
+                        hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 dark:hover:text-red-400
+                        opacity-0 group-hover:opacity-100 transition text-xs font-bold"
                     >
-                      원문
-                    </a>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+                      ×
+                    </button>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 pr-5">{t.title}</p>
+                    <div className="flex flex-wrap gap-2 mt-1 text-[10px] text-gray-500">
+                      <span>{t.source_feed}</span>
+                      <span className="text-emerald-600 font-semibold">점수 {Number(t.relevance_score)}</span>
+                      {t.link && (
+                        <a
+                          href={t.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          원문
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                ))}
+            </ul>
+            {hiddenRssIds.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setHiddenRssIds(new Set())}
+                className="text-xs text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition"
+              >
+                숨긴 항목 {hiddenRssIds.size}개 다시 표시
+              </button>
+            )}
+          </>
         )}
       </section>
 
@@ -628,15 +709,46 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{guide.intro}</p>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">체크리스트</p>
-            <ul className="space-y-2">
-              {guide.checklist.map((item, i) => (
-                <li key={i} className="text-sm text-gray-800 dark:text-gray-200 flex gap-2">
-                  <span className="text-violet-500 shrink-0">□</span>
-                  <span>{item}</span>
-                </li>
-              ))}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-400">체크리스트</p>
+              {checkedItems.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCheckedItems(new Set())}
+                  className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+                >
+                  초기화
+                </button>
+              )}
+            </div>
+            <ul className="space-y-1.5">
+              {guide.checklist.map((item, i) => {
+                const done = checkedItems.has(i)
+                return (
+                  <li
+                    key={i}
+                    onClick={() => toggleCheck(i)}
+                    className={`flex gap-2 cursor-pointer rounded-lg px-2 py-1.5 transition select-none
+                      ${done
+                        ? 'bg-violet-50 dark:bg-violet-950/30'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                      }`}
+                  >
+                    <span className={`shrink-0 mt-0.5 ${done ? 'text-violet-500' : 'text-gray-300 dark:text-gray-600'}`}>
+                      {done ? '☑' : '☐'}
+                    </span>
+                    <span className={`text-sm ${done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-800 dark:text-gray-200'}`}>
+                      {item}
+                    </span>
+                  </li>
+                )
+              })}
             </ul>
+            {checkedItems.size > 0 && (
+              <p className="mt-2 text-xs text-violet-600 dark:text-violet-400 text-right">
+                {checkedItems.size}/{guide.checklist.length} 완료
+              </p>
+            )}
           </div>
           {guide.sections.map((sec, i) => (
             <div key={i} className="pt-2 border-t border-gray-100 dark:border-gray-700">
@@ -655,38 +767,147 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           </p>
         </div>
 
-        <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
-          <TitleWithHint
-            as="h3"
-            className="text-lg font-bold text-gray-900 dark:text-white mb-4"
-            hint="Outlier 영상·글 패턴이 높은 성과를 낸 예시입니다. 구조만 벤치마킹하세요."
-          >
-            참고 레퍼런스
-          </TitleWithHint>
-          <ul className="space-y-3">
-            {references.map((ref, i) => (
-              <li
-                key={`${ref.title}-${i}`}
-                className="rounded-xl border border-gray-100 dark:border-gray-600 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
+        <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-6 shadow-sm flex flex-col gap-4">
+          {/* 헤더 */}
+          <div className="flex items-start justify-between gap-2">
+            <TitleWithHint
+              as="h3"
+              className="text-lg font-bold text-gray-900 dark:text-white"
+              hint="Outlier 영상·글 패턴이 높은 성과를 낸 예시입니다. 구조만 벤치마킹하세요. × 버튼으로 필요 없는 레퍼런스를 제거하거나, 직접 추가할 수 있습니다."
+            >
+              참고 레퍼런스
+              {references.length > 0 && (
+                <span className="ml-2 text-xs font-normal text-gray-400">({references.length}개)</span>
+              )}
+            </TitleWithHint>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={reloadReferences}
+                title="Outlier DB에서 다시 불러오기"
+                className="px-2 py-1 text-xs text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
               >
-                <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2">{ref.title}</p>
-                <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-500">
-                  <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200">
-                    {ref.platform}
-                  </span>
-                  {ref.vsAvg != null && (
-                    <span className="text-amber-600 dark:text-amber-400 font-semibold">vs {ref.vsAvg}x</span>
-                  )}
-                  {ref.channel && !ref.vsAvg && (
-                    <span className="text-gray-400">{ref.channel}</span>
-                  )}
-                  {ref.channel && ref.vsAvg != null && (
-                    <span className="text-gray-400 truncate max-w-[12rem]">{ref.channel}</span>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+                ↻ 초기화
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddRef((v) => !v)}
+                className={`px-2 py-1 text-xs rounded-lg border transition ${
+                  showAddRef
+                    ? 'bg-violet-600 text-white border-violet-600'
+                    : 'text-violet-600 dark:text-violet-400 border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30'
+                }`}
+              >
+                {showAddRef ? '닫기' : '+ 추가'}
+              </button>
+            </div>
+          </div>
+
+          {/* 수동 추가 폼 */}
+          {showAddRef && (
+            <div className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/60 dark:bg-violet-950/20 p-3 space-y-2">
+              <p className="text-xs font-medium text-violet-700 dark:text-violet-400">레퍼런스 직접 추가</p>
+              <input
+                type="text"
+                value={newRefTitle}
+                onChange={(e) => setNewRefTitle(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addCustomRef()}
+                placeholder="콘텐츠 제목 또는 참고할 키워드"
+                className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+              />
+              <div className="flex gap-2">
+                <select
+                  value={newRefPlatform}
+                  onChange={(e) => setNewRefPlatform(e.target.value)}
+                  className="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                >
+                  <option value="youtube">YouTube</option>
+                  <option value="naver-blog">네이버 블로그</option>
+                  <option value="tistory">티스토리</option>
+                  <option value="tiktok">TikTok</option>
+                  <option value="기타">기타</option>
+                </select>
+                <input
+                  type="url"
+                  value={newRefUrl}
+                  onChange={(e) => setNewRefUrl(e.target.value)}
+                  placeholder="URL (선택)"
+                  className="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addCustomRef}
+                disabled={!newRefTitle.trim()}
+                className="w-full py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40 transition"
+              >
+                추가
+              </button>
+            </div>
+          )}
+
+          {/* 레퍼런스 목록 */}
+          {references.length === 0 ? (
+            <div className="py-8 text-center text-sm text-gray-400 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+              레퍼런스가 없습니다.
+              <br />
+              <span className="text-xs">↻ 초기화로 Outlier에서 불러오거나 + 추가로 직접 등록하세요.</span>
+            </div>
+          ) : (
+            <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-0.5">
+              {references.map((ref, i) => (
+                <li
+                  key={`${ref.title}-${i}`}
+                  className="group rounded-xl border border-gray-100 dark:border-gray-600 p-3 hover:border-gray-300 dark:hover:border-gray-500 transition relative"
+                >
+                  {/* 삭제 버튼 */}
+                  <button
+                    type="button"
+                    onClick={() => removeReference(i)}
+                    title="레퍼런스 제거"
+                    className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full
+                      text-gray-300 dark:text-gray-600
+                      hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 dark:hover:text-red-400
+                      opacity-0 group-hover:opacity-100 transition text-xs font-bold"
+                  >
+                    ×
+                  </button>
+
+                  <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 pr-5">
+                    {ref.url ? (
+                      <a
+                        href={ref.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
+                      >
+                        {ref.title}
+                      </a>
+                    ) : (
+                      ref.title
+                    )}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-gray-500">
+                    <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                      {ref.platform}
+                    </span>
+                    {ref.vsAvg != null && (
+                      <span className="text-amber-600 dark:text-amber-400 font-semibold">vs.Avg {ref.vsAvg}x</span>
+                    )}
+                    {ref.channel && (
+                      <span className="text-gray-400 truncate max-w-[10rem]">{ref.channel}</span>
+                    )}
+                    {ref.isCustom && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+                        직접 추가
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -695,7 +916,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
               router.push(`${pathname}?${p.toString()}`)
               addToast('콘텐츠 제작 화면으로 이동했습니다', 'success')
             }}
-            className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90 transition"
+            className="mt-auto w-full py-2.5 rounded-xl text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90 transition"
           >
             이 가이드를 바탕으로 초안 작성 →
           </button>

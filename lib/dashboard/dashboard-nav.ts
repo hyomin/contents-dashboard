@@ -38,7 +38,7 @@ function mineViewMeta(base: ViewMeta & { filter: string }): ViewMeta {
 /** URL `?view=` 값 → 헤더 메타. 그룹 전용 id(analysis 등)도 헤더 혼동을 줄이기 위해 포함 */
 export const VIEW_META: Record<string, ViewMeta> = {
   overview: { title: '전체 개요', desc: '모든 플랫폼의 콘텐츠 분석 현황' },
-  analysis: { title: '콘텐츠 분석', desc: '플랫폼별 콘텐츠 분석 메뉴입니다. 하위 항목을 선택해 주세요.' },
+  analysis: { title: '콘텐츠 분석', desc: '플랫폼 탭을 선택해 YouTube·네이버 블로그·티스토리·TikTok·Instagram 콘텐츠를 한 화면에서 비교합니다.' },
   youtube: {
     title: 'YouTube',
     desc: '등록한 채널의 카테고리(육아·경제 등)로 필터해 콘텐츠를 볼 수 있습니다. 카테고리는 «채널·콘텐츠 등록»에서 지정합니다.',
@@ -71,13 +71,15 @@ export const VIEW_META: Record<string, ViewMeta> = {
   trending: { title: '트렌딩 키워드', desc: '급상승 키워드 및 트렌드' },
   outlier: { title: 'Outlier 분석', desc: 'vs.Avg 3.0x 이상 콘텐츠' },
   'ai-insight': { title: 'AI 인사이트', desc: 'AI 기반 콘텐츠 기획 추천' },
-  benchmark: { title: '채널·콘텐츠 등록', desc: '수집·분석 대상 채널과 레퍼런스 콘텐츠를 등록합니다' },
+  benchmark: { title: '채널·콘텐츠 등록', desc: '수집·분석 대상 채널과 레퍼런스 콘텐츠를 등록합니다.' },
+  'channel-register': {
+    title: '채널 등록·관리',
+    desc: '분석 대상 채널과 레퍼런스 콘텐츠를 등록·수집합니다.',
+  },
   'my-channels': {
     title: '내 채널',
     desc: '내가 운영하는 채널·콘텐츠를 플랫폼별로 종합 관리합니다. 하위 메뉴에서 캘린더·통계를 선택하세요.',
   },
-  channels: { title: '채널 관리', desc: '벤치마킹·경쟁 채널 등록 및 관리' },
-  'channels-competitor': { title: '경쟁 채널 목록', desc: '벤치마킹 대상 채널 관리' },
   'channels-mine': {
     title: '운영 허브',
     desc: '내가 운영하는 채널을 지정하고, 구독자·목표·하위 플랫폼 통계로 이동합니다.',
@@ -146,10 +148,9 @@ export const VIEW_META: Record<string, ViewMeta> = {
 
 /** 자식만 있고 단독 화면이 없는 그룹 메뉴 — 클릭 시 펼치기만 */
 export const NAV_EXPAND_ONLY_IDS = new Set([
-  'analysis',
   'insights',
   'my-channels',
-  'channels',
+  'channel-register',
   'n8n',
   'create',
   'pipeline',
@@ -211,6 +212,22 @@ export const NAV_TREE: DashboardNavItem[] = [
     ],
   },
   {
+    id: 'channel-register',
+    label: '채널 등록·관리',
+    icon: '📝',
+    badge: '핵심',
+    badgeColor: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200',
+    children: [
+      {
+        id: 'benchmark',
+        label: '채널·콘텐츠 등록',
+        icon: '➕',
+        badge: '등록',
+        badgeColor: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200',
+      },
+    ],
+  },
+  {
     id: 'analysis',
     label: '콘텐츠 분석',
     icon: '📊',
@@ -255,13 +272,6 @@ export const NAV_TREE: DashboardNavItem[] = [
       { id: 'trending', label: '트렌딩 키워드', icon: '🔥' },
       { id: 'outlier', label: 'Outlier 분석', icon: '🚀' },
       { id: 'ai-insight', label: 'AI 인사이트', icon: '🤖' },
-      {
-        id: 'benchmark',
-        label: '채널·콘텐츠 등록',
-        icon: '📝',
-        badge: 5,
-        badgeColor: 'bg-yellow-100 text-yellow-700',
-      },
       {
         id: 'topic-suggest',
         label: '주제 선별 AI',
@@ -316,12 +326,6 @@ export const NAV_TREE: DashboardNavItem[] = [
       { id: 'my-naver-blog', label: '네이버 블로그', icon: '🟢' },
       { id: 'my-tistory', label: '티스토리', icon: '🟠' },
     ],
-  },
-  {
-    id: 'channels',
-    label: '채널 관리',
-    icon: '📡',
-    children: [{ id: 'channels-competitor', label: '경쟁 채널 목록', icon: '🏢' }],
   },
   {
     id: 'pipeline',

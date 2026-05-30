@@ -159,6 +159,43 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
       { method: 'POST', path: '/api/dashboard/naver-blog-views', label: '메트릭·vs.Avg 갱신' },
     ],
   },
+  {
+    no: 'W08',
+    key: 'longform-script',
+    name: '롱폼 스크립트 초안 자동 생성',
+    webhookPath: 'longform-script',
+    envWebhookKey: 'N8N_WEBHOOK_LONGFORM_SCRIPT',
+    workflowFile: 'N8N_LONGFORM_SCRIPT.json',
+    triggers: ['webhook', 'manual'],
+    scheduleHint: '수동 실행 (주제 입력 시)',
+    description:
+      '주제 키워드 입력 → Gemini가 8분 구조(훅·챕터·CTA) 스크립트 초안 생성. GEMINI_API_KEY 필요.',
+    coreNodes: 'Webhook · Code · Gemini API · Notion',
+    roadmapServiceIds: ['longform-script'],
+    linkedViewIds: ['content-studio'],
+    dashboardApis: [
+      { method: 'POST', path: '/api/dashboard/content-generate', label: 'AI 콘텐츠 생성 (longform)' },
+    ],
+  },
+  {
+    no: 'W09',
+    key: 'topic-suggest',
+    name: '주제 선별 AI (Gemini + RSS/Outlier)',
+    webhookPath: 'topic-suggest',
+    envWebhookKey: 'N8N_WEBHOOK_TOPIC_SUGGEST',
+    workflowFile: 'N8N_TOPIC_SUGGEST_V2.json',
+    triggers: ['webhook', 'manual'],
+    scheduleHint: '수동 실행 (기획 회의 전)',
+    description:
+      'RSS 트렌드 + 아웃라이어 데이터 → Gemini가 이번 주 추천 주제 5개 + 제목·이유 생성.',
+    coreNodes: 'Webhook · HTTP · Gemini API · 대시보드 API · Notion',
+    roadmapServiceIds: ['topic-suggest', 'rss-topic-collect'],
+    linkedViewIds: ['topic-suggest', 'content-guide'],
+    dashboardApis: [
+      { method: 'GET', path: '/api/dashboard/rss-topics?limit=10', label: 'RSS 주제 후보 조회' },
+      { method: 'GET', path: '/api/dashboard/videos?type=outliers&limit=10', label: 'Outlier 영상 조회' },
+    ],
+  },
 ]
 
 export interface N8nArchivedWorkflow {
@@ -171,9 +208,9 @@ export interface N8nArchivedWorkflow {
 export const N8N_ARCHIVED_WORKFLOW_FILES: N8nArchivedWorkflow[] = [
   {
     workflowFile: 'N8N_TOPIC_SUGGEST.json',
-    name: '주제 선별 AI',
-    webhookPath: 'topic-suggest',
-    reason: 'LangChain(Claude) 노드 패키지 필요 — 재임포트 전까지 비활성',
+    name: '주제 선별 AI (구버전 — LangChain)',
+    webhookPath: 'topic-suggest-v1-archived',
+    reason: 'LangChain(Claude) 노드 필요 — V2(N8N_TOPIC_SUGGEST_V2.json, Gemini HTTP)로 대체됨',
   },
 ]
 

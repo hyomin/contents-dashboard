@@ -9,6 +9,7 @@ import {
 } from '@/lib/dashboard/dashboard-storage'
 import { useWorkspaceSeed } from '@/components/dashboard/hooks/use-workspace-seed'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
+import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
 
 const STATUS_STYLE = {
   done:     { label: '완료',    bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500' },
@@ -55,6 +56,7 @@ export default function RepurposeView({ addToast }: { addToast: AddToast }) {
 
   return (
     <div className="space-y-6">
+      <N8nLv1ServicesSection viewId="repurpose" addToast={addToast} />
       {/* 상단 배너 */}
       <div className="bg-gradient-to-r from-violet-600 to-purple-600 rounded-2xl p-6 text-white">
         <TitleWithHint

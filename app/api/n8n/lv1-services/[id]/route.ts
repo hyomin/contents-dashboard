@@ -28,20 +28,7 @@ const DUMMY_RESPONSES: Record<
     ],
     request: body,
   }),
-  'longform-script': (body) => ({
-    mode: 'dummy',
-    message: 'n8n «롱폼 스크립트 초안 자동 생성» 연동 전 미리보기입니다.',
-    script: {
-      hook: '첫 30초: 시청자가 느끼는 불안을 짚고, 오늘 영상에서 얻을 해결책을 약속합니다.',
-      sections: [
-        '본론 1: 배경·데이터 (2분)',
-        '본론 2: 핵심 전략 3가지 (3분)',
-        '본론 3: 실수 사례·주의점 (2분)',
-      ],
-      cta: '마지막 30초: 체크리스트 PDF·댓글 키워드 유도',
-    },
-    request: body,
-  }),
+  // longform-script는 실제 API 폴백으로 처리 (아래 if 블록 참고)
 }
 
 function resolveWebhookUrl(service: NonNullable<ReturnType<typeof getAutomationService>>): string | null {
@@ -122,6 +109,33 @@ export async function POST(
     }
   }
 
+  if (id === 'topic-recommend-agent') {
+    try {
+      const origin = req.nextUrl.origin
+      const suggestRes = await fetch(`${origin}/api/topic-suggest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          count: body.count ?? 5,
+          targetAudience: body.targetAudience ?? '시니어',
+          keywords: body.keywords ?? '',
+          source: hasExplicitEnv ? 'n8n-via-dashboard' : 'dashboard',
+        }),
+      })
+      const suggestData = await suggestRes.json()
+      if (suggestRes.ok) {
+        return NextResponse.json({
+          mode: hasExplicitEnv ? 'n8n' : 'dashboard',
+          serviceId: id,
+          scenarioName: service.n8nScenarioName,
+          ...suggestData,
+        })
+      }
+    } catch (err) {
+      console.error('[lv1-services] topic-suggest fallback failed', err)
+    }
+  }
+
   if (id === 'naver-blog-collect') {
     try {
       const origin = req.nextUrl.origin
@@ -186,6 +200,40 @@ export async function POST(
       }
     } catch (err) {
       console.error('[lv1-services] naver-blog-views fallback failed', err)
+    }
+  }
+
+  if (id === 'longform-script') {
+    try {
+      const origin = req.nextUrl.origin
+      const topic = String(body.topic ?? service.samplePayload?.topic ?? '금리 동결 이후 재테크')
+      const durationMinutes = Number(body.durationMinutes ?? service.samplePayload?.durationMinutes ?? 8)
+      const genRes = await fetch(`${origin}/api/dashboard/content-generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetFormat: 'longform',
+          topic,
+          context: {
+            trendingKeywords: [],
+            rssTopics: [],
+          },
+        }),
+      })
+      const genData = await genRes.json()
+      if (genRes.ok && !genData.error) {
+        return NextResponse.json({
+          mode: hasExplicitEnv ? 'n8n' : 'dashboard',
+          serviceId: id,
+          scenarioName: service.n8nScenarioName,
+          topic,
+          durationMinutes,
+          script: genData,
+          message: `"${topic}" 롱폼 스크립트 초안 생성 완료 ✨`,
+        })
+      }
+    } catch (err) {
+      console.error('[lv1-services] longform-script fallback failed', err)
     }
   }
 

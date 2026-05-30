@@ -38,9 +38,27 @@ export async function listChannelCategories(): Promise<ChannelCategoryRow[]> {
     .order('sort_order', { ascending: true })
   if (error) {
     console.error('listChannelCategories:', error)
-    return []
+    return DEFAULT_CHANNEL_CATEGORIES
   }
-  return data ?? []
+
+  const byId = new Map<string, ChannelCategoryRow>()
+  for (const row of data ?? []) {
+    const canonical = DEFAULT_CHANNEL_CATEGORIES.find((d) => d.name === row.name)
+    const id = canonical?.id ?? row.id
+    if (!byId.has(id)) {
+      byId.set(id, {
+        ...row,
+        id,
+        icon: canonical?.icon ?? row.icon ?? '📁',
+        bg_color: canonical?.bg_color ?? row.bg_color,
+        sort_order: canonical?.sort_order ?? row.sort_order,
+      })
+    }
+  }
+  for (const def of DEFAULT_CHANNEL_CATEGORIES) {
+    if (!byId.has(def.id)) byId.set(def.id, { ...def })
+  }
+  return Array.from(byId.values()).sort((a, b) => a.sort_order - b.sort_order)
 }
 
 export async function upsertChannelCategory(

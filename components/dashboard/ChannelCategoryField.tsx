@@ -22,13 +22,29 @@ const FALLBACK_CATEGORIES: ChannelCategoryOption[] = [
 ]
 
 export function normalizeChannelCategories(data: unknown): ChannelCategoryOption[] {
-  if (!Array.isArray(data) || data.length === 0) return FALLBACK_CATEGORIES
-  return data.map((c: ChannelCategoryOption) => ({
-    id: c.id,
-    name: c.name,
-    icon: c.icon ?? '📁',
-    bg_color: c.bg_color,
-  }))
+  const byId = new Map<string, ChannelCategoryOption>()
+  for (const def of FALLBACK_CATEGORIES) {
+    byId.set(def.id, { ...def })
+  }
+
+  if (Array.isArray(data)) {
+    for (const raw of data) {
+      const c = raw as ChannelCategoryOption
+      if (!c?.id || !c?.name) continue
+      const canonical = FALLBACK_CATEGORIES.find((d) => d.name === c.name || d.id === c.id)
+      const id = canonical?.id ?? c.id
+      if (!byId.has(id)) {
+        byId.set(id, {
+          id,
+          name: canonical?.name ?? c.name,
+          icon: canonical?.icon ?? c.icon ?? '📁',
+          bg_color: canonical?.bg_color ?? c.bg_color,
+        })
+      }
+    }
+  }
+
+  return FALLBACK_CATEGORIES.map((def) => byId.get(def.id) ?? def)
 }
 
 function slugFromName(name: string): string {
