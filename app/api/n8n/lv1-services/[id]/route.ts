@@ -208,15 +208,19 @@ export async function POST(
       const origin = req.nextUrl.origin
       const topic = String(body.topic ?? service.samplePayload?.topic ?? '금리 동결 이후 재테크')
       const durationMinutes = Number(body.durationMinutes ?? service.samplePayload?.durationMinutes ?? 8)
+      const targetFormat = String(body.targetFormat ?? 'longform')
+      const references = Array.isArray(body.references) ? body.references : []
+      const keywords = Array.isArray(body.keywords) ? body.keywords : []
       const genRes = await fetch(`${origin}/api/dashboard/content-generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          targetFormat: 'longform',
+          targetFormat,
           topic,
           context: {
-            trendingKeywords: [],
-            rssTopics: [],
+            trendingKeywords: keywords,
+            rssTopics: keywords,
+            outlierTitles: references.map((r: { title?: string }) => r.title).filter(Boolean),
           },
         }),
       })

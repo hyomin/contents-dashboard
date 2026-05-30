@@ -16,6 +16,7 @@ import type {
 } from '@/app/api/dashboard/content-generate/route'
 import type { TrendingKeyword } from '@/lib/data/analytics-from-videos'
 import type { RssTopicCandidateRow } from '@/lib/data/rss-topic-collect'
+import { consumeContentStudioImport } from '@/lib/dashboard/content-studio-import'
 import { Spinner } from '@/components/dashboard/ui/loading'
 import { usePlanningQueue, SOURCE_LABELS } from '@/lib/hooks/use-planning-queue'
 
@@ -526,7 +527,27 @@ export default function ContentStudioView({ addToast }: { addToast: AddToast }) 
   }
 
   useEffect(() => {
+    const imported = consumeContentStudioImport()
     const list = loadDrafts()
+
+    if (imported) {
+      const d: ContentDraft = {
+        ...newDraft(),
+        title: imported.title,
+        platform: imported.platform,
+        format: imported.format,
+        body: imported.body,
+        notes: imported.notes ?? '',
+      }
+      const next = [d, ...list]
+      setDrafts(next)
+      setActiveId(d.id)
+      applyToForm(d)
+      persistDrafts(next)
+      addToast('콘텐츠 가이드에서 스크립트를 불러왔습니다', 'success')
+      return
+    }
+
     if (list.length === 0) {
       const d = newDraft()
       setDrafts([d])
@@ -539,7 +560,7 @@ export default function ContentStudioView({ addToast }: { addToast: AddToast }) 
     const first = list[0]
     setActiveId(first.id)
     applyToForm(first)
-  }, [applyToForm])
+  }, [applyToForm, addToast])
 
   useEffect(() => {
     if (drafts.length === 0) return

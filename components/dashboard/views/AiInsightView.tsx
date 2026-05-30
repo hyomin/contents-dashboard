@@ -61,7 +61,7 @@ function InsightCard({
   onAddPlan,
 }: {
   section: InsightSection
-  onAddPlan: (text: string) => void
+  onAddPlan: (text: string, icon?: string) => void
 }) {
   const style = SECTION_STYLES[section.type]
 
@@ -98,7 +98,7 @@ function InsightCard({
                     </span>
                     <button
                       type="button"
-                      onClick={() => onAddPlan(item.text)}
+                      onClick={() => onAddPlan(item.text, item.icon)}
                       className="opacity-0 group-hover:opacity-100 transition text-[10px] px-2.5 py-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 shrink-0"
                     >
                       기획 추가
@@ -256,10 +256,12 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
               <InsightCard
                 key={sec.type}
                 section={sec}
-                onAddPlan={(text) => {
-                  const added = addToQueue(text.slice(0, 80), 'insight')
+                onAddPlan={(text, icon) => {
+                  const added = addToQueue(text.slice(0, 80), 'insight', { detail: text, icon })
                   addToast(
-                    added ? `기획 큐에 추가됨 ✓` : `이미 큐에 있는 항목입니다`,
+                    added
+                      ? '기획 큐에 추가됨 · 콘텐츠 가이드 참고 레퍼런스에서 연결하세요 ✓'
+                      : '이미 기획 큐에 있는 항목입니다',
                     added ? 'success' : 'warning',
                   )
                 }}

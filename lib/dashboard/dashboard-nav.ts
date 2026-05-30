@@ -130,11 +130,15 @@ export const VIEW_META: Record<string, ViewMeta> = {
   create: { title: '콘텐츠 만들기', desc: '콘텐츠 가이드와 제작 도구로 기획부터 초안까지 진행합니다.' },
   'content-guide': {
     title: '콘텐츠 가이드',
-    desc: '글·이미지·영상 유형별 체크리스트와 트렌드·Outlier 레퍼런스로 기획을 정리합니다. 추후 AI로 스크립트·대본 가이드를 받을 수 있도록 확장 예정입니다.',
+    desc: '글·이미지·영상 유형별 체크리스트와 트렌드·직접 선택 레퍼런스로 기획을 정리합니다. AI 스크립트·대본 가이드 생성을 지원합니다.',
   },
   'content-studio': {
     title: '콘텐츠 제작',
     desc: '실제 업로드에 쓸 제목·본문·메모 초안을 작성하고 이 브라우저에 저장합니다.',
+  },
+  'generation-history': {
+    title: '히스토리 관리',
+    desc: '콘텐츠 가이드에서 생성한 원본(가이드 초안)과 «내 콘텐츠화» 결과를 Supabase에 보관·검색·재활용합니다.',
   },
   n8n: {
     title: 'n8n',
@@ -190,7 +194,6 @@ export function getNavDataBadge(viewId: string): NavDataBadge {
 }
 
 export const NAV_TREE: DashboardNavItem[] = [
-  { id: 'overview', label: '전체 개요', icon: '🏠' },
   {
     id: 'n8n',
     label: 'n8n',
@@ -209,6 +212,7 @@ export const NAV_TREE: DashboardNavItem[] = [
     children: [
       { id: 'content-guide', label: '콘텐츠 가이드', icon: '📋' },
       { id: 'content-studio', label: '콘텐츠 제작', icon: '✍️' },
+      { id: 'generation-history', label: '히스토리 관리', icon: '📚' },
     ],
   },
   {

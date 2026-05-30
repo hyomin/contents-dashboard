@@ -1,9 +1,13 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import type { Video, Toast } from '@/lib/dashboard/dashboard-types'
+import type { Video, Toast, ToastKind } from '@/lib/dashboard/dashboard-types'
 import { ToastContainer, VideoModal } from '@/components/dashboard/ToastContainer'
+import {
+  loadNotificationSettings,
+  shouldShowToast,
+} from '@/lib/dashboard/notification-settings'
 import BenchmarkViewComponent from '@/components/dashboard/BenchmarkView'
 import TopicSuggestView from '@/components/dashboard/TopicSuggestView'
 import {
@@ -22,6 +26,7 @@ import {
   SettingsView,
   ContentCreationGuideView,
   ContentStudioView,
+  GenerationHistoryView,
   Lv1AutomationHubView,
   AnalysisHubView,
 } from '@/components/dashboard/views'
@@ -45,13 +50,29 @@ export function DashboardPageContent() {
 
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [toastDismissMs, setToastDismissMs] = useState(4500)
   const toastIdRef = useRef(0)
+
+  useEffect(() => {
+    function syncToastSettings() {
+      setToastDismissMs(loadNotificationSettings().toastDurationMs)
+    }
+    syncToastSettings()
+    window.addEventListener('dashboard-settings-changed', syncToastSettings)
+    window.addEventListener('storage', syncToastSettings)
+    return () => {
+      window.removeEventListener('dashboard-settings-changed', syncToastSettings)
+      window.removeEventListener('storage', syncToastSettings)
+    }
+  }, [])
 
   const removeToast = useCallback((id: number) => {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
-  const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
+  const addToast = useCallback((message: string, type: Toast['type'] = 'info', kind: ToastKind = 'general') => {
+    const settings = loadNotificationSettings()
+    if (!shouldShowToast(settings, type, kind)) return
     const id = ++toastIdRef.current
     setToasts(prev => [...prev, { id, message, type }])
   }, [])
@@ -88,6 +109,7 @@ export function DashboardPageContent() {
       case 'revenue':              return <RevenueView addToast={addToast} />
       case 'content-guide':        return <ContentCreationGuideView addToast={addToast} />
       case 'content-studio':       return <ContentStudioView addToast={addToast} />
+      case 'generation-history':   return <GenerationHistoryView addToast={addToast} />
       case 'settings':             return <SettingsView addToast={addToast} />
       default:                     return <ComingSoon title={meta.title} />
     }
@@ -95,7 +117,7 @@ export function DashboardPageContent() {
 
   return (
     <>
-      <ToastContainer toasts={toasts} onRemove={removeToast} dismissMs={4500} />
+      <ToastContainer toasts={toasts} onRemove={removeToast} dismissMs={toastDismissMs} />
       {selectedVideo && (
         <VideoModal
           video={selectedVideo}

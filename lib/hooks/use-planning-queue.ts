@@ -5,6 +5,9 @@ import { useState, useEffect, useCallback } from 'react'
 export interface PlanningQueueItem {
   id: string
   keyword: string
+  /** 전체 텍스트 (AI 인사이트 등) */
+  detail?: string
+  icon?: string
   /** 어디서 추가됐는지 */
   source: 'trending' | 'insight' | 'outlier' | 'rss' | 'manual'
   addedAt: string
@@ -50,15 +53,27 @@ export function usePlanningQueue() {
   }, [])
 
   const addItem = useCallback(
-    (keyword: string, source: PlanningQueueItem['source'] = 'manual'): boolean => {
+    (
+      keyword: string,
+      source: PlanningQueueItem['source'] = 'manual',
+      options?: { detail?: string; icon?: string },
+    ): boolean => {
       const trimmed = keyword.trim().slice(0, 100)
       if (!trimmed) return false
 
+      const detail = options?.detail?.trim()
       const current = readFromStorage()
-      if (current.some((x) => x.keyword === trimmed)) return false
+      if (current.some((x) => x.keyword === trimmed || (detail && x.detail === detail))) return false
 
       const next: PlanningQueueItem[] = [
-        { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, keyword: trimmed, source, addedAt: new Date().toISOString() },
+        {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          keyword: trimmed,
+          detail: detail || undefined,
+          icon: options?.icon,
+          source,
+          addedAt: new Date().toISOString(),
+        },
         ...current,
       ].slice(0, MAX_ITEMS)
 

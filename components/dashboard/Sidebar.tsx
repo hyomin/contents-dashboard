@@ -301,6 +301,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter()
   const pathname = usePathname()
   const activeId = searchParams.get('view') ?? 'overview'
+  const isOverview = activeId === 'overview'
 
   const handleSelect = (id: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -309,18 +310,30 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     onClose?.()
   }
 
+  const goOverview = () => handleSelect('overview')
+
   return (
     <aside className="w-60 h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-      {/* 로고 영역 */}
+      {/* 로고 — 홈(개요) */}
       <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between shrink-0">
-        <div>
+        <button
+          type="button"
+          onClick={goOverview}
+          title="대시보드 홈"
+          className={`text-left rounded-lg px-2 py-1.5 -mx-1 transition min-w-0 flex-1
+            ${isOverview
+              ? 'bg-slate-100 dark:bg-slate-700/50 ring-1 ring-slate-200 dark:ring-slate-600'
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700/40'
+            }`}
+        >
           <h1 className="text-base font-black text-gray-900 dark:text-white tracking-tight">📊 Contents</h1>
           <p className="text-[11px] text-gray-400 mt-0.5">Dashboard</p>
-        </div>
+        </button>
         {onClose && (
           <button
+            type="button"
             onClick={onClose}
-            className="lg:hidden p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+            className="lg:hidden p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition shrink-0"
             aria-label="사이드바 닫기"
           >
             ✕
@@ -337,7 +350,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* 하단 푸터 */}
       <div className="px-3 py-3 border-t border-gray-100 dark:border-gray-700 shrink-0">
-        <ThemeToggle onSelect={handleSelect} activeId={activeId} />
+        <ThemeToggle />
       </div>
     </aside>
   )
@@ -346,7 +359,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 // ────────────────────────────────────────────────────────────
 // 테마 토글
 // ────────────────────────────────────────────────────────────
-function ThemeToggle({ onSelect, activeId }: { onSelect: (id: string) => void; activeId: string }) {
+function ThemeToggle() {
   const { theme, setTheme } = useTheme()
 
   const cycle = () => {
@@ -359,26 +372,14 @@ function ThemeToggle({ onSelect, activeId }: { onSelect: (id: string) => void; a
   const labels: Record<string, string> = { light: 'Light', soft: 'Soft', dark: 'Dark', system: 'System' }
 
   return (
-    <div className="flex items-center gap-1">
-      <button
-        onClick={cycle}
-        title="테마 변경"
-        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-      >
-        <span>{icons[theme]}</span>
-        <span>{labels[theme]}</span>
-      </button>
-      <button
-        onClick={() => onSelect('settings')}
-        title="설정"
-        className={`ml-auto p-1.5 rounded-lg text-xs transition
-          ${activeId === 'settings'
-            ? 'bg-blue-600 text-white'
-            : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-          }`}
-      >
-        ⚙️
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={cycle}
+      title="테마 변경"
+      className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+    >
+      <span>{icons[theme]}</span>
+      <span>{labels[theme]}</span>
+    </button>
   )
 }

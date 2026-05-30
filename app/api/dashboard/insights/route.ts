@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { buildInsights, extractTrendingKeywords } from '@/lib/data/analytics-from-videos'
+import { buildInsights, buildKeywordScopedInsights, extractTrendingKeywords, textMatchesKeywords } from '@/lib/data/analytics-from-videos'
 import { getOutlierVideos, getVideoStats, getVideosForAnalytics, getChannels } from '@/lib/data/queries'
 import { getRssTopicCandidates } from '@/lib/data/rss-topic-collect'
 
@@ -145,9 +145,129 @@ async function callGemini(
 
 const JSON_FORMAT = `[{"icon":"이모지","text":"설명 2-3문장","action":"추천 액션"}]`
 
+/** 키워드별 캐시 (30분) */
+const keywordCache = new Map<string, { sections: InsightSection[]; cachedAt: number }>()
+
+function normalizeKeywords(raw: string | null): string[] {
+  if (!raw?.trim()) return []
+  return [...new Set(raw.split(/[,，\s]+/).map((k) => k.trim()).filter(Boolean))].slice(0, 5)
+}
+
+function keywordCacheKey(keywords: string[]): string {
+  return keywords.map((k) => k.toLowerCase()).sort().join('|')
+}
+
+async function buildKeywordScopedSections(
+  keywords: string[],
+  videos: Awaited<ReturnType<typeof getVideosForAnalytics>>,
+  outliers: Awaited<ReturnType<typeof getOutlierVideos>>,
+  rssTopics: Awaited<ReturnType<typeof getRssTopicCandidates>>,
+  hasGemini: boolean,
+): Promise<InsightSection[]> {
+  const matchingVideos = videos.filter((v) => textMatchesKeywords(v.title, keywords))
+  const matchingOutliers = outliers.filter((v) => textMatchesKeywords(v.title, keywords))
+  const matchingRss = rssTopics.filter((t) =>
+    textMatchesKeywords(`${t.ai_title ?? ''} ${t.title}`, keywords),
+  )
+
+  const outlierTitles = matchingOutliers
+    .slice(0, 8)
+    .map((v, i) => `${i + 1}. "${v.title}" (vs.avg ${Number(v.vs_avg).toFixed(1)}x)`)
+    .join('\n')
+  const rssList = matchingRss
+    .slice(0, 8)
+    .map((t, i) => `${i + 1}. ${t.ai_title ?? t.title}`)
+    .join('\n')
+  const sampleTitles = matchingVideos.slice(0, 5).map((v) => v.title)
+  const kwLabel = keywords.join(', ')
+
+  const fallbackItems = buildKeywordScopedInsights({
+    keywords,
+    matchingVideoCount: matchingVideos.length,
+    matchingOutlierCount: matchingOutliers.length,
+    matchingRssCount: matchingRss.length,
+    topOutlier: matchingOutliers[0]
+      ? { title: matchingOutliers[0].title, vs_avg: Number(matchingOutliers[0].vs_avg) }
+      : undefined,
+    sampleTitles,
+  })
+
+  if (!hasGemini) {
+    return [
+      {
+        type: 'personal',
+        title: `🔍 «${kwLabel}» 키워드 인사이트`,
+        subtitle: `관련 영상 ${matchingVideos.length}개 · Outlier ${matchingOutliers.length}개 · RSS ${matchingRss.length}개`,
+        items: fallbackItems,
+        isAi: false,
+      },
+    ]
+  }
+
+  const personalRes = await callGemini(
+    `당신은 유튜브 콘텐츠 전략가입니다.
+사용자가 관심 있는 키워드: ${kwLabel}
+
+**반드시 이 키워드 범위 안에서만** 아래 수집 데이터를 분석해 콘텐츠 제작 추천 4가지를 해주세요.
+키워드와 무관한 일반 트렌드는 제외하세요.
+
+[키워드 관련 Outlier 영상]
+${outlierTitles || '매칭 데이터 없음'}
+
+[키워드 관련 RSS 주제]
+${rssList || '매칭 데이터 없음'}
+
+[키워드 관련 영상 제목 샘플]
+${sampleTitles.length > 0 ? sampleTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '매칭 데이터 없음'}
+
+각 추천은 «${kwLabel}» 키워드와 직접 연관되어야 합니다. 구체적이고 실행 가능하게.
+반드시 JSON 배열만 응답 (다른 텍스트 없이):
+${JSON_FORMAT}`,
+    false,
+  )
+
+  const personalItems = parseJsonItems(personalRes.text)
+  const AI_FAIL_ITEM: InsightItem = {
+    icon: '⚠️',
+    text: '키워드 분석을 가져오지 못했습니다. 다시 조회해 주세요.',
+  }
+
+  return [
+    {
+      type: 'personal',
+      title: `🔍 «${kwLabel}» 키워드 인사이트`,
+      subtitle: `관련 영상 ${matchingVideos.length}개 · Outlier ${matchingOutliers.length}개 · RSS ${matchingRss.length}개 · Gemini 분석`,
+      items: personalItems.length > 0 ? personalItems : fallbackItems.length > 0 ? fallbackItems : [AI_FAIL_ITEM],
+      isAi: personalItems.length > 0,
+    },
+  ]
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const bust = searchParams.has('bust')
+  const keywordsParam = normalizeKeywords(searchParams.get('keywords'))
+
+  // ── 키워드 스코프 조회 (개요 화면) ─────────────────────────────
+  if (keywordsParam.length > 0) {
+    const cacheKey = keywordCacheKey(keywordsParam)
+    if (!bust) {
+      const hit = keywordCache.get(cacheKey)
+      if (hit && Date.now() - hit.cachedAt < CACHE_TTL) {
+        return NextResponse.json({ sections: hit.sections, cached: true, scoped: true, keywords: keywordsParam })
+      }
+    }
+
+    const [videos, outliers, rssTopics] = await Promise.all([
+      getVideosForAnalytics(500),
+      getOutlierVideos(1.5, 30),
+      getRssTopicCandidates(30),
+    ])
+    const hasGemini = !!process.env.GEMINI_API_KEY?.trim()
+    const sections = await buildKeywordScopedSections(keywordsParam, videos, outliers, rssTopics, hasGemini)
+    keywordCache.set(cacheKey, { sections, cachedAt: Date.now() })
+    return NextResponse.json({ sections, cached: false, scoped: true, keywords: keywordsParam })
+  }
 
   // 캐시 히트 (bust 없을 때만)
   if (!bust && cache.data && Date.now() - cache.data.cachedAt < CACHE_TTL) {

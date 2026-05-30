@@ -4,20 +4,25 @@
 
 ## 활성 워크플로
 
-스케줄 트리거는 **1일(`daysInterval: 1`)** 주기입니다. 즉시 실행은 Webhook·수동·대시보드 버튼을 사용하세요.
+스케줄 트리거는 **12시간마다(`hoursInterval: 12`)** 주기입니다. 즉시 실행은 Webhook·수동·대시보드 버튼을 사용하세요.
 
-| JSON | Webhook | 설명 |
-|------|---------|------|
-| [N8N_YOUTUBE_COLLECT.json](./workflows/N8N_YOUTUBE_COLLECT.json) | `youtube-collect` | 채널·영상 수집 → Supabase |
-| [N8N_OUTLIER_TAGGING.json](./workflows/N8N_OUTLIER_TAGGING.json) | `outlier-tagging` | vs.Avg 3x+ → `outlier_tags` 저장 |
-| [N8N_RSS_TOPIC_COLLECT.json](./workflows/N8N_RSS_TOPIC_COLLECT.json) | `rss-topic-collect` | RSS → `rss_topic_candidates` 저장 |
-| [N8N_NAVER_BLOG_VIEWS.json](./workflows/N8N_NAVER_BLOG_VIEWS.json) | `naver-blog-views` | 조회수·좋아요 → vs.Avg (대시보드 API 호출) |
+| # | JSON | Webhook | 설명 |
+|---|------|---------|------|
+| W01 | [N8N_YOUTUBE_COLLECT.json](./workflows/N8N_YOUTUBE_COLLECT.json) | `youtube-collect` | 채널·영상 수집 → Supabase |
+| W02 | [N8N_OUTLIER_TAGGING.json](./workflows/N8N_OUTLIER_TAGGING.json) | `outlier-tagging` | vs.Avg 3x+ → `outlier_tags` 저장 |
+| W03 | [N8N_RSS_TOPIC_COLLECT.json](./workflows/N8N_RSS_TOPIC_COLLECT.json) | `rss-topic-collect` | RSS → `rss_topic_candidates` (Gemini 정제) |
+| W04 | [N8N_NAVER_BLOG_COLLECT.json](./workflows/N8N_NAVER_BLOG_COLLECT.json) | `naver-blog-collect` | 네이버 블로그 글 목록 수집 |
+| W05 | [N8N_TISTORY_COLLECT.json](./workflows/N8N_TISTORY_COLLECT.json) | `tistory-collect` | 티스토리 RSS 수집 |
+| W06 | — | `notion-log` | Notion 자동화 로그 (스케줄) |
+| W07 | [N8N_NAVER_BLOG_VIEWS.json](./workflows/N8N_NAVER_BLOG_VIEWS.json) | `naver-blog-views` | 조회수·좋아요 → vs.Avg |
+| **W08** | [N8N_LONGFORM_SCRIPT.json](./workflows/N8N_LONGFORM_SCRIPT.json) | `longform-script` | **[Phase A]** 주제 → Gemini 롱폼 스크립트 생성 |
+| **W09** | [N8N_TOPIC_SUGGEST_V2.json](./workflows/N8N_TOPIC_SUGGEST_V2.json) | `topic-suggest` | **[Phase A]** RSS+Outlier → Gemini 주제 추천 5개 |
 
-## 보관 (미배포)
+## 보관 (구버전)
 
 | JSON | 비고 |
 |------|------|
-| [N8N_TOPIC_SUGGEST.json](./workflows/N8N_TOPIC_SUGGEST.json) | LangChain(Claude) 노드 필요 — 재임포트 전 |
+| [N8N_TOPIC_SUGGEST.json](./workflows/N8N_TOPIC_SUGGEST.json) | LangChain(Claude) 노드 필요 — **V2(N8N_TOPIC_SUGGEST_V2.json)로 대체됨** |
 
 ## 설치
 

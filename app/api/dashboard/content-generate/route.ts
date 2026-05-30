@@ -30,6 +30,8 @@ export interface ContentGenerateRequest {
     rssTopics?: string[]
     trendingKeywords?: string[]
     platform?: string
+    /** true면 서버 자동 트렌드/RSS 주입 생략 (사용자 지정 주제 전용) */
+    suppressAutoContext?: boolean
   }
 }
 
@@ -96,7 +98,7 @@ function buildContextBlock(ctx?: ContentGenerateRequest['context']): string {
   if (ctx.rssTopics?.length)
     parts.push(`[RSS 주제 후보]\n${ctx.rssTopics.slice(0, 5).map((t, i) => `${i + 1}. ${t}`).join('\n')}`)
   if (ctx.outlierTitles?.length)
-    parts.push(`[고성과 레퍼런스 제목]\n${ctx.outlierTitles.slice(0, 5).map((t, i) => `${i + 1}. ${t}`).join('\n')}`)
+    parts.push(`[참고 레퍼런스 제목 — 제목·H2 구조·톤만 벤치마킹, 문장 복사·주제 변경 금지]\n${ctx.outlierTitles.slice(0, 5).map((t, i) => `${i + 1}. ${t}`).join('\n')}`)
   return parts.length ? `\n\n${parts.join('\n\n')}` : ''
 }
 
@@ -112,7 +114,9 @@ function promptFor(req: ContentGenerateRequest): { prompt: string; maxOutputToke
   const ctx = buildContextBlock(req.context)
   const src = buildSourceBlock(req.sourceContent, req.sourceFormat)
   const isTransform = !!req.sourceContent?.trim()
-  const topicLine = req.topic ? `주제: ${req.topic}` : ''
+  const topicLine = req.topic
+    ? `주제(필수 — 반드시 이 주제만 다룸): ${req.topic}`
+    : ''
 
   const base = isTransform
     ? `당신은 멀티포맷 콘텐츠 전략가입니다. 아래 ${req.sourceFormat ?? '원본'} 콘텐츠를`
@@ -286,10 +290,11 @@ export async function POST(req: NextRequest) {
 
   // YT 컨텍스트 자동 주입: 클라이언트 context가 없거나 비어있으면 서버에서 자동 fetch
   const needsAutoCtx =
-    !body.context ||
-    (!body.context.outlierTitles?.length &&
-      !body.context.trendingKeywords?.length &&
-      !body.context.rssTopics?.length)
+    !body.context?.suppressAutoContext &&
+    (!body.context ||
+      (!body.context.outlierTitles?.length &&
+        !body.context.trendingKeywords?.length &&
+        !body.context.rssTopics?.length))
 
   if (needsAutoCtx) {
     const auto = await fetchAutoContext()

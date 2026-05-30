@@ -82,15 +82,17 @@ PY
 echo "▶ 중복 워크플로 정리 (동일 이름·비활성본)"
 "$ROOT/scripts/n8n-prune-duplicates.sh" || true
 
-echo "▶ 워크플로 임포트·활성화 (스케줄: 1일마다 · Webhook·수동)"
+echo "▶ 워크플로 임포트·활성화"
+# ── Lv.1 운영 워크플로 (스케줄: 12h · Webhook · 수동) ──
 import_one "$N8N_DOCS/N8N_YOUTUBE_COLLECT.json"
 import_one "$N8N_DOCS/N8N_OUTLIER_TAGGING.json"
 import_one "$N8N_DOCS/N8N_RSS_TOPIC_COLLECT.json"
 import_one "$N8N_DOCS/N8N_NAVER_BLOG_COLLECT.json"
 import_one "$N8N_DOCS/N8N_NAVER_BLOG_VIEWS.json"
 import_one "$N8N_DOCS/N8N_TISTORY_COLLECT.json"
-# N8N_TOPIC_SUGGEST.json — LangChain 노드 필요, 재임포트 시 주석 해제
-# import_one "$N8N_DOCS/N8N_TOPIC_SUGGEST.json"
+# ── Phase A 신규 워크플로 ──
+import_one "$N8N_DOCS/N8N_LONGFORM_SCRIPT.json"      # W08: 롱폼 스크립트 (Gemini)
+import_one "$N8N_DOCS/N8N_TOPIC_SUGGEST_V2.json"     # W09: 주제 추천 AI (Gemini + RSS/Outlier)
 
 echo "▶ n8n 재시작 (웹훅 등록 반영)"
 docker restart n8n >/dev/null
@@ -101,7 +103,7 @@ echo "▶ 활성 워크플로"
 docker exec n8n n8n list:workflow --active=true 2>/dev/null || docker exec n8n n8n list:workflow
 
 echo "▶ Webhook 프로브"
-for path in youtube-collect outlier-tagging rss-topic-collect naver-blog-collect naver-blog-views tistory-collect; do
+for path in youtube-collect outlier-tagging rss-topic-collect naver-blog-collect naver-blog-views tistory-collect longform-script topic-suggest; do
   code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:5678/webhook/$path" \
     -H "Content-Type: application/json" -d '{}' || true)
   if [[ "$code" == "404" ]]; then
@@ -112,14 +114,15 @@ for path in youtube-collect outlier-tagging rss-topic-collect naver-blog-collect
 done
 
 echo ""
-echo "▶ .env.local 에 추가 권장:"
+echo "▶ .env.local 환경변수 확인:"
 echo "N8N_WEBHOOK_YOUTUBE_COLLECT=http://localhost:5678/webhook/youtube-collect"
 echo "N8N_WEBHOOK_OUTLIER_TAG=http://localhost:5678/webhook/outlier-tagging"
 echo "N8N_WEBHOOK_RSS_TOPICS=http://localhost:5678/webhook/rss-topic-collect"
 echo "N8N_WEBHOOK_NAVER_BLOG_COLLECT=http://localhost:5678/webhook/naver-blog-collect"
 echo "N8N_WEBHOOK_NAVER_BLOG_VIEWS=http://localhost:5678/webhook/naver-blog-views"
 echo "N8N_WEBHOOK_TISTORY_COLLECT=http://localhost:5678/webhook/tistory-collect"
+echo "N8N_WEBHOOK_LONGFORM_SCRIPT=http://localhost:5678/webhook/longform-script  # Phase A 신규"
+echo "N8N_WEBHOOK_TOPIC_SUGGEST=http://localhost:5678/webhook/topic-suggest       # Phase A 신규"
 echo "DASHBOARD_API_URL=http://host.docker.internal:3000"
-echo "# 주제 선별 AI 재연동 시:"
-echo "# N8N_WEBHOOK_URL=http://localhost:5678/webhook/topic-suggest"
+echo "GEMINI_API_KEY=<발급키>  # Gemini 워크플로에 필수"
 echo "완료."

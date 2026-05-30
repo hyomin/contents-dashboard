@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { SessionIdleCountdown } from '@/components/auth/session-idle-countdown'
 import { InfoHint } from '@/components/dashboard/info-hint'
 
@@ -14,6 +14,20 @@ export function DashboardGlobalHeader({
   showMobileMenu,
 }: DashboardGlobalHeaderProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const activeView = searchParams.get('view') ?? 'overview'
+  const isSettings = activeView === 'settings'
+
+  function goOverview() {
+    router.push(`${pathname}?view=overview`)
+  }
+
+  function goSettings() {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('view', 'settings')
+    router.push(`${pathname}?${params.toString()}`)
+  }
 
   async function handleLogout() {
     try {
@@ -40,17 +54,51 @@ export function DashboardGlobalHeader({
             </svg>
           </button>
         )}
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-gray-900 dark:text-white truncate inline-flex items-center gap-1.5">
-            Contents Dashboard
-            <InfoHint
-              className="hidden sm:inline-flex"
-              text="콘텐츠 분석·내 채널·n8n 워크플로를 한곳에서 관리합니다. n8n 실행은 «워크플로 관리»에서 Webhook으로 진행합니다."
-            />
-          </p>
+        <div className="flex items-center gap-1 min-w-0">
+          <button
+            type="button"
+            onClick={goOverview}
+            title="대시보드 홈"
+            className="min-w-0 text-left rounded-lg px-1 py-0.5 -mx-1 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition"
+          >
+            <span className="text-sm font-bold text-gray-900 dark:text-white truncate">
+              Contents Dashboard
+            </span>
+          </button>
+          <InfoHint
+            className="hidden sm:inline-flex"
+            text="콘텐츠 분석·내 채널·n8n 워크플로를 한곳에서 관리합니다. 로고를 클릭하면 홈(개요)으로 이동합니다."
+          />
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={goSettings}
+          aria-current={isSettings ? 'page' : undefined}
+          className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition
+            ${isSettings
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+        >
+          <svg
+            className="w-5 h-5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span className="hidden sm:inline">설정</span>
+        </button>
         <SessionIdleCountdown />
         <button
           type="button"

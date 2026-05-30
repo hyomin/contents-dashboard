@@ -19,6 +19,64 @@ export interface DataInsight {
   text: string
 }
 
+/** 텍스트가 키워드 중 하나라도 포함하는지 (대소문자 무시) */
+export function textMatchesKeywords(text: string, keywords: string[]): boolean {
+  if (keywords.length === 0) return true
+  const lower = text.toLowerCase()
+  return keywords.some((kw) => lower.includes(kw.toLowerCase()))
+}
+
+export function buildKeywordScopedInsights(params: {
+  keywords: string[]
+  matchingVideoCount: number
+  matchingOutlierCount: number
+  matchingRssCount: number
+  topOutlier?: { title: string; vs_avg: number }
+  sampleTitles?: string[]
+}): DataInsight[] {
+  const { keywords, matchingVideoCount, matchingOutlierCount, matchingRssCount } = params
+  const kwLabel = keywords.map((k) => `«${k}»`).join(', ')
+  const insights: DataInsight[] = []
+
+  if (matchingVideoCount === 0 && matchingRssCount === 0) {
+    insights.push({
+      icon: '🔍',
+      text: `${kwLabel} 키워드와 직접 매칭되는 수집 영상·RSS 주제가 없습니다. 키워드를 넓히거나 데이터 수집 후 다시 조회해 보세요.`,
+    })
+    insights.push({
+      icon: '💡',
+      text: `그래도 ${kwLabel} 주제로 롱폼·숏폼 기획안을 작성하려면, 트렌드 리포트와 RSS 급상승 주제에서 유사 키워드를 교차 확인하세요.`,
+    })
+    return insights
+  }
+
+  insights.push({
+    icon: '🎯',
+    text: `${kwLabel} 범위 — 관련 영상 ${matchingVideoCount}개 · Outlier ${matchingOutlierCount}개 · RSS ${matchingRssCount}개가 수집 데이터에 있습니다.`,
+  })
+
+  if (params.topOutlier) {
+    insights.push({
+      icon: '🚀',
+      text: `키워드 관련 최고 Outlier: «${params.topOutlier.title.slice(0, 50)}${params.topOutlier.title.length > 50 ? '…' : ''}» (${params.topOutlier.vs_avg}x) — 제목·구조 패턴을 벤치마크하세요.`,
+    })
+  }
+
+  if (params.sampleTitles && params.sampleTitles.length > 0) {
+    insights.push({
+      icon: '📝',
+      text: `유사 제목 패턴: ${params.sampleTitles.slice(0, 3).map((t) => `«${t.slice(0, 30)}${t.length > 30 ? '…' : ''}»`).join(', ')}. 이 톤으로 ${keywords[0]} 콘텐츠 각도를 잡아 보세요.`,
+    })
+  }
+
+  insights.push({
+    icon: '✨',
+    text: `${keywords[0]} 키워드를 중심으로 «문제 제기 → 데이터/사례 → 실행 팁» 3막 구조의 콘텐츠를 기획하면 검색·추천 알고리즘 모두에 유리합니다.`,
+  })
+
+  return insights.slice(0, 6)
+}
+
 function tokenizeTitle(title: string): string[] {
   return title
     .replace(/[#\[\]()【】|·]/g, ' ')

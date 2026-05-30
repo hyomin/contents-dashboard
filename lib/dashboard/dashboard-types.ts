@@ -23,4 +23,6 @@ export interface Toast {
   type: 'success' | 'info' | 'warning'
 }
 
-export type AddToast = (message: string, type?: Toast['type']) => void
+export type ToastKind = 'collect' | 'ai' | 'error' | 'general'
+
+export type AddToast = (message: string, type?: Toast['type'], kind?: ToastKind) => void

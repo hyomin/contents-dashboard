@@ -1,0 +1,1161 @@
+{
+  "verifiedAt": "2026-05-25T06:14:45.443Z",
+  "total": 128,
+  "matched": 3,
+  "changed": 73,
+  "notFound": 52,
+  "results": [
+    {
+      "handle": "kimpro828",
+      "oldId": "UCsJ6RuBimsG-xAKXOCE0d6g",
+      "name": "김프로 KIMPRO",
+      "newId": "UCiVs2pnGW5mLIc1jS2nxhjg",
+      "found": true,
+      "apiTitle": "김프로KIMPRO",
+      "subscribers": 132000000
+    },
+    {
+      "handle": "blackpink",
+      "oldId": "UCOmHUn--16B90oW2L6FRR3A",
+      "name": "BLACKPINK",
+      "newId": "UCOmHUn--16B90oW2L6FRR3A",
+      "found": true,
+      "apiTitle": "BLACKPINK",
+      "subscribers": 101000000
+    },
+    {
+      "handle": "hybelabels",
+      "oldId": "UCWwWOFpCfYqX3GKGcCfGDCg",
+      "name": "HYBE LABELS",
+      "newId": "UC3IZKseVpdzPSBaWxBxundA",
+      "found": true,
+      "apiTitle": "HYBE LABELS",
+      "subscribers": 81200000
+    },
+    {
+      "handle": "kkubi99",
+      "oldId": "UCHfglRjS3bklI0kl-bRDm7g",
+      "name": "유백합 kkubi99",
+      "newId": "UCz8gf4PK1Qth50lLHdvTCcA",
+      "found": true,
+      "apiTitle": "유백합 kkubi99",
+      "subscribers": 22100000
+    },
+    {
+      "handle": "cure0721",
+      "oldId": "UC4A5a3-5Bfwmk_f9O_mA-Ow",
+      "name": "CuRe 구래",
+      "newId": "UCkLNHZZsC3LKdUAroKNwOOw",
+      "found": true,
+      "apiTitle": "CuRe 구래",
+      "subscribers": 33500000
+    },
+    {
+      "handle": "toypudding",
+      "oldId": "UCEMMmCKMbS_-3pkBUSQXf_Q",
+      "name": "ToyPuddingTV",
+      "newId": "UCKqx9r4mrFglauNBJc1L_eg",
+      "found": true,
+      "apiTitle": "ToyPuddingTV",
+      "subscribers": 27500000
+    },
+    {
+      "handle": "gh.s",
+      "oldId": "UC3s7gQmleR0L9vDpxvkL5JQ",
+      "name": "GH'S",
+      "newId": "UCdrBnBNLsN4_cH32HWbr9qg",
+      "found": true,
+      "apiTitle": "GH'S",
+      "subscribers": 27600000
+    },
+    {
+      "handle": "1milliondance_official",
+      "oldId": "UCka5K5iDsKABGWY43J3w37A",
+      "name": "1MILLION Dance Studio",
+      "newId": "UCw8ZhLPdQ0u_Y-TLKd61hGA",
+      "found": true,
+      "apiTitle": "1MILLION Dance Studio",
+      "subscribers": 26400000
+    },
+    {
+      "handle": "kbsworldtv",
+      "oldId": "UCH_YoGZJGBDGP_RzXNhyXhQ",
+      "name": "KBS WORLD TV",
+      "newId": "UC5BMQOsAB8hKUyHu9KI6yig",
+      "found": true,
+      "apiTitle": "KBS WORLD TV",
+      "subscribers": 20500000
+    },
+    {
+      "handle": "roses_are_rosie",
+      "oldId": "UCvpr7FnIHhXb0L2YKrR6K4A",
+      "name": "ROSÉ",
+      "newId": "UCBo1hnzxV9rz3WVsv__Rn1g",
+      "found": true,
+      "apiTitle": "ROSÉ",
+      "subscribers": 19800000
+    },
+    {
+      "handle": "janeasmr",
+      "oldId": "UCaBf1a-dpIsw8OxqH4ki2Lg",
+      "name": "Jane ASMR 제인",
+      "newId": "UCvOYyYKLmQym4XyeK4-lZmQ",
+      "found": true,
+      "apiTitle": "제인 ASMR Jane plus",
+      "subscribers": 643
+    },
+    {
+      "handle": "bokyemtv",
+      "oldId": "UCFi3-qnFxOPbzjpWD9qGbHw",
+      "name": "보겸TV",
+      "newId": "UCu9BCtGIEr73LXZsKmoujKw",
+      "found": true,
+      "apiTitle": "보겸TV",
+      "subscribers": 18200000
+    },
+    {
+      "handle": "jflamusic",
+      "oldId": "UCnfGQCm1RsQrPkNKkPBSV-A",
+      "name": "JFlaMusic",
+      "newId": "UClkRzsdvg7_RKVhwDwiDZOA",
+      "found": true,
+      "apiTitle": "JFlaMusic",
+      "subscribers": 17200000
+    },
+    {
+      "handle": "pledis17",
+      "oldId": "UC4Q4Z9KCFHMXkDOGMjOxBkQ",
+      "name": "SEVENTEEN",
+      "newId": "UCfkXDY7vwkcJ8ddFGz8KusA",
+      "found": true,
+      "apiTitle": "SEVENTEEN",
+      "subscribers": 17300000
+    },
+    {
+      "handle": "hongyuasmr",
+      "oldId": "UCdKmAGr_oJAcIL_ZzqCq04A",
+      "name": "Hongyu ASMR 홍유",
+      "newId": "UCxtLc0Jqq3SKBWlIXM_OC9g",
+      "found": true,
+      "apiTitle": "Hongyu ASMR 홍유",
+      "subscribers": 16800000
+    },
+    {
+      "handle": "pinkfongkids",
+      "oldId": "UCcdwLMPsaU2ezNSJU1nFoBQ",
+      "name": "핑크퐁",
+      "newId": "UCpyDBaFecYIz5FuPXWCAGFQ",
+      "found": true,
+      "apiTitle": "Pink fong kids",
+      "subscribers": 1
+    },
+    {
+      "handle": "sulgi",
+      "oldId": "UCDdk_J3Ye6ixX9tXXKBWbXg",
+      "name": "설기양 SULGI",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "bibotoys",
+      "oldId": "UC-7hMm2eOBmZt7SxI7gvjXQ",
+      "name": "BIBO와 장난감",
+      "newId": "UCWda0RFPFeV2TO54PNxTMmA",
+      "found": true,
+      "apiTitle": "BIBO TOYS",
+      "subscribers": 11900000
+    },
+    {
+      "handle": "gongsam",
+      "oldId": "UCxqWMzcVUKV0v7pPD7MCOXA",
+      "name": "GONGSAM TABLE 이공삼",
+      "newId": "UCnmU7CpsQ-z_VrNmA7KIEPQ",
+      "found": true,
+      "apiTitle": "최이승일",
+      "subscribers": 8
+    },
+    {
+      "handle": "boramtubetoysreview",
+      "oldId": "UCKiKBvMb7VFSvFoC7LQXWXA",
+      "name": "Boram Tube ToysReview 보람튜브",
+      "newId": "UCxkOhGIUVA5Y-ze4jppew2w",
+      "found": true,
+      "apiTitle": "Boram Tube Toysreview PARISI & AVG Tanis ",
+      "subscribers": 27
+    },
+    {
+      "handle": "youchangjo",
+      "oldId": "UCbCBBSZWFOd6BJ7sEHxV0pw",
+      "name": "유창조 You Chang Jo",
+      "newId": "UCi3W0fE03maPU4aAvkk1Ydg",
+      "found": true,
+      "apiTitle": "유창조 You Chang Jo",
+      "subscribers": 14300000
+    },
+    {
+      "handle": "hamzy",
+      "oldId": "UCgFv5NKMcD2CKAl0V4SRVSA",
+      "name": "[햄지] Hamzy",
+      "newId": "UC_sWkr4x4rdUg9k0uNnCOMw",
+      "found": true,
+      "apiTitle": "hamzy",
+      "subscribers": 204
+    },
+    {
+      "handle": "byungari0904",
+      "oldId": "UCn0ESiSzKkLe_qnRH95GKPQ",
+      "name": "Byungari 병아리언니",
+      "newId": "UC8TCA15kPzNw9ppRaVZ937w",
+      "found": true,
+      "apiTitle": "Byungari 병아리언니 ",
+      "subscribers": 13400000
+    },
+    {
+      "handle": "enhypenofficial",
+      "oldId": "UCCuHFdAH9DMCRnV1ZGTEPYw",
+      "name": "ENHYPEN",
+      "newId": "UCArLZtok93cO5R9RI4_Y5Jw",
+      "found": true,
+      "apiTitle": "ENHYPEN",
+      "subscribers": 13800000
+    },
+    {
+      "handle": "txt_bighit",
+      "oldId": "UCt6U-pub0NUeXt_EOPV_2Eg",
+      "name": "TOMORROW X TOGETHER",
+      "newId": "UCtiObj3CsEAdNU6ZPWDsddQ",
+      "found": true,
+      "apiTitle": "TOMORROW X TOGETHER OFFICIAL",
+      "subscribers": 13500000
+    },
+    {
+      "handle": "babymonster",
+      "oldId": "UCpVL23rKm9P0Yhe5LJ-XLPQ",
+      "name": "BABYMONSTER",
+      "newId": "UCqwUnggBBct-AY2lAdI88jQ",
+      "found": true,
+      "apiTitle": "BABYMONSTER",
+      "subscribers": 12000000
+    },
+    {
+      "handle": "mbckpop",
+      "oldId": "UCXMiT3XBqQGFvHiR0R8RQNQ",
+      "name": "MBCkpop",
+      "newId": "UCe52oeb7Xv_KaJsEzcKXJJg",
+      "found": true,
+      "apiTitle": "MBCkpop",
+      "subscribers": 11500000
+    },
+    {
+      "handle": "mnetm2",
+      "oldId": "UCp9_jFNX8s7TzB1sPTR_xmA",
+      "name": "M2 (Mnet)",
+      "newId": "UCTQVIXvcHrR9jYoJ6qaBAow",
+      "found": true,
+      "apiTitle": "M2",
+      "subscribers": 10600000
+    },
+    {
+      "handle": "chadabin",
+      "oldId": "UCdIzXg9WrxzwdEzBMBE1IhQ",
+      "name": "Cha Dabin",
+      "newId": "UCv50vqaNYubTfuOvvH1cuAg",
+      "found": true,
+      "apiTitle": "Cha Dabin",
+      "subscribers": 10300000
+    },
+    {
+      "handle": "joy_bamm",
+      "oldId": "UCqAiNb7A12RZLrJZGVpRK4A",
+      "name": "조이밤 Joy_Bamm",
+      "newId": "UC2p1nohpGOnK7u_3JgDpvog",
+      "found": true,
+      "apiTitle": "조이밤 Joy_Bamm",
+      "subscribers": 10200000
+    },
+    {
+      "handle": "naofunfun",
+      "oldId": "UCqxkuNlVCEGILMqhpVTCiCQ",
+      "name": "Nao FunFun",
+      "newId": "UCS3VJQpFmLbBd5qsWci9KPA",
+      "found": true,
+      "apiTitle": "Nao FunFun",
+      "subscribers": 10100000
+    },
+    {
+      "handle": "kbskpop",
+      "oldId": "UCJy4cMoI9_3t7mRE10K5vYw",
+      "name": "KBS Kpop",
+      "newId": "UCeLPm9yH_a_QH8n6445G-Ow",
+      "found": true,
+      "apiTitle": "KBS Kpop",
+      "subscribers": 10200000
+    },
+    {
+      "handle": "samsung",
+      "oldId": "UCr3NChwHhT7NQPK6aNMSwBA",
+      "name": "Samsung",
+      "newId": "UCWwgaK7x0_FR1goeSRazfsQ",
+      "found": true,
+      "apiTitle": "Samsung",
+      "subscribers": 10100000
+    },
+    {
+      "handle": "weareoneexo",
+      "oldId": "UCfFNbON0g2C_u7yF88F8_1w",
+      "name": "EXO",
+      "newId": "UCzCedBCSSltI1TFd3bKyN6g",
+      "found": true,
+      "apiTitle": "EXO",
+      "subscribers": 9890000
+    },
+    {
+      "handle": "itzy",
+      "oldId": "UCdVIb2RZuFfvuqr_BPHfbWw",
+      "name": "ITZY",
+      "newId": "UCDhM2k2Cua-JdobAh5moMFg",
+      "found": true,
+      "apiTitle": "ITZY",
+      "subscribers": 9920000
+    },
+    {
+      "handle": "team1llusion",
+      "oldId": "UCGDKm_0RO89R5_r5j2A-6Qw",
+      "name": "팀일루션 노성율",
+      "newId": "UCtctOXlHYeQyuXSgW861nMA",
+      "found": true,
+      "apiTitle": "팀일루션 노성율",
+      "subscribers": 11100000
+    },
+    {
+      "handle": "sooyaaa__",
+      "oldId": "UCIznL5gbLOFDKTYxgTn6uNg",
+      "name": "JISOO",
+      "newId": "UCRE-097LGtx_Zo7LrHvkycA",
+      "found": true,
+      "apiTitle": "JISOO",
+      "subscribers": 8860000
+    },
+    {
+      "handle": "yummyboys",
+      "oldId": "UCuaMFbZJSNHaUMVtGfzGj9A",
+      "name": "야미보이 Yummyboy",
+      "newId": "UCiiV8stcewhoCNyiErr7GtA",
+      "found": true,
+      "apiTitle": "야미보이 Yummyboy",
+      "subscribers": 7970000
+    },
+    {
+      "handle": "treasure",
+      "oldId": "UC3PjyKfW2M_4zoCLKKEJkjA",
+      "name": "TREASURE 트레저",
+      "newId": "UCx9hXYOCvUYwrprEqe4ZQHA",
+      "found": true,
+      "apiTitle": "TREASURE (트레저)",
+      "subscribers": 7940000
+    },
+    {
+      "handle": "lesserafim_official",
+      "oldId": "UCP4bf6IHJJfGGVlLSGR4oUg",
+      "name": "LE SSERAFIM",
+      "newId": "UCs-QBT4qkj_YiQw1ZntDO3g",
+      "found": true,
+      "apiTitle": "LE SSERAFIM",
+      "subscribers": 7370000
+    },
+    {
+      "handle": "15ya",
+      "oldId": "UCJnBaHPt_XJeGMPVoFBKYog",
+      "name": "채널십오야",
+      "newId": "UCmBLiLUS5x3_9CglFAijkZQ",
+      "found": true,
+      "apiTitle": "十五夜(jugoya)",
+      "subscribers": 9
+    },
+    {
+      "handle": "tvndrama",
+      "oldId": "UCZgQnqh-mMnKVBXRJFMnmHg",
+      "name": "tvN DRAMA",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "paik_jongwon",
+      "oldId": "UCHuCkRoXWjJDFCEVdZ4MtMg",
+      "name": "백종원 PAIK JONG WON",
+      "newId": "UCyn-K7rZLXjGl7VXGweIlcA",
+      "found": true,
+      "apiTitle": "백종원 PAIK JONG WON",
+      "subscribers": 5980000
+    },
+    {
+      "handle": "officialmnet",
+      "oldId": "UCpjRpOFCH1SqLl5m5bkXj3A",
+      "name": "STUDIO CHOOM 스튜디오 춤",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "stonemusicent",
+      "oldId": "UC7VlrEGx4gNFzQAWXoJnJog",
+      "name": "Stone Music Entertainment",
+      "newId": "UC_pwIXKXNm5KGhdEVzmY60A",
+      "found": true,
+      "apiTitle": "Stone Music Entertainment",
+      "subscribers": 11100000
+    },
+    {
+      "handle": "mbcent",
+      "oldId": "UCDIFwqzqKrM_v9T4BxPz7Tg",
+      "name": "MBCentertainment",
+      "newId": "UCRZmiQBFHgcHxsdy4NUschw",
+      "found": true,
+      "apiTitle": "mbcent",
+      "subscribers": 8
+    },
+    {
+      "handle": "ssoyoung",
+      "oldId": "UCH8ZGk1LbMGjhxwFVRpQMbQ",
+      "name": "쏘영 Ssoyoung",
+      "newId": "UC4PpFUrfT2Pou7OwpVF0MUQ",
+      "found": true,
+      "apiTitle": "쏘영 Ssoyoung",
+      "subscribers": 12400000
+    },
+    {
+      "handle": "seoeunstory",
+      "oldId": "UCgZE_lTw_6CJNg5k_BOy9bg",
+      "name": "서은이야기 SeoeunStory",
+      "newId": "UCVihezVtsguXEouYvtKmKYA",
+      "found": true,
+      "apiTitle": "서은이야기[SeoeunStory]",
+      "subscribers": 9220000
+    },
+    {
+      "handle": "hiu",
+      "oldId": "UCvxbO-qDf7kd1JZfPKV5TDw",
+      "name": "HIU 하이유",
+      "newId": "UCpVk1W4cWDVnrMO7q54H_pg",
+      "found": true,
+      "apiTitle": "حـي",
+      "subscribers": 1
+    },
+    {
+      "handle": "sbsnews8",
+      "oldId": "UCkinYTS9IHqOEFnfPa2OXKA",
+      "name": "SBS 뉴스",
+      "newId": "UCkinYTS9IHqOEwR1Sze2JTw",
+      "found": true,
+      "apiTitle": "SBS 뉴스",
+      "subscribers": 5200000
+    },
+    {
+      "handle": "syukaworld",
+      "oldId": "UCsJ6RuBiTVWRX156FVbeaGg",
+      "name": "슈카월드",
+      "newId": "UCsJ6RuBiTVWRX156FVbeaGg",
+      "found": true,
+      "apiTitle": "슈카월드",
+      "subscribers": 3700000
+    },
+    {
+      "handle": "sampro3protv",
+      "oldId": "UChlv4GSd7OQl3js-jkLOnFA",
+      "name": "삼프로TV",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "thesinsaimdang",
+      "oldId": "UCR4wd9-X73B3qKGUBhYMbkg",
+      "name": "신사임당",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "booiknam",
+      "oldId": "UC_ONRL3aRE2HbM8KHHvbFmQ",
+      "name": "부읽남TV",
+      "newId": "UCFDx4603CTrrTj8FNwcaR7A",
+      "found": true,
+      "apiTitle": "Booiknam",
+      "subscribers": 0
+    },
+    {
+      "handle": "kimwriter",
+      "oldId": "UCeFc5bJQYXMiLSEFnlRPGWg",
+      "name": "김작가TV",
+      "newId": "UCZsxgCOsAKZRlbGR8_eYqeg",
+      "found": true,
+      "apiTitle": "Jung Kim",
+      "subscribers": 1
+    },
+    {
+      "handle": "smartmoney_mirae",
+      "oldId": "UCZS9wEZ4itPbBZk_sqccXfw",
+      "name": "미래에셋 스마트머니",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "mtntv",
+      "oldId": "UC4-Ck9YHFdMaXN5rmXHl59A",
+      "name": "MTN 머니투데이방송",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "wowtv",
+      "oldId": "UCC8f6d5VZHHJpXBnWlmIo3g",
+      "name": "한국경제TV",
+      "newId": "UC6RN3c9CMHTL-5YfBLvwe_g",
+      "found": true,
+      "apiTitle": "Wowtv",
+      "subscribers": 25
+    },
+    {
+      "handle": "itsub",
+      "oldId": "UC5_GHAd01XgVGbgTNvbZvdg",
+      "name": "잇섭 ITSub",
+      "newId": "UCdUcjkyZtf-1WJyPPiETF1g",
+      "found": true,
+      "apiTitle": "ITSub잇섭",
+      "subscribers": 2820000
+    },
+    {
+      "handle": "sanago",
+      "oldId": "UC9QNgfMgqnimMWS4XcOxCig",
+      "name": "사나고 Sanago",
+      "newId": "UCd4FmcWIVdWAy0-Q8OJBloQ",
+      "found": true,
+      "apiTitle": "사나고 Sanago",
+      "subscribers": 4120000
+    },
+    {
+      "handle": "sodproduction",
+      "oldId": "UCjQGC3TKjlNf9K6bKlAFmGg",
+      "name": "에스오디 SOD",
+      "newId": "UC6CRWq0VM2e01Fa31I5l94A",
+      "found": true,
+      "apiTitle": "SONGS OF DELIVERANCE",
+      "subscribers": 1460
+    },
+    {
+      "handle": "jocoding",
+      "oldId": "UCPmMcbMHEQVKXHEZQqIKBcA",
+      "name": "조코딩 JoCoding",
+      "newId": "UCQNE2JmbasNYbjGAcuBiRRg",
+      "found": true,
+      "apiTitle": "조코딩 JoCoding",
+      "subscribers": 737000
+    },
+    {
+      "handle": "techmong",
+      "oldId": "UCxnkEHAGnLbJaXGsRMG_xJw",
+      "name": "테크몽 Techmong",
+      "newId": "UCFX6adXoyQKxft933NB3rmA",
+      "found": true,
+      "apiTitle": "테크몽 Techmong",
+      "subscribers": 931000
+    },
+    {
+      "handle": "theeditkor",
+      "oldId": "UC0j5LnvGbLd7KR4sS9K0kEA",
+      "name": "디에디트 THE EDIT",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "reviewroom",
+      "oldId": "UCdPSCCmhBSj2I9pnqnS0D1g",
+      "name": "방구석 리뷰룸",
+      "newId": "UCzFhrI5W_AJOJAqV62Xfwsw",
+      "found": true,
+      "apiTitle": "The ReviewRoom",
+      "subscribers": 199
+    },
+    {
+      "handle": "chistory",
+      "oldId": "UCB7JbGbCsHtFGEWTEOYN3eg",
+      "name": "최태성의 별별한국사",
+      "newId": "UCp9cNazUQwg9wzrbCjw_g4Q",
+      "found": true,
+      "apiTitle": "chistory",
+      "subscribers": 0
+    },
+    {
+      "handle": "kbs5474",
+      "oldId": "UC4rlkBnyCxh_UJl_4gv8VFg",
+      "name": "KBS 역사저널 그날",
+      "newId": "UCjPqSbyqm5IZEoXu7I-KPag",
+      "found": true,
+      "apiTitle": "KBS 히스토리",
+      "subscribers": 1040000
+    },
+    {
+      "handle": "joseon_annals",
+      "oldId": "UCsj96LSQN6pUCHdpUi7hRBg",
+      "name": "조선왕조실록",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "dusun_history",
+      "oldId": "UC9JrTOkuLwzpyudwQqavXGg",
+      "name": "두선생의 역사공장",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "hwang_history",
+      "oldId": "UCLnJ3VBxHQgOL4M-5rRfCkQ",
+      "name": "황현필 한국사",
+      "newId": "UCRPRCmoQrbQ2qef7HpHz6GA",
+      "found": true,
+      "apiTitle": "황현필 한국사",
+      "subscribers": 1130000
+    },
+    {
+      "handle": "nurituber",
+      "oldId": "UC2nkKMAvdUMrFJBEOqcMKWg",
+      "name": "NURItuber 누리튜버",
+      "newId": "UCU9YE0acRc6JfJO53S2cgIA",
+      "found": true,
+      "apiTitle": "NURItuber",
+      "subscribers": 5770000
+    },
+    {
+      "handle": "bumsuktv",
+      "oldId": "UCo0RvMNJiSRLQW3bPaYiB3A",
+      "name": "범석TV",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "howcow",
+      "oldId": "UCDknqMF6WHHzBf3kG1OqvnA",
+      "name": "HOWCOW uuu",
+      "newId": "UC3bQ_OrVReIECSmUtL6yw5Q",
+      "found": true,
+      "apiTitle": "HowCow",
+      "subscribers": 1650
+    },
+    {
+      "handle": "kimblue",
+      "oldId": "UCgfRMYMaS3XJMBUyOSxciTQ",
+      "name": "김블루",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "gunrimbo",
+      "oldId": "UCXu7DgkABqMfHMfbHDGEMqA",
+      "name": "군림보",
+      "newId": "UCAkoHfHU7zXPPNTi5WC9eRw",
+      "found": true,
+      "apiTitle": "팽귄",
+      "subscribers": 2
+    },
+    {
+      "handle": "testerhoon",
+      "oldId": "UCgCFJFmMCR8qTrYq-FkYSpA",
+      "name": "테스터훈 TesterHoon",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "gsibaek",
+      "oldId": "UCJKoKU4EYqEMFQFBHIME2RQ",
+      "name": "김성회의 G식백과",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "quintol",
+      "oldId": "UCBdJMcTw_5OxRmhHmqjV6bA",
+      "name": "퀸톨TV",
+      "newId": "UCYKpXGUq1R8_Wd8AfUrcDDw",
+      "found": true,
+      "apiTitle": "quintol",
+      "subscribers": 742
+    },
+    {
+      "handle": "seolminseok",
+      "oldId": "UCfyNHTzKTiXAbV5tNHJcqiw",
+      "name": "설민석 Seol Min Seok",
+      "newId": "UC0E8F4w1ANCuHCS-a4SYS4g",
+      "found": true,
+      "apiTitle": "설민석 Seol Min Seok",
+      "subscribers": 663000
+    },
+    {
+      "handle": "robin_history",
+      "oldId": "UCmPeKRCnYVmf4Qvn1L7cjLg",
+      "name": "로빈의 역사기록",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "Dr.J-history",
+      "oldId": "UC3bRKrGn7PsEhVJbN4GVAUA",
+      "name": "역TV",
+      "newId": "UCtNoAN4Ift7uYpkbkhfDnwg",
+      "found": true,
+      "apiTitle": "역TV",
+      "subscribers": 175000
+    },
+    {
+      "handle": "hanna-tv",
+      "oldId": "UCkiddy42815xHrQnBdm9Dcg",
+      "name": "한나TV",
+      "newId": "UCwvuDW6OjHyAcQUms9X31dg",
+      "found": true,
+      "apiTitle": "한나TV",
+      "subscribers": 128000
+    },
+    {
+      "handle": "gojunghun_history",
+      "oldId": "UC6PNTFVQeJgQbeTktrzk9Ng",
+      "name": "고종훈 한국사",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "historyjoin",
+      "oldId": "UCH3k2qLvVGJjMmAeQ7a9tQA",
+      "name": "역사탐정 조인선",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "studio_pirates",
+      "oldId": "UCFXHJoIxBQFqJTEbTqMCckw",
+      "name": "지식해적단",
+      "newId": "UC9cCBxBAQW2CzLYeT20q49A",
+      "found": true,
+      "apiTitle": "지식해적단",
+      "subscribers": 1400000
+    },
+    {
+      "handle": "official_hyogisim",
+      "oldId": "UCdtdZSvfvBH8TcJOjXqJl6A",
+      "name": "효기심",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "jisikdrink",
+      "oldId": "UCqJA4R9xZwOYaZEPm4mXBGg",
+      "name": "지식한잔",
+      "newId": "UCAu1wEbjya6hvSv4yfgWybQ",
+      "found": true,
+      "apiTitle": "지식한잔",
+      "subscribers": 683000
+    },
+    {
+      "handle": "starstarhistory",
+      "oldId": "UC7vRJtKqMjQ9bP_OA7g5fFA",
+      "name": "별별역사",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "aceshow_history",
+      "oldId": "UCHv4pRjM1bLXITIWVfR3a-Q",
+      "name": "써에이스쇼",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "military_history",
+      "oldId": "UCjfZo5XGjuJQRuQpJCW06Og",
+      "name": "건들건들",
+      "newId": "UC1Ei9xWth3jnYypj161vBJA",
+      "found": true,
+      "apiTitle": "건들건들",
+      "subscribers": 253000
+    },
+    {
+      "handle": "5minworldhistory",
+      "oldId": "UCTLPzJCHiGxoNFxIFXA9mdg",
+      "name": "5분 상식 세계사",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "nunsyong_history",
+      "oldId": "UCtjAJ3tVrotx0d7VPJk9dyA",
+      "name": "눈숑눈숑 스캔들 세계사",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "historyfacts_kr",
+      "oldId": "UCKiJMlDrEbzaByD5CgtjQsA",
+      "name": "역사왜곡",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "historyn",
+      "oldId": "UCWt8bY4ZR0g7bGW6MjpP9kQ",
+      "name": "히스토리앤",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "ScienceDream",
+      "oldId": "UCUwDTBPpBEYlAqj1oe1MTBQ",
+      "name": "과학드림 ScienceDream",
+      "newId": "UCIk1-yPCTnFuzfgu4gyfWqw",
+      "found": true,
+      "apiTitle": "과학드림 [Science Dream]",
+      "subscribers": 1130000
+    },
+    {
+      "handle": "unreachablescience",
+      "oldId": "UC5CgFDhQPJHKYUKLgJNalVA",
+      "name": "안될과학",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "kurzgesagt_kr",
+      "oldId": "UC8rKCy_tipwTEY3RdkNCKmw",
+      "name": "한눈에 보는 세상 (Kurzgesagt 한국어)",
+      "newId": "UC8rKCy_tipwTEY3RdkNCKmw",
+      "found": true,
+      "apiTitle": "한눈에 보는 세상 – Kurzgesagt",
+      "subscribers": 738000
+    },
+    {
+      "handle": "orbit_science",
+      "oldId": "UCAbBbQHmNfFJg5ioM0o5ZCg",
+      "name": "궤도 (과학커뮤니케이터)",
+      "newId": "UCMlKz89sQpUxh3Mm29m4Qtg",
+      "found": true,
+      "apiTitle": "مدار علم",
+      "subscribers": 1
+    },
+    {
+      "handle": "ytnscience",
+      "oldId": "UCzORJV8l3MBZn4IeSB0QVHQ",
+      "name": "YTN Science",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "spacedust_kr",
+      "oldId": "UCgV8A3TbBFGP7P5E2-9vZwA",
+      "name": "우주먼지",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "kaos_foundation",
+      "oldId": "UCvnGwZKfwUpMSbMrFGXoIJA",
+      "name": "카오스사이언스 KAOS",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "hondong_science",
+      "oldId": "UCp5rDVSBRiJeL4x9mMJsJIA",
+      "name": "혼동의 과학",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "ebsscience",
+      "oldId": "UCBcRF18a7Qf58cCRy5xuWwQ",
+      "name": "EBS Science",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "brainlist",
+      "oldId": "UCsymfMhK7e7oI4Wt9kNP3PQ",
+      "name": "브레인리스트",
+      "newId": "UCYLWqHAqhxnyE3Ow-JRrrUA",
+      "found": true,
+      "apiTitle": "Brain List",
+      "subscribers": 0
+    },
+    {
+      "handle": "leekvahyung",
+      "oldId": "UCNsMhRKTg5R4E4F3m9RXUjg",
+      "name": "이과형",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "megastudy_physics",
+      "oldId": "UCpJq9Kj0zY5YJkM7n3M6O7g",
+      "name": "메가스터디 물리",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "ebs_physics",
+      "oldId": "UC-q4BXXsXeGLHCExXBm8Irg",
+      "name": "EBS 물리",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "physicsking_kr",
+      "oldId": "UCKoJu6aBH5a6Ew1B3E2qKdg",
+      "name": "물리왕 Physics King",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "strangerphysics",
+      "oldId": "UC3mXzg7GVdj_ZfC5mHvKyxQ",
+      "name": "이상한 물리",
+      "newId": "UCJOScDo2TxJvymp49xFt0cQ",
+      "found": true,
+      "apiTitle": "Stranger physics",
+      "subscribers": 18
+    },
+    {
+      "handle": "gangnam_physics",
+      "oldId": "UCHq_kFJKlJbqNhUqGBjLdLg",
+      "name": "강남인강 물리",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "physicsgirl_kr",
+      "oldId": "UCY7rNGRFwC6zJOHGZxvhB_Q",
+      "name": "Physics Girl 한국어",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "chemking_kr",
+      "oldId": "UCYBhO_f3qPHkMWKpVrj4BZA",
+      "name": "화학왕",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "periodictable_kr",
+      "oldId": "UCdFnCJgT4Z6VKqPk7G9fvKA",
+      "name": "원소 주기율표",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "ewha_chem",
+      "oldId": "UCg9AbB1RH3X1C8Xwn7v0pZA",
+      "name": "이화여대 화학과",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "megastudy_chem",
+      "oldId": "UCxL5kXnBCPkLGn4Kgj7hbKg",
+      "name": "메가스터디 화학",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "ebs_chemistry",
+      "oldId": "UCBnFJKKTVf3EqXk8JvRpD-g",
+      "name": "EBS 화학",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "chemgeek_kr",
+      "oldId": "UCG7M3RKz8Q5J0n4VjRd7JeA",
+      "name": "케미덕후",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "strangechemistry",
+      "oldId": "UC8nPQv1K7GbGnJ9mXRZ9kSA",
+      "name": "이상한 화학",
+      "newId": "UCOehJkEbYHQNMHQximmjyag",
+      "found": true,
+      "apiTitle": "strangechemistry",
+      "subscribers": 2
+    },
+    {
+      "handle": "gangnam_chemistry",
+      "oldId": "UCqH5BrFQVnEKj5tT9x0WZnA",
+      "name": "강남인강 화학",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "chem_lab_kr",
+      "oldId": "UCtLBwkPqnpZSQ9mNf1cT0Bw",
+      "name": "화학실험실",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "megastudy_earth",
+      "oldId": "UC9TrW8bBqBiV3P5bXp9p0oA",
+      "name": "메가스터디 지구과학",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "earthscienceking",
+      "oldId": "UCeGPq5jR0M7WNxAQ2EjdOuA",
+      "name": "지구과학왕",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "gangnam_earth",
+      "oldId": "UCKPLJoZm8T3Q6oZ7WZ7HzQA",
+      "name": "강남인강 지구과학",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "weatheron_kma",
+      "oldId": "UCLq2XxuX7zqKq4VPgFaYnwA",
+      "name": "기상청 날씨ON",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "kigam_official",
+      "oldId": "UC1GkT6kM5fNJq8zK3LpXvhA",
+      "name": "한국지질자원연구원 KIGAM",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "our_earth_kr",
+      "oldId": "UCHRmCpJqz1pJ0oTVcWMnT0A",
+      "name": "우리가 사는 지구",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "nasa_korea",
+      "oldId": "UCVhq6uaGr1kqM8O6ZoApzxQ",
+      "name": "NASA 코리아",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    },
+    {
+      "handle": "earth_story_kr",
+      "oldId": "UCmHJN1KpFqHmJ3A9QcGqoBA",
+      "name": "지구 이야기",
+      "newId": null,
+      "found": false,
+      "apiTitle": null,
+      "subscribers": null
+    }
+  ]
+}

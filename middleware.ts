@@ -20,6 +20,7 @@ const MUTATION_PREFIXES = [
   '/api/dashboard/repurpose-items',
   '/api/dashboard/deploy-tasks',
   '/api/dashboard/workspace-seed',
+  '/api/dashboard/generation-history',
 ]
 
 const PUBLIC_API_PREFIXES = ['/api/auth/login', '/api/auth/logout']
