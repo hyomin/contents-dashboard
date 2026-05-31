@@ -1,5 +1,15 @@
 # 변경 이력
 
+## 2026-05-31
+
+### 문서·저장소 정리
+- 루트 `20260*` 스냅샷 14개 → `archive/agent-snapshots/` 이동
+- `.gitignore`: `/archive/` 추가 (루트 14자리 패턴 유지)
+- `docs/SUMMARY.md` — 2026-05-30 OVERVIEW 기준으로 통합 갱신 (진입 문서)
+- `docs/README.md`, `PROGRESS.md`, OVERVIEW 상단 링크 정리
+
+---
+
 ## 2026-05-20
 
 ### 문서·구조 정리

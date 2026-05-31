@@ -6,42 +6,42 @@
 
 | 문서 | 설명 |
 |------|------|
-| [SUMMARY.md](./SUMMARY.md) | **현재까지 진행 사항 요약** (기능·n8n·DB·다음 단계) |
+| **[SUMMARY.md](./SUMMARY.md)** | **현재 현황 요약** (진입점 · 2026-05-31) |
+| [guides/DASHBOARD_OVERVIEW_20260530.md](./guides/DASHBOARD_OVERVIEW_20260530.md) | 화면·API·DB·n8n **상세 맵** |
+| [guides/CONTENT_CREATION_PIPELINE_RECOVERY.md](./guides/CONTENT_CREATION_PIPELINE_RECOVERY.md) | 콘텐츠 생성 파이프라인 복구 |
 | [CHANGELOG.md](./CHANGELOG.md) | 날짜별 작업 이력 |
-| [migrations/](./migrations/) | Supabase SQL 마이그레이션 |
+| [migrations/](./migrations/) | Supabase SQL (`00`~`12`) |
 | [n8n/](./n8n/) | n8n 워크플로 JSON·설정 |
-| [guides/](./guides/) | 참고 자료·로드맵 HTML |
-| [guides/DASHBOARD_USAGE.md](./guides/DASHBOARD_USAGE.md) | **대시보드·n8n 사용법 (화면·타이밍)** |
+| [guides/DASHBOARD_USAGE.md](./guides/DASHBOARD_USAGE.md) | 대시보드·n8n 사용법 |
 
 ## 디렉터리 구조
 
 ```
 docs/
 ├── README.md              ← 이 파일
-├── SUMMARY.md             ← 현황 요약
-├── CHANGELOG.md           ← 변경 이력
-├── migrations/
-│   ├── README.md
-│   ├── 00-schema-full.sql
-│   ├── 01-workspace.sql
-│   ├── 02-channel-categories.sql
-│   ├── 03-video-format.sql
-│   ├── 04-outlier-tags.sql
-│   └── 05-rss-topic-candidates.sql
+├── SUMMARY.md             ← 현황 요약 (먼저 읽기)
+├── CHANGELOG.md
+├── PROJECT_REPORT_20260524.md
+├── migrations/            ← 00 ~ 12
 ├── guides/
+│   ├── DASHBOARD_OVERVIEW_20260530.md
+│   ├── CONTENT_CREATION_PIPELINE_RECOVERY.md
 │   ├── DASHBOARD_USAGE.md
 │   └── n8n-research.html
-└── n8n/
-    ├── README.md
-    └── workflows/
-        ├── N8N_YOUTUBE_COLLECT.json
-        ├── N8N_OUTLIER_TAGGING.json
-        └── N8N_TOPIC_SUGGEST.json   (보관·재임포트 대기)
+└── n8n/workflows/
+
+archive/                   ← Agent 스냅샷 (Git 제외)
+└── agent-snapshots/YYYYMMDDHHMMSS/
 ```
 
-## 신규 환경 DB 세팅 순서
+## 신규 환경 DB 세팅
 
-1. `migrations/00-schema-full.sql` — 전체 스키마 (최초 1회)
-2. 이미 `00` 적용된 DB라면 `01`~`04`만 필요한 것만 실행
+1. `migrations/00-schema-full.sql` — 최초 1회
+2. 이미 `00` 적용 DB → `01`~`12` 중 필요한 것만 실행
 
-자세한 내용은 [migrations/README.md](./migrations/README.md) 참고.
+자세한 내용: [migrations/README.md](./migrations/README.md)
+
+## Agent 스냅샷
+
+생성 파일 복사본은 **`archive/agent-snapshots/`** 에만 둡니다.  
+프로젝트 루트에 `20260*` 폴더를 만들지 않습니다. → [../archive/README.md](../archive/README.md)

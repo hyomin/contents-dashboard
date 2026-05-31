@@ -1,5 +1,11 @@
 import type { ContentFormat } from '@/app/api/dashboard/content-generate/route'
 import type { GuideCategory } from '@/lib/dashboard/content-creation-guide'
+import type { GuideReferenceMode } from '@/lib/dashboard/guide-reference-modes'
+
+export interface ContentPolishReference {
+  title: string
+  referenceMode: GuideReferenceMode
+}
 
 export interface ContentPolishRequest {
   title: string
@@ -8,8 +14,12 @@ export interface ContentPolishRequest {
   targetFormat: ContentFormat
   /** 발행 주제 (정재 시 주제 유지) */
   userTopic?: string
-  /** 제거·패러프레이즈 대상 레퍼런스 제목 */
+  /** 제거·패러프레이즈 대상 레퍼런스 제목 (하위 호환) */
   referenceTitles?: string[]
+  /** 구조·내용 레퍼런스 구분 (권장) */
+  guideReferences?: ContentPolishReference[]
+  /** Gemini 모델 ID */
+  aiModel?: string
 }
 
 export interface ContentPolishResult {
@@ -49,10 +59,21 @@ export function buildContentPolishPrompt(req: ContentPolishRequest): string {
     ? suggestImageGuideCount(paraCount)
     : 0
 
-  const refBlock =
-    req.referenceTitles && req.referenceTitles.length > 0
-      ? `\n[제거·패러프레이즈 대상 레퍼런스 제목]\n${req.referenceTitles.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n`
-      : ''
+  const polishRefs: ContentPolishReference[] =
+    req.guideReferences?.length
+      ? req.guideReferences
+      : (req.referenceTitles ?? []).map((title) => ({ title, referenceMode: 'structure' as const }))
+
+  const structureRefs = polishRefs.filter((r) => r.referenceMode !== 'content')
+  const contentRefs = polishRefs.filter((r) => r.referenceMode === 'content')
+
+  let refBlock = ''
+  if (structureRefs.length > 0) {
+    refBlock += `\n[구조·톤 레퍼런스 — 본문에서 채널명·제목·표현 흔적 완전 제거·패러프레이즈]\n${structureRefs.map((r, i) => `${i + 1}. ${r.title}`).join('\n')}\n`
+  }
+  if (contentRefs.length > 0) {
+    refBlock += `\n[내용 레퍼런스 — 사실·데이터·설명은 유지하되 출처·사이트명·URL 언급 제거, 완전히 새 문장으로 재서술]\n${contentRefs.map((r, i) => `${i + 1}. ${r.title}`).join('\n')}\n`
+  }
 
   const topicBlock = req.userTopic?.trim()
     ? `\n[발행 주제 — 반드시 이 주제를 유지]\n${req.userTopic.trim()}\n`
@@ -82,10 +103,11 @@ ${IMAGE_GUIDE_TEMPLATE.replace('N/M', `1/${imageCount}`)}
   return `당신은 콘텐츠 에디터입니다. 아래 «가이드 초안»을 **내가 직접 발행한 오리지널 콘텐츠**처럼 정재해 주세요.
 ${topicBlock}${refBlock}
 ## 정재 원칙
-1. **레퍼런스 채널·타 채널·영상·블로그 제목·표현을 본문에서 완전히 제거**하거나 완전히 새 표현으로 바꿉니다. «OO 채널», «OO님», «벤치마킹», «레퍼런스» 같은 메타 표현 금지.
-2. 제목·소제목·본문을 **독자에게 직접 말하는 발행용 톤**으로 다듬습니다. 표절·직접 인용 없이 사실·논지만 유지합니다.
-3. SEO 친화적 H2 구조, 도입·본문·마무리·CTA를 유지합니다.
-4. 포맷: ${req.targetFormat} · 카테고리: ${req.category}
+1. **구조·톤 레퍼런스**에서 온 채널명·타 채널·영상·블로그 제목·표현은 본문에서 **완전히 제거**하거나 새 표현으로 바꿉니다. «OO 채널», «벤치마킹», «레퍼런스» 같은 메타 표현 금지.
+2. **내용 레퍼런스**에서 반영된 사실·수치·설명은 **발행 주제에 맞게 유지**하되, 출처·사이트명·URL·«OO 위키에 따르면» 같은 인용 표현은 제거하고 **완전히 새 문장**으로 재서술합니다.
+3. 제목·소제목·본문을 **독자에게 직접 말하는 발행용 톤**으로 다듭니다. 표절·직접 인용 없이 사실·논지만 유지합니다.
+4. SEO 친화적 H2 구조, 도입·본문·마무리·CTA를 유지합니다.
+5. 포맷: ${req.targetFormat} · 카테고리: ${req.category}
 ${blogImageRules}
 
 ## 출력 형식

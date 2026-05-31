@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { AiScriptGuideRequestContext } from '@/lib/dashboard/content-creation-guide'
 import type { ContentGenerateResult } from '@/app/api/dashboard/content-generate/route'
 import { invokeN8nWebhook, resolveN8nWebhookUrl } from '@/lib/n8n/invoke-webhook'
+import { DEFAULT_GEMINI_MODEL, resolveGeminiModel } from '@/lib/dashboard/gemini-models'
 import {
   buildScriptGuideOutput,
   categoryToTargetFormat,
@@ -29,6 +30,10 @@ async function generateViaN8n(ctx: AiScriptGuideRequestContext): Promise<ScriptG
     platform: r.platform,
     channel: r.channel,
     vsAvg: r.vsAvg,
+    url: r.url,
+    siteName: r.siteName,
+    referenceMode: r.referenceMode ?? 'structure',
+    contentExcerpt: r.contentExcerpt,
   }))
 
   const result = await invokeN8nWebhook(
@@ -46,6 +51,7 @@ async function generateViaN8n(ctx: AiScriptGuideRequestContext): Promise<ScriptG
       targetAudience: '한국 성인 독자',
       durationMinutes: ctx.category === 'video' ? 8 : 0,
       source: 'content-guide',
+      geminiModel: resolveGeminiModel(ctx.aiModel),
     },
     90_000,
   )
@@ -94,16 +100,21 @@ async function generateViaContentGenerate(
   const refTitles = (ctx.references ?? []).map((r) => r.title).filter(Boolean)
   const hasUserTopic = !!ctx.userTopic?.trim()
 
+  const model = resolveGeminiModel(ctx.aiModel)
+
+  const aiRefs = ctx.references ?? []
+
   const res = await fetch(`${origin}/api/dashboard/content-generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       targetFormat,
       topic,
+      aiModel: model,
       context: {
         trendingKeywords: [],
         rssTopics: [],
-        outlierTitles: refTitles.length ? refTitles : ctx.referenceTitles,
+        guideReferences: aiRefs,
         platform: PLATFORM_BY_CATEGORY[ctx.category],
         suppressAutoContext: hasUserTopic,
       },
@@ -167,12 +178,16 @@ export async function POST(req: NextRequest) {
   const origin = req.nextUrl.origin
   let output: ScriptGuideOutput | null = null
   let lastError: string | undefined
+  const model = resolveGeminiModel(ctx.aiModel)
+  const tryN8nFirst = model === DEFAULT_GEMINI_MODEL
 
-  try {
-    output = await generateViaN8n(ctx)
-  } catch (err) {
-    console.error('[script-guide] n8n failed', err)
-    lastError = err instanceof Error ? err.message : 'n8n 호출 오류'
+  if (tryN8nFirst) {
+    try {
+      output = await generateViaN8n(ctx)
+    } catch (err) {
+      console.error('[script-guide] n8n failed', err)
+      lastError = err instanceof Error ? err.message : 'n8n 호출 오류'
+    }
   }
 
   if (!output) {
@@ -189,7 +204,7 @@ export async function POST(req: NextRequest) {
   if (!output) {
     const hasGemini = !!process.env.GEMINI_API_KEY?.trim()
     const hint = hasGemini
-      ? `마지막 오류: ${lastError ?? '알 수 없음'}. n8n 워크플로 미배포 시 ./scripts/n8n-setup.sh 실행 후 dev 서버를 재시작하세요.`
+      ? `마지막 오류: ${lastError ?? '알 수 없음'}.${tryN8nFirst ? ' n8n 워크플로 미배포 시 ./scripts/n8n-setup.sh 실행 후 dev 서버를 재시작하세요.' : ''}`
       : 'GEMINI_API_KEY가 .env.local에 설정되어 있는지 확인하고 npm run dev를 재시작하세요.'
     return NextResponse.json({ error: `스크립트 생성에 실패했습니다. ${hint}` }, { status: 500 })
   }

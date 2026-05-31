@@ -15,7 +15,7 @@
 | W05 | [N8N_TISTORY_COLLECT.json](./workflows/N8N_TISTORY_COLLECT.json) | `tistory-collect` | 티스토리 RSS 수집 |
 | W06 | — | `notion-log` | Notion 자동화 로그 (스케줄) |
 | W07 | [N8N_NAVER_BLOG_VIEWS.json](./workflows/N8N_NAVER_BLOG_VIEWS.json) | `naver-blog-views` | 조회수·좋아요 → vs.Avg |
-| **W08** | [N8N_LONGFORM_SCRIPT.json](./workflows/N8N_LONGFORM_SCRIPT.json) | `longform-script` | **[Phase A]** 주제 → Gemini 롱폼 스크립트 생성 |
+| **W08** | [N8N_LONGFORM_SCRIPT.json](./workflows/N8N_LONGFORM_SCRIPT.json) | `longform-script` | 콘텐츠 가이드 AI 생성 (글·이미지·영상) — script-guide n8n 1순위 |
 | **W09** | [N8N_TOPIC_SUGGEST_V2.json](./workflows/N8N_TOPIC_SUGGEST_V2.json) | `topic-suggest` | **[Phase A]** RSS+Outlier → Gemini 주제 추천 5개 |
 
 ## 보관 (구버전)

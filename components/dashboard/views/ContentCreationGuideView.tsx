@@ -43,7 +43,23 @@ import {
   useGenerationHistory,
   type GenerationHistoryItem,
 } from '@/lib/hooks/use-generation-history'
+import type { TopicKeywordGuideSuggestion, TopicKeywordGuideResult } from '@/lib/dashboard/topic-keyword-guide'
+import { TopicGuideHistorySection } from '@/components/dashboard/TopicGuideHistorySection'
+import { GuideAiModelSelect } from '@/components/dashboard/GuideAiModelSelect'
+import { getGeminiModelLabel } from '@/lib/dashboard/gemini-models'
+import {
+  loadPolishModel,
+  loadScriptGuideModel,
+  loadTopicGuideModel,
+  savePolishModel,
+  saveScriptGuideModel,
+  saveTopicGuideModel,
+} from '@/lib/dashboard/guide-ai-model-prefs'
+import { useTopicGuideHistory } from '@/lib/hooks/use-topic-guide-history'
+import type { TopicGuideHistoryItem } from '@/lib/dashboard/topic-guide-history-types'
 import { ContentGenerationHistorySection } from '@/components/dashboard/ContentGenerationHistorySection'
+import { GuideReferencesPanel } from '@/components/dashboard/GuideReferencesPanel'
+import { guideRefToAi } from '@/lib/dashboard/guide-reference-modes'
 
 /** 체널 카테고리 = RSS 카테고리와 동일 */
 const CATEGORY_TABS = [
@@ -139,6 +155,26 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const [totalFeeds, setTotalFeeds] = useState(0)
   const [trendingTab, setTrendingTab] = useState<'trending' | 'all'>('trending')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [refSourceTab, setRefSourceTab] = useState<'selected' | 'trending' | 'rss'>('selected')
+
+  // 주제 키워드 가이드 (발행 주제 입력 전)
+  const [seedKeyword, setSeedKeyword] = useState('')
+  const [topicGuideSuggestions, setTopicGuideSuggestions] = useState<TopicKeywordGuideSuggestion[]>([])
+  const [topicGuideLoading, setTopicGuideLoading] = useState(false)
+  const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
+  const [activeTopicGuideHistoryId, setActiveTopicGuideHistoryId] = useState<string | null>(null)
+  const {
+    items: topicGuideHistoryItems,
+    isLoading: topicGuideHistoryLoading,
+    addFromGuide,
+    attachSelection,
+    removeItem: removeTopicGuideHistoryItem,
+    clearAll: clearTopicGuideHistory,
+  } = useTopicGuideHistory()
+
+  const [topicGuideModel, setTopicGuideModel] = useState(loadTopicGuideModel)
+  const [scriptGuideModel, setScriptGuideModel] = useState(loadScriptGuideModel)
+  const [polishModel, setPolishModel] = useState(loadPolishModel)
 
   const loadTrending = useCallback((cat?: string) => {
     setTrendingLoading(true)
@@ -231,6 +267,85 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     [publishTopic, persistPublishTopic, addToast],
   )
 
+  const applyGuideSuggestion = useCallback(
+    (suggestion: TopicKeywordGuideSuggestion, historyId?: string | null) => {
+      persistPublishTopic(suggestion.title)
+      setSelectedGuideId(suggestion.id)
+      const hid = historyId ?? activeTopicGuideHistoryId
+      if (hid) void attachSelection(hid, suggestion, suggestion.title)
+      addToast('발행 주제로 설정했습니다', 'success')
+    },
+    [persistPublishTopic, addToast, activeTopicGuideHistoryId, attachSelection],
+  )
+
+  const restoreTopicGuideHistory = useCallback(
+    (item: TopicGuideHistoryItem) => {
+      setSeedKeyword(item.seedKeyword)
+      setCategory(item.category)
+      setTopicGuideSuggestions(item.suggestions)
+      setActiveTopicGuideHistoryId(item.id)
+      if (item.selectedSuggestion) {
+        setSelectedGuideId(item.selectedSuggestion.id)
+        persistPublishTopic(item.selectedPublishTopic ?? item.selectedSuggestion.title)
+      } else {
+        setSelectedGuideId(null)
+      }
+      addToast('주제 가이드 기록을 불러왔습니다', 'success')
+    },
+    [persistPublishTopic, addToast],
+  )
+
+  const fetchTopicKeywordGuide = async () => {
+    if (seedKeyword.trim().length < 2) {
+      addToast('주제 가이드 키워드를 2자 이상 입력해 주세요', 'warning')
+      return
+    }
+    const modelLabel = getGeminiModelLabel(topicGuideModel)
+    const ok = window.confirm(
+      `주제 가이드를 생성할까요?\n\n키워드: ${seedKeyword.trim()}\nAI 모델: ${modelLabel}\n\nGemini API가 호출됩니다 (약 10~30초).`,
+    )
+    if (!ok) return
+
+    setTopicGuideLoading(true)
+    setTopicGuideSuggestions([])
+    setSelectedGuideId(null)
+    setActiveTopicGuideHistoryId(null)
+    try {
+      const res = await fetch('/api/dashboard/topic-keyword-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seedKeyword: seedKeyword.trim(), category, aiModel: topicGuideModel }),
+      })
+      const data = (await res.json()) as TopicKeywordGuideResult & { error?: string }
+      if (!res.ok || data.error) {
+        addToast(data.error ?? '주제 가이드 생성 실패', 'warning')
+        return
+      }
+      const suggestions = data.suggestions ?? []
+      setTopicGuideSuggestions(suggestions)
+      if (suggestions.length === 0) {
+        addToast('제안을 생성하지 못했습니다. 키워드를 바꿔 다시 시도해 주세요.', 'warning')
+      } else {
+        const historyId = await addFromGuide({
+          seedKeyword: seedKeyword.trim(),
+          category,
+          suggestions,
+          guideGeneratedAt: data.generatedAt,
+        })
+        if (historyId) {
+          setActiveTopicGuideHistoryId(historyId)
+          addToast(`주제 가이드 ${suggestions.length}개 · 기록 저장 ✨`, 'success')
+        } else {
+          addToast(`주제 가이드 ${suggestions.length}개 (기록 저장 실패)`, 'warning')
+        }
+      }
+    } catch {
+      addToast('네트워크 오류가 발생했습니다', 'warning')
+    } finally {
+      setTopicGuideLoading(false)
+    }
+  }
+
   const addFromPlanningQueueAsTopic = (item: (typeof queueItems)[number]) => {
     const text = (item.detail ?? item.keyword).trim()
     persistPublishTopic(text)
@@ -249,6 +364,14 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
       addToast('발행하고 싶은 주제·키워드를 입력해 주세요', 'warning')
       return
     }
+    const modelLabel = getGeminiModelLabel(scriptGuideModel)
+    const topicPreview =
+      publishTopic.trim().length > 60 ? `${publishTopic.trim().slice(0, 60)}…` : publishTopic.trim()
+    const ok = window.confirm(
+      `스크립트 가이드를 생성할까요?\n\n발행 주제: ${topicPreview}\nAI 모델: ${modelLabel}\n레퍼런스: ${references.length}개\n포맷: ${CATEGORIES.find((c) => c.id === category)?.label ?? category}\n\nGemini API가 호출됩니다.`,
+    )
+    if (!ok) return
+
     setScriptLoading(true)
     setScriptResult(null)
     setPolishedResult(null)
@@ -291,6 +414,12 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
 
   const polishMyContent = async () => {
     if (!scriptResult) return
+    const modelLabel = getGeminiModelLabel(polishModel)
+    const ok = window.confirm(
+      `«내 콘텐츠화»로 정재할까요?\n\nAI 모델: ${modelLabel}\n레퍼런스·채널명 제거 · 발행용 톤 적용${category === 'writing' ? ' · 이미지·표 가이드 삽입' : ''}\n\nGemini API가 호출됩니다.`,
+    )
+    if (!ok) return
+
     setPolishLoading(true)
     try {
       const res = await fetch('/api/dashboard/content-polish', {
@@ -303,6 +432,11 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           targetFormat: scriptResult.targetFormat,
           userTopic: publishTopic.trim(),
           referenceTitles: references.map((r) => r.title),
+          guideReferences: references.map((r) => ({
+            title: r.title,
+            referenceMode: r.referenceMode === 'content' ? ('content' as const) : ('structure' as const),
+          })),
+          aiModel: polishModel,
         }),
       })
       const data = (await res.json()) as ContentPolishResult & { error?: string }
@@ -416,11 +550,6 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     addToast('레퍼런스를 모두 비웠습니다', 'info')
   }
 
-  const removeReference = (index: number) => {
-    persistReferences(references.filter((_, i) => i !== index))
-    addToast('레퍼런스가 제거되었습니다', 'info')
-  }
-
   const toggleCheck = (index: number) => {
     setCheckedItems((prev) => {
       const next = new Set(prev)
@@ -438,15 +567,11 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
       userTopic: publishTopic.trim(),
       keywords: parsePublishKeywords(publishTopic),
       referenceTitles: references.map((r) => r.title),
-      references: references.map((r) => ({
-        title: r.title,
-        platform: r.platform,
-        channel: r.channel,
-        vsAvg: r.vsAvg,
-      })),
+      references: references.map(guideRefToAi),
       intent: mapCategoryToIntent(category),
+      aiModel: scriptGuideModel,
     }),
-    [category, publishTopic, references],
+    [category, publishTopic, references, scriptGuideModel],
   )
 
   const canGenerate = publishTopic.trim().length >= 2
@@ -460,7 +585,99 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     <div className="space-y-8 max-w-4xl">
       <N8nLv1ServicesSection viewId="content-guide" addToast={addToast} />
 
-      {/* ── 발행 주제 (필수) ─────────────────────────────────────── */}
+      {/* ── 1. 주제 키워드 가이드 (발행 주제 입력 전) ─────────────── */}
+      <section className="rounded-2xl border-2 border-amber-300 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/30 dark:to-gray-900 p-6 space-y-4 shadow-sm">
+        <TitleWithHint
+          as="h3"
+          className="text-base font-bold text-amber-900 dark:text-amber-100"
+          hint="아직 발행 주제가 정해지지 않았을 때, 넓은 키워드로 AI가 흥미로운 발행 주제 예시를 제안합니다. 카드를 클릭하면 아래 «발행 주제» 필드에 자동 입력됩니다."
+        >
+          💡 주제 키워드 가이드
+          <span className="ml-2 text-xs font-normal text-amber-600 dark:text-amber-400">선택 · 1단계</span>
+        </TitleWithHint>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="text"
+            value={seedKeyword}
+            onChange={(e) => setSeedKeyword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void fetchTopicKeywordGuide()
+            }}
+            placeholder="예: 화성, 와우 아제로스 실버문의 주요 역사적 이벤트"
+            className="flex-1 rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-gray-900 px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+          <button
+            type="button"
+            onClick={() => void fetchTopicKeywordGuide()}
+            disabled={topicGuideLoading || seedKeyword.trim().length < 2}
+            className="shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 transition"
+          >
+            {topicGuideLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Spinner size="sm" color="border-white" />
+                제안 생성 중…
+              </span>
+            ) : (
+              '✨ 주제 가이드 받기'
+            )}
+          </button>
+        </div>
+        <GuideAiModelSelect
+          id="topic-guide-ai-model"
+          label="🤖 AI 모델"
+          value={topicGuideModel}
+          onChange={(m) => {
+            setTopicGuideModel(m)
+            saveTopicGuideModel(m)
+          }}
+          compact
+        />
+        {topicGuideSuggestions.length > 0 && (
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {topicGuideSuggestions.map((s) => {
+              const isSelected = selectedGuideId === s.id
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => applyGuideSuggestion(s)}
+                    className={`w-full text-left rounded-xl border px-4 py-3 transition ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 ring-2 ring-indigo-300 dark:ring-indigo-700'
+                        : 'border-amber-200 dark:border-amber-800 bg-white/90 dark:bg-gray-900/60 hover:border-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/20'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2">{s.title}</p>
+                    {s.hook && (
+                      <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 mt-1 line-clamp-2">{s.hook}</p>
+                    )}
+                    {s.angle && (
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">↳ {s.angle}</p>
+                    )}
+                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-2 font-medium">
+                      {isSelected ? '✓ 발행 주제로 설정됨' : '클릭 → 발행 주제에 적용'}
+                    </p>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        <TopicGuideHistorySection
+          items={topicGuideHistoryItems}
+          activeId={activeTopicGuideHistoryId}
+          isLoading={topicGuideHistoryLoading}
+          addToast={addToast}
+          onRestore={restoreTopicGuideHistory}
+          onRemove={async (id) => {
+            await removeTopicGuideHistoryItem(id)
+            if (activeTopicGuideHistoryId === id) setActiveTopicGuideHistoryId(null)
+          }}
+          onClearAll={clearTopicGuideHistory}
+        />
+      </section>
+
+      {/* ── 2. 발행 주제 (필수) ─────────────────────────────────────── */}
       <section className="rounded-2xl border-2 border-indigo-300 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/40 dark:to-gray-900 p-6 space-y-4 shadow-sm">
         <TitleWithHint
           as="h3"
@@ -468,11 +685,14 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           hint="이번에 발행할 콘텐츠의 핵심 주제입니다. AI는 이 키워드를 최우선으로 글·스크립트를 작성합니다. 아래 레퍼런스는 선택 사항이며, 구조·톤 참고용입니다."
         >
           ✍️ 발행하고 싶은 주제 · 키워드
-          <span className="ml-2 text-xs font-normal text-red-500 dark:text-red-400">필수</span>
+          <span className="ml-2 text-xs font-normal text-red-500 dark:text-red-400">필수 · 2단계</span>
         </TitleWithHint>
         <textarea
           value={publishTopic}
-          onChange={(e) => persistPublishTopic(e.target.value)}
+          onChange={(e) => {
+            persistPublishTopic(e.target.value)
+            setSelectedGuideId(null)
+          }}
           placeholder={'예: 삼성전자 단기 전망\n하이닉스 1주일 전망\n(쉼표·줄바꿈으로 여러 키워드 입력 가능)'}
           rows={3}
           className="w-full rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-gray-900 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y min-h-[88px]"
@@ -489,265 +709,9 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
             ))}
           </div>
         )}
-        {trendingKeywords.length > 0 && (
-          <div>
-            <p className="text-[11px] text-indigo-700/80 dark:text-indigo-300/80 mb-2">트렌딩 키워드 — 클릭하면 발행 주제에 추가</p>
-            <div className="flex flex-wrap gap-2">
-              {trendingKeywords.slice(0, 6).map((kw) => (
-                <button
-                  key={kw.rank}
-                  type="button"
-                  onClick={() => appendToPublishTopic(kw.keyword)}
-                  className="text-xs px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-indigo-200 dark:border-indigo-800 text-gray-800 dark:text-gray-100 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition"
-                >
-                  <span className="font-semibold">+ {kw.keyword}</span>
-                  <span className="ml-1.5 text-indigo-600 dark:text-indigo-300 tabular-nums">{kw.rank}위</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </section>
 
-      {/* ── 급상승 주제 ───────────────────────────────────────────── */}
-      <section className="rounded-2xl border-2 border-rose-200 dark:border-rose-800 bg-rose-50/40 dark:bg-rose-950/20 p-5 space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <TitleWithHint
-            as="h3"
-            className="text-sm font-bold text-rose-900 dark:text-rose-200"
-            hint={`${totalFeeds}개 RSS 피드(뉴스·시사/경제/IT·테크/게임/육아/교육/엔터/라이프/부동산/건강 등)에서 2개 이상 피드가 동시에 다룬 주제를 급상승으로 표시합니다. 피드 뱃지 배열로 어느 소스에서 거론됐는지 확인하세요.`}
-          >
-            🔥 급상승 주제
-            {totalFeeds > 0 && (
-              <span className="ml-2 text-xs font-normal text-rose-600 dark:text-rose-400">
-                ({totalFeeds}개 피드 구독 중)
-              </span>
-            )}
-          </TitleWithHint>
-          <button
-            type="button"
-            onClick={() => loadTrending(categoryFilter)}
-            disabled={trendingLoading}
-            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60"
-          >
-            {trendingLoading ? '로딩 중…' : '↻ 새로고침'}
-          </button>
-        </div>
-
-        {/* 카테고리 필터 탭 (가로 스크롤) */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          {CATEGORY_TABS.map((tab) => {
-            const stat = categoryStats.find((s) => s.category === tab.id)
-            const count = tab.id === 'all'
-              ? allTopics.length
-              : (stat?.count ?? 0)
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  setCategoryFilter(tab.id)
-                  loadTrending(tab.id)
-                }}
-                className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition ${
-                  categoryFilter === tab.id
-                    ? 'bg-rose-600 text-white'
-                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-rose-300'
-                }`}
-              >
-                <span>{tab.emoji}</span>
-                <span>{tab.label}</span>
-                {count > 0 && (
-                  <span className={`rounded-full px-1 text-[10px] font-bold ${categoryFilter === tab.id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
-                    {count}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* 탭: 급상승 / 전체 */}
-        <div className="flex gap-2">
-          {(['trending', 'all'] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setTrendingTab(tab)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                trendingTab === tab
-                  ? 'bg-rose-600 text-white'
-                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-rose-300'
-              }`}
-            >
-              {tab === 'trending'
-                ? `🔥 급상승 ${trendingTopics.length > 0 ? `(${trendingTopics.length})` : ''}`
-                : `전체 주제 ${allTopics.length > 0 ? `(${allTopics.length})` : ''}`}
-            </button>
-          ))}
-        </div>
-
-        {trendingLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-14 bg-white/60 dark:bg-gray-800 rounded-xl animate-pulse" />
-            ))}
-          </div>
-        ) : displayTopics.length === 0 ? (
-          <div className="text-center py-6 text-sm text-gray-500">
-            {trendingTab === 'trending'
-              ? '아직 급상승 주제가 없습니다. 상단 n8n 자동화에서 RSS 주제를 수집하면 여기 표시됩니다.'
-              : '수집된 주제가 없습니다. n8n «RSS 주제 수집» 또는 «주제 선별 AI»를 실행하세요.'}
-          </div>
-        ) : (
-          <ul className="space-y-2 max-h-80 overflow-y-auto pr-1">
-            {displayTopics.map((t, idx) => (
-              <li key={`${t.id}-${idx}`}>
-                <button
-                  type="button"
-                  onClick={() => addTrendingAsReference(t)}
-                  title="클릭하면 참고 레퍼런스에 추가"
-                  className="w-full text-left rounded-xl bg-white/90 dark:bg-gray-900/60 border border-rose-100 dark:border-rose-900/50 px-3 py-2.5 hover:border-violet-400 dark:hover:border-violet-600 hover:bg-violet-50/50 dark:hover:bg-violet-950/20 transition cursor-pointer"
-                >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-1">
-                      {t.ai_title ?? t.title}
-                    </p>
-                    {t.ai_reason && (
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
-                        {t.ai_reason}
-                      </p>
-                    )}
-                  </div>
-                  {t.isTrending && (
-                    <span className="shrink-0 text-[10px] font-bold bg-rose-500 text-white rounded-full px-2 py-0.5">
-                      🔥 {t.sourceCount}곳
-                    </span>
-                  )}
-                </div>
-
-                {/* 카테고리 배지 */}
-                {t.categories && t.categories.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {t.categories.map((cat) => {
-                      const color = FEED_CATEGORY_COLORS[cat] ?? 'bg-gray-100 dark:bg-gray-700 text-gray-500'
-                      const tabInfo = CATEGORY_TABS.find((tb) => tb.id === cat)
-                      return (
-                        <span key={cat} className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${color}`}>
-                          {tabInfo?.emoji} {cat}
-                        </span>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {/* 소스(피드) 배열 뱃지 */}
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {t.sources.map((src) => (
-                    <FeedBadge key={src} name={src} categoryMap={feedCategoryMap} />
-                  ))}
-                  {t.link && (
-                    <a
-                      href={t.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-block px-1.5 py-0.5 rounded text-[10px] text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      원문 ↗
-                    </a>
-                  )}
-                </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="rounded-2xl border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/25 p-5 space-y-4">
-        <TitleWithHint
-          as="h3"
-          className="text-sm font-bold text-emerald-900 dark:text-emerald-200"
-          hint="n8n «RSS → 주제 후보 자동 수집» 또는 «주제 선별 AI»에서 저장된 주제입니다. 카드를 클릭하면 참고 레퍼런스에 추가됩니다."
-        >
-          RSS 주제 후보
-        </TitleWithHint>
-        <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80">
-          수집은 상단 n8n 자동화 또는 주제 선별 화면에서 실행합니다. 여기서는 저장된 후보만 조회·레퍼런스로 연결합니다.
-        </p>
-        {rssLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 bg-white/60 dark:bg-gray-800 rounded-lg animate-pulse" />
-            ))}
-          </div>
-        ) : rssTopics.length === 0 ? (
-          <p className="text-sm text-gray-500 py-4 text-center">
-            저장된 주제가 없습니다. n8n «RSS 주제 수집» 또는 «주제 선별 AI»를 먼저 실행하세요.
-          </p>
-        ) : (
-          <>
-            <ul className="space-y-2 max-h-64 overflow-y-auto">
-              {rssTopics
-                .filter((t) => !hiddenRssIds.has(t.id))
-                .map((t, idx) => (
-                  <li key={`${t.id}-${idx}`} className="group relative">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setHiddenRssIds((prev) => new Set([...prev, t.id]))
-                      }}
-                      title="이 주제 숨기기"
-                      className="absolute top-2 right-2 z-10 w-5 h-5 flex items-center justify-center rounded-full
-                        text-gray-300 dark:text-gray-600
-                        hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 dark:hover:text-red-400
-                        opacity-0 group-hover:opacity-100 transition text-xs font-bold"
-                    >
-                      ×
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => addRssAsReference(t)}
-                      title="클릭하면 참고 레퍼런스에 추가"
-                      className="w-full text-left rounded-xl bg-white/80 dark:bg-gray-900/60 border border-emerald-100 dark:border-emerald-900 px-3 py-2.5 hover:border-violet-300 dark:hover:border-violet-700 hover:bg-violet-50/40 dark:hover:bg-violet-950/20 transition"
-                    >
-                    <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 pr-5">{t.title}</p>
-                    <div className="flex flex-wrap gap-2 mt-1 text-[10px] text-gray-500">
-                      <span>{t.source_feed}</span>
-                      <span className="text-emerald-600 font-semibold">점수 {Number(t.relevance_score)}</span>
-                      {t.link && (
-                        <a
-                          href={t.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-blue-600 hover:underline"
-                        >
-                          원문
-                        </a>
-                      )}
-                    </div>
-                    </button>
-                  </li>
-                ))}
-            </ul>
-            {hiddenRssIds.size > 0 && (
-              <button
-                type="button"
-                onClick={() => setHiddenRssIds(new Set())}
-                className="text-xs text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition"
-              >
-                숨긴 항목 {hiddenRssIds.size}개 다시 표시
-              </button>
-            )}
-          </>
-        )}
-      </section>
-
-      {/* ── 참고 레퍼런스 (독립 섹션) ─────────────────────────────── */}
+      {/* ── 3. 참고 레퍼런스 (선택) + 급상승·RSS 소스 ───────────────── */}
       <section className="rounded-2xl border-2 border-violet-300 dark:border-violet-800 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-violet-100 dark:border-violet-900/50 bg-gradient-to-r from-violet-600 to-indigo-600">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -755,10 +719,10 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
               as="h3"
               className="text-base font-bold text-white"
               hintVariant="light"
-              hint="급상승·RSS·AI 인사이트·채널 콘텐츠를 선택하면 제목·H2 구조·톤만 벤치마킹합니다. 없어도 발행 주제만으로 생성 가능합니다."
+              hint="YouTube·블로그·웹(위키·가이드 사이트 등)을 레퍼런스로 추가할 수 있습니다. «구조·톤»은 목차·문체만, «내용 반영»은 페이지 사실을 스크립트에 반영합니다. 레퍼런스마다 모드를 다르게 설정해 «형태는 A, 내용은 B» 조합도 가능합니다."
             >
               📎 참고 레퍼런스
-              <span className="ml-2 text-xs font-normal text-white/60">선택</span>
+              <span className="ml-2 text-xs font-normal text-white/60">선택 · 3단계</span>
               {references.length > 0 && (
                 <span className="ml-2 text-xs font-normal text-white/70">({references.length}개)</span>
               )}
@@ -783,12 +747,34 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
             </div>
           </div>
           <p className="text-xs text-white/70 mt-1">
-            위 급상승·RSS 카드 클릭, 기획 큐 연결, 또는 채널 콘텐츠 선택으로 레퍼런스를 추가할 수 있습니다.
+            웹 URL·채널 콘텐츠·급상승·RSS를 참고 레퍼런스로 추가하세요. 카드마다 «구조·톤» / «내용 반영»을 선택할 수 있습니다.
           </p>
         </div>
 
         <div className="p-6 space-y-5">
-          {/* 기획 큐 → 레퍼런스 연결 */}
+          {/* 소스 탭 */}
+          <div className="flex flex-wrap gap-2">
+            {([
+              { id: 'selected' as const, label: `내 레퍼런스${references.length > 0 ? ` (${references.length})` : ''}` },
+              { id: 'trending' as const, label: `🔥 급상승${trendingTopics.length > 0 ? ` (${trendingTopics.length})` : ''}` },
+              { id: 'rss' as const, label: `RSS 후보${rssTopics.length > 0 ? ` (${rssTopics.length})` : ''}` },
+            ]).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setRefSourceTab(tab.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  refSourceTab === tab.id
+                    ? 'bg-violet-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-violet-100 dark:hover:bg-violet-900/30'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 기획 큐 — 레퍼런스 섹션 상단 (탭과 무관) */}
           {pendingQueue.length > 0 && (
             <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 p-4 space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -849,103 +835,272 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
             </div>
           )}
 
-          {/* 레퍼런스 목록 */}
-          {!refsLoaded ? (
-            <div className="py-8 text-center text-sm text-gray-400">불러오는 중…</div>
-          ) : references.length === 0 ? (
-            <div className="py-10 text-center border border-dashed border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50/50 dark:bg-gray-900/30">
-              <p className="text-2xl mb-2">📎</p>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">레퍼런스 없이도 생성 가능</p>
-              <p className="text-xs text-gray-400 mb-4 max-w-sm mx-auto">
-                발행 주제만 입력해도 AI가 초안을 만듭니다. 급상승·RSS·채널 콘텐츠를 추가하면 구조·톤을 참고합니다.
-              </p>
-              <button
-                type="button"
-                onClick={() => setPickerOpen(true)}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition"
-              >
-                플랫폼 · 채널 · 콘텐츠 선택
-              </button>
-            </div>
-          ) : (
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {references.map((ref, i) => (
-                <li
-                  key={`${i}-${ref.id}`}
-                  className="group rounded-xl border border-gray-100 dark:border-gray-600 p-3 hover:border-violet-200 dark:hover:border-violet-800 transition relative bg-gray-50/50 dark:bg-gray-900/30"
-                >
-                  <button
-                    type="button"
-                    onClick={() => removeReference(i)}
-                    title="레퍼런스 제거"
-                    className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full
-                      text-gray-300 dark:text-gray-600
-                      hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 dark:hover:text-red-400
-                      opacity-0 group-hover:opacity-100 transition text-xs font-bold"
-                  >
-                    ×
-                  </button>
+          {/* 탭: 내 레퍼런스 */}
+          {refSourceTab === 'selected' && (
+            <GuideReferencesPanel
+              references={references}
+              refsLoaded={refsLoaded}
+              publishTopic={publishTopic}
+              category={category}
+              onReferencesChange={persistReferences}
+              onOpenPicker={() => setPickerOpen(true)}
+              addToast={addToast}
+            />
+          )}
 
-                  <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-3 pr-5">
-                    {ref.url ? (
-                      <a
-                        href={ref.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
-                      >
-                        {ref.title}
-                      </a>
-                    ) : (
-                      ref.title
-                    )}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-2 text-xs text-gray-500">
-                    <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px]">
-                      {ref.platform === 'topic'
-                        ? '주제'
-                        : ref.platform === 'insight'
-                          ? '인사이트'
-                          : getPlatformName(ref.platform)}
+          {/* 탭: 급상승 */}
+          {refSourceTab === 'trending' && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <TitleWithHint
+                  as="h4"
+                  className="text-sm font-bold text-rose-900 dark:text-rose-200"
+                  hint={`${totalFeeds}개 RSS 피드에서 2개 이상 피드가 동시에 다룬 주제를 급상승으로 표시합니다. 카드 클릭 → 레퍼런스 추가.`}
+                >
+                  🔥 급상승 주제
+                  {totalFeeds > 0 && (
+                    <span className="ml-2 text-xs font-normal text-rose-600 dark:text-rose-400">
+                      ({totalFeeds}개 피드)
                     </span>
-                    {ref.sourceType === 'insight' && (
-                      <span className="px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-[10px] font-semibold">
-                        AI 인사이트
-                      </span>
-                    )}
-                    {ref.sourceType === 'trending' && (
-                      <span className="px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 text-[10px] font-semibold">
-                        급상승
-                      </span>
-                    )}
-                    {ref.sourceType === 'rss' && (
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold">
-                        RSS
-                      </span>
-                    )}
-                    {ref.sourceType === 'content' && (
-                      <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-semibold">
-                        콘텐츠
-                      </span>
-                    )}
-                    {ref.tier && (
-                      <span className="px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-bold text-[10px]">
-                        {ref.tier}
-                      </span>
-                    )}
-                    {ref.vsAvg != null && (
-                      <span className="text-amber-600 dark:text-amber-400 font-semibold text-[10px]">vs.Avg {ref.vsAvg}x</span>
-                    )}
-                    {ref.views != null && (
-                      <span className="text-[10px]">{formatViews(ref.views)} 조회</span>
-                    )}
-                    {ref.channel && ref.sourceType !== 'insight' && (
-                      <span className="text-gray-400 truncate max-w-[8rem] text-[10px]">{ref.channel}</span>
-                    )}
+                  )}
+                </TitleWithHint>
+                <button
+                  type="button"
+                  onClick={() => loadTrending(categoryFilter)}
+                  disabled={trendingLoading}
+                  className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60"
+                >
+                  {trendingLoading ? '로딩 중…' : '↻ 새로고침'}
+                </button>
+              </div>
+
+              {trendingKeywords.length > 0 && (
+                <div className="rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/50 p-3">
+                  <p className="text-[11px] text-rose-700/80 dark:text-rose-300/80 mb-2">YouTube 트렌딩 — 클릭하면 발행 주제에 추가</p>
+                  <div className="flex flex-wrap gap-2">
+                    {trendingKeywords.slice(0, 6).map((kw) => (
+                      <button
+                        key={kw.rank}
+                        type="button"
+                        onClick={() => appendToPublishTopic(kw.keyword)}
+                        className="text-xs px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-rose-200 dark:border-rose-800 text-gray-800 dark:text-gray-100 hover:border-rose-400 transition"
+                      >
+                        <span className="font-semibold">+ {kw.keyword}</span>
+                        <span className="ml-1.5 text-rose-600 dark:text-rose-300 tabular-nums">{kw.rank}위</span>
+                      </button>
+                    ))}
                   </div>
-                </li>
-              ))}
-            </ul>
+                </div>
+              )}
+
+              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {CATEGORY_TABS.map((tab) => {
+                  const stat = categoryStats.find((s) => s.category === tab.id)
+                  const count = tab.id === 'all' ? allTopics.length : (stat?.count ?? 0)
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => {
+                        setCategoryFilter(tab.id)
+                        loadTrending(tab.id)
+                      }}
+                      className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition ${
+                        categoryFilter === tab.id
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-rose-300'
+                      }`}
+                    >
+                      <span>{tab.emoji}</span>
+                      <span>{tab.label}</span>
+                      {count > 0 && (
+                        <span className={`rounded-full px-1 text-[10px] font-bold ${categoryFilter === tab.id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex gap-2">
+                {(['trending', 'all'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setTrendingTab(tab)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                      trendingTab === tab
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
+                    }`}
+                  >
+                    {tab === 'trending'
+                      ? `🔥 급상승 ${trendingTopics.length > 0 ? `(${trendingTopics.length})` : ''}`
+                      : `전체 ${allTopics.length > 0 ? `(${allTopics.length})` : ''}`}
+                  </button>
+                ))}
+              </div>
+
+              {trendingLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-14 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse" />
+                  ))}
+                </div>
+              ) : displayTopics.length === 0 ? (
+                <div className="text-center py-6 text-sm text-gray-500">
+                  {trendingTab === 'trending'
+                    ? '아직 급상승 주제가 없습니다. n8n «RSS 주제 수집»을 실행하세요.'
+                    : '수집된 주제가 없습니다.'}
+                </div>
+              ) : (
+                <ul className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                  {displayTopics.map((t, idx) => (
+                    <li key={`${t.id}-${idx}`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          addTrendingAsReference(t)
+                          setRefSourceTab('selected')
+                        }}
+                        title="클릭하면 참고 레퍼런스에 추가"
+                        className="w-full text-left rounded-xl bg-gray-50 dark:bg-gray-900/60 border border-rose-100 dark:border-rose-900/50 px-3 py-2.5 hover:border-violet-400 dark:hover:border-violet-600 hover:bg-violet-50/50 dark:hover:bg-violet-950/20 transition"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-1">
+                              {t.ai_title ?? t.title}
+                            </p>
+                            {t.ai_reason && (
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">{t.ai_reason}</p>
+                            )}
+                          </div>
+                          {t.isTrending && (
+                            <span className="shrink-0 text-[10px] font-bold bg-rose-500 text-white rounded-full px-2 py-0.5">
+                              🔥 {t.sourceCount}곳
+                            </span>
+                          )}
+                        </div>
+                        {t.categories && t.categories.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {t.categories.map((cat) => {
+                              const color = FEED_CATEGORY_COLORS[cat] ?? 'bg-gray-100 dark:bg-gray-700 text-gray-500'
+                              const tabInfo = CATEGORY_TABS.find((tb) => tb.id === cat)
+                              return (
+                                <span key={cat} className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${color}`}>
+                                  {tabInfo?.emoji} {cat}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {t.sources.map((src) => (
+                            <FeedBadge key={src} name={src} categoryMap={feedCategoryMap} />
+                          ))}
+                          {t.link && (
+                            <a
+                              href={t.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-block px-1.5 py-0.5 rounded text-[10px] text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              원문 ↗
+                            </a>
+                          )}
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* 탭: RSS */}
+          {refSourceTab === 'rss' && (
+            <div className="space-y-3">
+              <TitleWithHint
+                as="h4"
+                className="text-sm font-bold text-emerald-900 dark:text-emerald-200"
+                hint="n8n «RSS 주제 수집» 또는 «주제 선별 AI»에서 저장된 주제입니다. 카드 클릭 → 레퍼런스 추가."
+              >
+                RSS 주제 후보
+              </TitleWithHint>
+              {rssLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
+                  ))}
+                </div>
+              ) : rssTopics.length === 0 ? (
+                <p className="text-sm text-gray-500 py-4 text-center">
+                  저장된 주제가 없습니다. n8n «RSS 주제 수집»을 먼저 실행하세요.
+                </p>
+              ) : (
+                <>
+                  <ul className="space-y-2 max-h-80 overflow-y-auto">
+                    {rssTopics
+                      .filter((t) => !hiddenRssIds.has(t.id))
+                      .map((t, idx) => (
+                        <li key={`${t.id}-${idx}`} className="group relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setHiddenRssIds((prev) => new Set([...prev, t.id]))
+                            }}
+                            title="이 주제 숨기기"
+                            className="absolute top-2 right-2 z-10 w-5 h-5 flex items-center justify-center rounded-full
+                              text-gray-300 dark:text-gray-600
+                              hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500
+                              opacity-0 group-hover:opacity-100 transition text-xs font-bold"
+                          >
+                            ×
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              addRssAsReference(t)
+                              setRefSourceTab('selected')
+                            }}
+                            title="클릭하면 참고 레퍼런스에 추가"
+                            className="w-full text-left rounded-xl bg-gray-50 dark:bg-gray-900/60 border border-emerald-100 dark:border-emerald-900 px-3 py-2.5 hover:border-violet-300 dark:hover:border-violet-700 transition"
+                          >
+                            <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 pr-5">{t.title}</p>
+                            <div className="flex flex-wrap gap-2 mt-1 text-[10px] text-gray-500">
+                              <span>{t.source_feed}</span>
+                              <span className="text-emerald-600 font-semibold">점수 {Number(t.relevance_score)}</span>
+                              {t.link && (
+                                <a
+                                  href={t.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  원문
+                                </a>
+                              )}
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                  {hiddenRssIds.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setHiddenRssIds(new Set())}
+                      className="text-xs text-gray-400 hover:text-emerald-600 transition"
+                    >
+                      숨긴 항목 {hiddenRssIds.size}개 다시 표시
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           )}
 
           <button
@@ -961,16 +1116,25 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
             {scriptLoading ? (
               <span className="flex items-center justify-center gap-2">
                 <Spinner size="sm" color="border-white" />
-                n8n Gemini 스크립트 생성 중…
+                AI 스크립트 생성 중…
               </span>
             ) : (
               `✨ 스크립트 가이드 생성${references.length > 0 ? ` · 레퍼런스 ${references.length}개 참고` : ''}`
             )}
           </button>
+          <GuideAiModelSelect
+            id="script-guide-ai-model"
+            label="🤖 스크립트 생성 AI 모델"
+            value={scriptGuideModel}
+            onChange={(m) => {
+              setScriptGuideModel(m)
+              saveScriptGuideModel(m)
+            }}
+          />
           <p className="text-[10px] text-center text-gray-400 -mt-2">
             {canGenerate
-              ? `주제: «${publishTopic.trim().slice(0, 40)}${publishTopic.trim().length > 40 ? '…' : ''}» · n8n «롱폼 스크립트» · ${CATEGORIES.find((c) => c.id === category)?.label} 가이드`
-              : '위 «발행 주제»를 입력하면 생성할 수 있습니다'}
+              ? `주제: «${publishTopic.trim().slice(0, 40)}${publishTopic.trim().length > 40 ? '…' : ''}» · ${getGeminiModelLabel(scriptGuideModel)} · ${CATEGORIES.find((c) => c.id === category)?.label} 가이드`
+              : '«발행 주제»를 입력하면 생성할 수 있습니다'}
           </p>
         </div>
       </section>
@@ -1083,7 +1247,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
         {scriptLoading && (
           <div className="py-12 flex flex-col items-center gap-3 text-sm text-indigo-600 dark:text-indigo-400">
             <Spinner size="md" />
-            n8n Gemini Agent가 레퍼런스를 반영해 스크립트를 작성 중…
+            {getGeminiModelLabel(scriptGuideModel)}로 스크립트를 작성 중…
           </div>
         )}
 
@@ -1122,6 +1286,17 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
               </div>
             </div>
 
+            <GuideAiModelSelect
+              id="polish-ai-model"
+              label="🤖 내 콘텐츠화 AI 모델"
+              value={polishModel}
+              onChange={(m) => {
+                setPolishModel(m)
+                savePolishModel(m)
+              }}
+              compact
+            />
+
             {polishedResult && (
               <div className="flex gap-2 p-1 bg-white/60 dark:bg-gray-900/40 rounded-xl w-fit">
                 <button
@@ -1152,7 +1327,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
             {polishLoading && (
               <div className="py-8 flex flex-col items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
                 <Spinner size="md" />
-                Gemini가 레퍼런스 흔적을 제거하고 발행용 본문으로 정재 중…
+                {getGeminiModelLabel(polishModel)}로 발행용 본문 정재 중…
                 {category === 'writing' && (
                   <p className="text-xs text-gray-500">블로그: 환기용 이미지·표 가이드 블록을 본문에 배치합니다</p>
                 )}

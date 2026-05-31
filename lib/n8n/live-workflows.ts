@@ -162,19 +162,21 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
   {
     no: 'W08',
     key: 'longform-script',
-    name: '롱폼 스크립트 초안 자동 생성',
+    name: '콘텐츠 가이드 AI 생성 (글·이미지·영상)',
     webhookPath: 'longform-script',
     envWebhookKey: 'N8N_WEBHOOK_LONGFORM_SCRIPT',
     workflowFile: 'N8N_LONGFORM_SCRIPT.json',
     triggers: ['webhook', 'manual'],
-    scheduleHint: '수동 실행 (주제 입력 시)',
+    scheduleHint: '수동 실행 (콘텐츠 가이드에서 생성 시)',
     description:
-      '주제 키워드 입력 → Gemini가 8분 구조(훅·챕터·CTA) 스크립트 초안 생성. GEMINI_API_KEY 필요.',
-    coreNodes: 'Webhook · Code · Gemini API · Notion',
+      '발행 주제(필수) + (선택) 레퍼런스 → Gemini 초안. writing/blog·image/carousel·video/longform. script-guide가 n8n 1순위·content-generate 폴백.',
+    coreNodes: 'Webhook · Code · Gemini API',
     roadmapServiceIds: ['longform-script'],
-    linkedViewIds: ['content-studio'],
+    linkedViewIds: ['content-guide', 'generation-history', 'content-studio'],
     dashboardApis: [
-      { method: 'POST', path: '/api/dashboard/content-generate', label: 'AI 콘텐츠 생성 (longform)' },
+      { method: 'POST', path: '/api/dashboard/script-guide', label: '스크립트 가이드 생성 (n8n 1순위)' },
+      { method: 'POST', path: '/api/dashboard/content-polish', label: '내 콘텐츠화 (대시보드 전용)' },
+      { method: 'GET', path: '/api/dashboard/generation-history', label: '생성 히스토리' },
     ],
   },
   {
@@ -189,7 +191,7 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     description:
       'RSS 트렌드 + 아웃라이어 데이터 → Gemini가 이번 주 추천 주제 5개 + 제목·이유 생성.',
     coreNodes: 'Webhook · HTTP · Gemini API · 대시보드 API · Notion',
-    roadmapServiceIds: ['topic-suggest', 'rss-topic-collect'],
+    roadmapServiceIds: ['topic-recommend-agent', 'rss-topic-collect'],
     linkedViewIds: ['topic-suggest', 'content-guide'],
     dashboardApis: [
       { method: 'GET', path: '/api/dashboard/rss-topics?limit=10', label: 'RSS 주제 후보 조회' },

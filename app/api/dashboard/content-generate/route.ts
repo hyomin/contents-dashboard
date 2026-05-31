@@ -13,6 +13,11 @@
  *   서버에서 최신 Outlier 제목·트렌딩 키워드·RSS 주제를 자동으로 fetch해 merge한다.
 */
 import { NextRequest, NextResponse } from 'next/server'
+import { callGeminiGenerateContent, resolveGeminiModel } from '@/lib/dashboard/gemini-models'
+import {
+  buildReferencePromptBlock,
+  type AiScriptGuideReference,
+} from '@/lib/dashboard/guide-reference-modes'
 
 export type ContentFormat = 'longform' | 'shortform' | 'carousel' | 'blog' | 'sns-caption'
 
@@ -32,7 +37,11 @@ export interface ContentGenerateRequest {
     platform?: string
     /** true면 서버 자동 트렌드/RSS 주입 생략 (사용자 지정 주제 전용) */
     suppressAutoContext?: boolean
+    /** 구조·내용 레퍼런스 (신규 — outlierTitles 대체 가능) */
+    guideReferences?: AiScriptGuideReference[]
   }
+  /** Gemini 모델 ID */
+  aiModel?: string
 }
 
 export interface LongformResult {
@@ -97,8 +106,15 @@ function buildContextBlock(ctx?: ContentGenerateRequest['context']): string {
     parts.push(`[급상승 키워드]\n${ctx.trendingKeywords.slice(0, 6).join(', ')}`)
   if (ctx.rssTopics?.length)
     parts.push(`[RSS 주제 후보]\n${ctx.rssTopics.slice(0, 5).map((t, i) => `${i + 1}. ${t}`).join('\n')}`)
-  if (ctx.outlierTitles?.length)
-    parts.push(`[참고 레퍼런스 제목 — 제목·H2 구조·톤만 벤치마킹, 문장 복사·주제 변경 금지]\n${ctx.outlierTitles.slice(0, 5).map((t, i) => `${i + 1}. ${t}`).join('\n')}`)
+
+  if (ctx.guideReferences?.length) {
+    parts.push(buildReferencePromptBlock(ctx.guideReferences).trim())
+  } else if (ctx.outlierTitles?.length) {
+    parts.push(
+      `[참고 레퍼런스 제목 — 제목·H2 구조·톤만 벤치마킹, 문장 복사·주제 변경 금지]\n${ctx.outlierTitles.slice(0, 5).map((t, i) => `${i + 1}. ${t}`).join('\n')}`,
+    )
+  }
+
   return parts.length ? `\n\n${parts.join('\n\n')}` : ''
 }
 
@@ -302,31 +318,21 @@ export async function POST(req: NextRequest) {
   }
 
   const { prompt, maxOutputTokens } = promptFor(body)
+  const model = resolveGeminiModel(body.aiModel)
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.6, maxOutputTokens },
-        }),
-        signal: AbortSignal.timeout(40000),
-      },
-    )
+    const result = await callGeminiGenerateContent(apiKey, model, prompt, {
+      temperature: 0.6,
+      maxOutputTokens,
+      timeoutMs: 90_000,
+    })
 
-    if (!res.ok) {
-      const errText = await res.text()
-      console.error('[content-generate] gemini error', res.status, errText)
-      return NextResponse.json({ error: `Gemini API 오류 (${res.status})` }, { status: 500 })
+    if (!result.ok) {
+      console.error('[content-generate] gemini error', result.status, result.error)
+      return NextResponse.json({ error: `Gemini API 오류 (${result.status})` }, { status: 500 })
     }
 
-    const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[]
-    }
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+    const text = result.text
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch)
       return NextResponse.json({ error: 'AI 응답 파싱 실패. 다시 시도해주세요.' }, { status: 500 })

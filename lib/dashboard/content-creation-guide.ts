@@ -9,13 +9,8 @@
 
 export type GuideCategory = 'writing' | 'image' | 'video'
 
-/** 연동 시 백엔드/LLM에 넘길 수 있는 최소 컨텍스트(필드는 점진적 추가) */
-export interface AiScriptGuideReference {
-  title: string
-  platform?: string
-  channel?: string
-  vsAvg?: number
-}
+export type { AiScriptGuideReference, GuideReferenceMode } from '@/lib/dashboard/guide-reference-modes'
+import type { AiScriptGuideReference } from '@/lib/dashboard/guide-reference-modes'
 
 export interface AiScriptGuideRequestContext {
   category: GuideCategory
@@ -29,6 +24,8 @@ export interface AiScriptGuideRequestContext {
   references?: AiScriptGuideReference[]
   /** 롱폼·숏폼·블로그 등 — 가이드 탭과 매핑 */
   intent: 'longform_video' | 'shortform_video' | 'blog' | 'carousel' | 'general'
+  /** Gemini 모델 ID (예: gemini-2.5-flash) */
+  aiModel?: string
 }
 
 export interface GuideSection {
