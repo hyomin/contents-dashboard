@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth/session'
+import { isWeakDashboardSecret } from '@/lib/dashboard/env-security'
 
 // Edge Runtime 호환 타이밍-세이프 문자열 비교 (Web Crypto API 기반)
 function safeEqual(a: string, b: string): boolean {
@@ -13,15 +14,37 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
+/** 서버 라우트 → 대시보드 API 내부 fetch 시 인증 헤더 (script-guide·cron 등) */
+export function headersForDashboardInternalFetch(
+  incoming?: NextRequest,
+): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const secret = getUsableDashboardApiSecret()
+  if (secret) {
+    headers['x-dashboard-api-key'] = secret
+    return headers
+  }
+  const cookie = incoming?.headers.get('cookie')
+  if (cookie) headers.cookie = cookie
+  return headers
+}
+
 export function getProvidedSecret(request: NextRequest): string | null {
   const auth = request.headers.get('authorization')
   if (auth?.startsWith('Bearer ')) return auth.slice(7).trim()
   return request.headers.get('x-dashboard-api-key')?.trim() ?? null
 }
 
+function getUsableDashboardApiSecret(): string | null {
+  const secret = process.env.DASHBOARD_API_SECRET?.trim()
+  if (!secret) return null
+  if (process.env.NODE_ENV === 'production' && isWeakDashboardSecret(secret)) return null
+  return secret
+}
+
 /** n8n·서버 간 호출용 — DASHBOARD_API_SECRET 일치 여부 */
 export function hasValidDashboardApiSecret(request: NextRequest): boolean {
-  const secret = process.env.DASHBOARD_API_SECRET?.trim()
+  const secret = getUsableDashboardApiSecret()
   if (!secret) return false
   const provided = getProvidedSecret(request)
   return Boolean(provided && safeEqual(provided, secret))
@@ -51,10 +74,10 @@ export function isSameOriginBrowserRequest(request: NextRequest): boolean {
 export async function verifyDashboardApiAuth(
   request: NextRequest,
 ): Promise<NextResponse | null> {
-  const secret = process.env.DASHBOARD_API_SECRET?.trim()
+  const rawSecret = process.env.DASHBOARD_API_SECRET?.trim()
   const isProduction = process.env.NODE_ENV === 'production'
 
-  if (!secret) {
+  if (!rawSecret) {
     if (isProduction) {
       return NextResponse.json(
         { error: 'DASHBOARD_API_SECRET이 설정되지 않았습니다. 배포 환경 변수를 확인하세요.' },
@@ -63,6 +86,18 @@ export async function verifyDashboardApiAuth(
     }
     return null
   }
+
+  if (isProduction && isWeakDashboardSecret(rawSecret)) {
+    return NextResponse.json(
+      {
+        error:
+          'DASHBOARD_API_SECRET이 예시 문구이거나 너무 짧습니다. npm run env:secret 로 새 값을 생성해 배포 환경 변수를 교체하세요.',
+      },
+      { status: 503 },
+    )
+  }
+
+  const secret = rawSecret
 
   const provided = getProvidedSecret(request)
   if (provided && safeEqual(provided, secret)) return null

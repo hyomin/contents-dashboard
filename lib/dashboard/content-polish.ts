@@ -1,6 +1,12 @@
 import type { ContentFormat } from '@/app/api/dashboard/content-generate/route'
 import type { GuideCategory } from '@/lib/dashboard/content-creation-guide'
 import type { GuideReferenceMode } from '@/lib/dashboard/guide-reference-modes'
+import {
+  buildAgentFormatGuidelineBlock,
+  getAgentGuidelineSection,
+  getBlogImageAgentBlock,
+} from '@/lib/dashboard/contents-guideline'
+import { prependGeminiFlowPasteBlock } from '@/lib/dashboard/gemini-flow-paste'
 
 export interface ContentPolishReference {
   title: string
@@ -20,6 +26,8 @@ export interface ContentPolishRequest {
   guideReferences?: ContentPolishReference[]
   /** Gemini 모델 ID */
   aiModel?: string
+  /** 숏폼 카테고리 (영상·shortform 정재 시) */
+  shortformCategoryId?: string
 }
 
 export interface ContentPolishResult {
@@ -28,6 +36,8 @@ export interface ContentPolishResult {
   summary: string
   imageGuideCount: number
   polishedAt: string
+  /** 숏폼: Gemini/Flow 붙여넣기용 (최상단 고정 전 원문) */
+  flowPasteBlock?: string
 }
 
 /** 본문 문단 수 추정 (빈 줄·헤더·가이드 블록 제외) */
@@ -44,18 +54,14 @@ export function suggestImageGuideCount(paragraphCount: number): number {
   return Math.min(5, Math.max(2, Math.round(paragraphCount / 3.5)))
 }
 
-const IMAGE_GUIDE_TEMPLATE = `
-> **📷 [환기용 이미지 가이드 N/M — 직접 제작·삽입]**
-> - **삽입 위치:** (어느 H2·문단 직후인지)
-> - **이미지 유형:** (일러스트 / 인포그래픽 / 스크린샷 / 다이어그램 / 표 등)
-> - **화면 구성:** (주요 오브젝트·색감·텍스트 오버레이)
-> - **전달 메시지:** (이 구간 독자가 얻어야 할 한 줄)
-> - **캡션 예시:** (20자 내외)
-`.trim()
+function isShortformPolish(req: ContentPolishRequest): boolean {
+  return req.targetFormat === 'shortform' || req.category === 'video'
+}
 
 export function buildContentPolishPrompt(req: ContentPolishRequest): string {
+  const shortform = isShortformPolish(req)
   const paraCount = estimateParagraphCount(req.fullScript)
-  const imageCount = req.category === 'writing' || req.targetFormat === 'blog'
+  const imageCount = !shortform && (req.category === 'writing' || req.targetFormat === 'blog')
     ? suggestImageGuideCount(paraCount)
     : 0
 
@@ -79,43 +85,31 @@ export function buildContentPolishPrompt(req: ContentPolishRequest): string {
     ? `\n[발행 주제 — 반드시 이 주제를 유지]\n${req.userTopic.trim()}\n`
     : ''
 
-  const blogImageRules =
-    imageCount > 0
-      ? `
-## 블로그 환기용 이미지·표 가이드 (필수)
-- 본문 추정 ${paraCount}문단 → **환기용 이미지 가이드 ${imageCount}개** 내외를 본문 중간에 삽입하세요.
-- 실제 이미지 파일을 생성하지 마세요. 아래 형식의 **텍스트 가이드 블록**만 넣습니다.
-- 가이드는 H2 섹션 사이·긴 문단 묶음 직후 등 읽기 흐름이 답답해지기 전에 배치하세요.
-- 1~2곳은 **표 가이드**로 대체 가능 (비교·체크리스트·숫자 요약 등).
-
-가이드 블록 형식 (그대로 사용):
-${IMAGE_GUIDE_TEMPLATE.replace('N/M', `1/${imageCount}`)}
-
-표 가이드 예시:
-> **📊 [표 가이드 — 직접 제작·삽입]**
-> - **삽입 위치:** ...
-> - **표 제목:** ...
-> - **열 구성:** ...
-> - **행 예시:** ...
-`
+  const commonGuideline = getAgentGuidelineSection('common')
+  const formatGuideline = shortform
+    ? buildAgentFormatGuidelineBlock('shortform', req.shortformCategoryId)
+    : imageCount > 0
+      ? `${buildAgentFormatGuidelineBlock('blog')}\n\n- 본문 추정 ${paraCount}문단 → 환기용 이미지 가이드 **${imageCount}개** 내외 삽입`
       : ''
+
+  const blogImageFromMd = imageCount > 0 ? getBlogImageAgentBlock(imageCount) : ''
+  const guidelineBlock = [commonGuideline, formatGuideline, blogImageFromMd].filter(Boolean).join('\n\n')
 
   return `당신은 콘텐츠 에디터입니다. 아래 «가이드 초안»을 **내가 직접 발행한 오리지널 콘텐츠**처럼 정재해 주세요.
 ${topicBlock}${refBlock}
-## 정재 원칙
-1. **구조·톤 레퍼런스**에서 온 채널명·타 채널·영상·블로그 제목·표현은 본문에서 **완전히 제거**하거나 새 표현으로 바꿉니다. «OO 채널», «벤치마킹», «레퍼런스» 같은 메타 표현 금지.
-2. **내용 레퍼런스**에서 반영된 사실·수치·설명은 **발행 주제에 맞게 유지**하되, 출처·사이트명·URL·«OO 위키에 따르면» 같은 인용 표현은 제거하고 **완전히 새 문장**으로 재서술합니다.
-3. 제목·소제목·본문을 **독자에게 직접 말하는 발행용 톤**으로 다듭니다. 표절·직접 인용 없이 사실·논지만 유지합니다.
-4. SEO 친화적 H2 구조, 도입·본문·마무리·CTA를 유지합니다.
-5. 포맷: ${req.targetFormat} · 카테고리: ${req.category}
-${blogImageRules}
+
+## 가이드라인 (guidelines/contents_guideline.md)
+${guidelineBlock || '(가이드라인 로드 실패 — 정재 원칙만 적용)'}
+
+포맷: ${req.targetFormat} · 카테고리: ${req.category}
 
 ## 출력 형식
 반드시 JSON만 응답 (다른 텍스트 없이):
 {
   "title": "발행용 제목",
-  "fullContent": "마크다운 전체 본문 (이미지·표 가이드 블록 포함)",
-  "summary": "정재 시 변경한 점 2~3문장",
+  "flowPasteBlock": ${shortform ? '"씬별 ### 씬N · 시간 · 제목 + Flow용 영문 한 덩어리 (유일한 Flow 위치, 중복 문장 금지)"' : 'null'},
+  "fullContent": "${shortform ? '장면별 [0~N초]·화면(한글)·자막·제작 메모 (Google Flow 줄 없음)' : '마크다운 전체 본문 (이미지·표 가이드 블록 포함)'}",
+  "summary": "정재 시 변경한 점 2~3문장${shortform ? ' (장면 수·Flow 씬 요약 포함)' : ''}",
   "imageGuideCount": ${imageCount}
 }
 
@@ -125,7 +119,15 @@ ${blogImageRules}
 ${req.fullScript}`
 }
 
-export function parseContentPolishResponse(text: string, fallbackTitle: string): ContentPolishResult | null {
+export interface ParseContentPolishOptions {
+  shortform?: boolean
+}
+
+export function parseContentPolishResponse(
+  text: string,
+  fallbackTitle: string,
+  options?: ParseContentPolishOptions,
+): ContentPolishResult | null {
   if (!text.trim()) return null
   try {
     const fence = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
@@ -136,17 +138,23 @@ export function parseContentPolishResponse(text: string, fallbackTitle: string):
     const parsed = JSON.parse(fixed) as {
       title?: string
       fullContent?: string
+      flowPasteBlock?: string
       summary?: string
       imageGuideCount?: number
     }
-    const fullContent = String(parsed.fullContent ?? '').trim()
+    let fullContent = String(parsed.fullContent ?? '').trim()
     if (!fullContent) return null
+    const flowPasteBlock = String(parsed.flowPasteBlock ?? '').trim() || undefined
+    if (options?.shortform) {
+      fullContent = prependGeminiFlowPasteBlock(fullContent, flowPasteBlock)
+    }
     return {
       title: String(parsed.title ?? fallbackTitle).trim() || fallbackTitle,
       fullContent,
       summary: String(parsed.summary ?? '레퍼런스 흔적을 제거하고 발행용 톤으로 정재했습니다.').trim(),
       imageGuideCount: Number(parsed.imageGuideCount) || 0,
       polishedAt: new Date().toISOString(),
+      flowPasteBlock,
     }
   } catch {
     return null

@@ -1,9 +1,8 @@
 /**
  * 콘텐츠 가이드 화면용 정적 가이드 — 트렌드·사용자 선택 레퍼런스는 뷰에서 API/localStorage로 보강합니다.
  *
- * 추후 AI 스크립트 가이드 연동 시:
- * - `GUIDE_BY_CATEGORY`는 시스템 프롬프트·룰 또는 후처리 체크리스트로 재사용.
- * - `buildAiScriptGuidePayload`로 컨텍스트를 조립해 `/api/...` 또는 n8n 웹훅으로 전송.
+ * Agent 가이드라인(블로그·숏폼): `guidelines/contents_guideline.md` (편집 후 저장만 하면 반영).
+ * `GUIDE_BY_CATEGORY`는 화면 체크리스트용 — Agent와 동기화하려면 MD와 맞춰 주세요.
  * - 응답은 도입 훅 → 챕터 불릿 → CTA → 자막용 짧은 문장 등 구조화 JSON 권장.
  */
 
@@ -14,6 +13,8 @@ import type { AiScriptGuideReference } from '@/lib/dashboard/guide-reference-mod
 
 export interface AiScriptGuideRequestContext {
   category: GuideCategory
+  /** 숏폼 제작 카테고리 (영상·숏폼 생성 시) */
+  shortformCategoryId?: string
   /** 사용자가 직접 입력한 발행 주제 (최우선) */
   userTopic?: string
   /** 발행 주제에서 파싱한 키워드 */

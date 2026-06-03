@@ -5,13 +5,18 @@ import {
   type TopicKeywordGuideResult,
 } from '@/lib/dashboard/topic-keyword-guide'
 import type { GuideCategory } from '@/lib/dashboard/content-creation-guide'
-import { callGeminiGenerateContent, resolveGeminiModel } from '@/lib/dashboard/gemini-models'
+import {
+  callGeminiGenerateContent,
+  formatGeminiApiError,
+  resolveGeminiModel,
+} from '@/lib/dashboard/gemini-models'
 
 export type { TopicKeywordGuideResult }
 
 interface TopicKeywordGuideRequest {
   seedKeyword?: string
   category?: GuideCategory
+  shortformCategoryId?: string
   aiModel?: string
 }
 
@@ -28,7 +33,11 @@ export async function POST(req: NextRequest) {
   }
 
   const model = resolveGeminiModel(body.aiModel)
-  const prompt = buildTopicKeywordGuidePrompt(seedKeyword, body.category)
+  const prompt = buildTopicKeywordGuidePrompt(
+    seedKeyword,
+    body.category,
+    body.shortformCategoryId,
+  )
 
   try {
     const result = await callGeminiGenerateContent(apiKey, model, prompt, {
@@ -39,7 +48,11 @@ export async function POST(req: NextRequest) {
 
     if (!result.ok) {
       console.error('[topic-keyword-guide] gemini error', result.status, result.error)
-      return NextResponse.json({ error: `Gemini API 오류 (${result.status})` }, { status: 500 })
+      const httpStatus = result.status === 403 ? 503 : result.status >= 500 ? 502 : 500
+      return NextResponse.json(
+        { error: formatGeminiApiError(result.status, result.error) },
+        { status: httpStatus },
+      )
     }
 
     const parsed = parseTopicKeywordGuideResponse(result.text, seedKeyword)

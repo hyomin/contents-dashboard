@@ -1,5 +1,6 @@
 import type { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE_NAME, SESSION_IDLE_MS } from '@/lib/auth/constants'
+import { isWeakDashboardSecret } from '@/lib/dashboard/env-security'
 
 const TOKEN_SEP = '.'
 const encoder = new TextEncoder()
@@ -53,7 +54,9 @@ export function getSessionSecret(): string | null {
   const secret =
     process.env.DASHBOARD_SESSION_SECRET?.trim() ||
     process.env.DASHBOARD_API_SECRET?.trim()
-  return secret || null
+  if (!secret) return null
+  if (process.env.NODE_ENV === 'production' && isWeakDashboardSecret(secret)) return null
+  return secret
 }
 
 export async function signSessionToken(

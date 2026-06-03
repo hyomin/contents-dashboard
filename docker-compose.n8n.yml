@@ -1,5 +1,6 @@
 # n8n 자동화 서버 (대시보드와 별도 실행)
-# 사용: docker compose -f docker-compose.n8n.yml --env-file .env.local up -d
+# 사용: unset GEMINI_API_KEY 2>/dev/null; docker compose -f docker-compose.n8n.yml --env-file .env.local up -d
+# 주의: 터미널에 export 된 GEMINI_API_KEY 가 .env.local 보다 우선해 구 키가 컨테이너에 들어갈 수 있음
 services:
   n8n:
     image: docker.n8n.io/n8nio/n8n

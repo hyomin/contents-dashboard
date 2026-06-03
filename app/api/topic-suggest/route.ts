@@ -56,7 +56,7 @@ async function callGeminiWithFallback(
   prompt: string,
   apiKey: string,
 ): Promise<string> {
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash']
+  const models = ['gemini-2.5-flash', 'gemini-2.5-pro']
 
   for (const model of models) {
     try {

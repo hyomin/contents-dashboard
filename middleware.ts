@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProvidedSecret, verifyDashboardApiAuth } from '@/lib/dashboard/api-auth'
+import { hasValidDashboardApiSecret, verifyDashboardApiAuth } from '@/lib/dashboard/api-auth'
 import { getSessionFromRequest } from '@/lib/auth/session'
 
 const MUTATION_PREFIXES = [
@@ -78,10 +78,10 @@ export async function middleware(request: NextRequest) {
 
   const isMutation =
     method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && needsMutationAuth(pathname)
-  const hasMachineHeader = isMutation && Boolean(getProvidedSecret(request))
+  const hasMachineAuth = hasValidDashboardApiSecret(request)
 
   if (isProtectedApi(pathname)) {
-    if (!hasSession && !hasMachineHeader) {
+    if (!hasSession && !hasMachineAuth) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
     }
   }
@@ -96,7 +96,7 @@ export async function middleware(request: NextRequest) {
   if (!needsMutationAuth(pathname)) return NextResponse.next()
 
   // Edge 미들웨어에서는 DASHBOARD_API_SECRET 검증 불가 → 라우트(Node)에서 재검증
-  if (hasMachineHeader) return NextResponse.next()
+  if (hasMachineAuth) return NextResponse.next()
 
   const denied = await verifyDashboardApiAuth(request)
   if (denied) return denied

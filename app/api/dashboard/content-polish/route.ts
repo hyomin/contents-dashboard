@@ -5,7 +5,11 @@ import {
   type ContentPolishRequest,
   type ContentPolishResult,
 } from '@/lib/dashboard/content-polish'
-import { callGeminiGenerateContent, resolveGeminiModel } from '@/lib/dashboard/gemini-models'
+import {
+  callGeminiGenerateContent,
+  formatGeminiApiError,
+  resolveGeminiModel,
+} from '@/lib/dashboard/gemini-models'
 
 export type { ContentPolishRequest, ContentPolishResult }
 
@@ -27,18 +31,23 @@ export async function POST(req: NextRequest) {
   const prompt = buildContentPolishPrompt(body)
 
   try {
+    const shortform = body.targetFormat === 'shortform' || body.category === 'video'
     const result = await callGeminiGenerateContent(apiKey, model, prompt, {
       temperature: 0.5,
-      maxOutputTokens: 8192,
+      maxOutputTokens: shortform ? 10_240 : 8192,
       timeoutMs: 90_000,
     })
 
     if (!result.ok) {
       console.error('[content-polish] gemini error', result.status, result.error)
-      return NextResponse.json({ error: `Gemini API 오류 (${result.status})` }, { status: 500 })
+      const httpStatus = result.status === 403 ? 503 : result.status >= 500 ? 502 : 500
+      return NextResponse.json(
+        { error: formatGeminiApiError(result.status, result.error) },
+        { status: httpStatus },
+      )
     }
 
-    const parsed = parseContentPolishResponse(result.text, body.title)
+    const parsed = parseContentPolishResponse(result.text, body.title, { shortform })
     if (!parsed) {
       return NextResponse.json({ error: 'AI 응답 파싱에 실패했습니다. 다시 시도해 주세요.' }, { status: 500 })
     }

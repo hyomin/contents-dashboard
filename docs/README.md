@@ -13,6 +13,7 @@
 | [migrations/](./migrations/) | Supabase SQL (`00`~`12`) |
 | [n8n/](./n8n/) | n8n 워크플로 JSON·설정 |
 | [guides/DASHBOARD_USAGE.md](./guides/DASHBOARD_USAGE.md) | 대시보드·n8n 사용법 |
+| [YOUTUBE_SHORTS_BENCHMARK_CHANNELS_20260531.md](./YOUTUBE_SHORTS_BENCHMARK_CHANNELS_20260531.md) | **Shorts 벤치마크** 채널 (국내·해외) |
 
 ## 디렉터리 구조
 

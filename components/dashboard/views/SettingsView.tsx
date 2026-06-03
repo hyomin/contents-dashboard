@@ -5,6 +5,7 @@ import { useTheme, type Theme, RESOLVED_THEME_LABELS } from '@/lib/theme'
 import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import type { ApiServiceStatus, SettingsApiResponse } from '@/app/api/dashboard/settings/route'
+import type { EnvSecurityAudit, GeminiKeyProbeResult } from '@/lib/dashboard/env-security'
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   loadNotificationSettings,
@@ -154,6 +155,126 @@ const CATEGORY_ICONS: Record<ApiServiceStatus['category'], string> = {
   auth: '🔐',
 }
 
+function severityStyles(severity: EnvSecurityAudit['findings'][0]['severity']): string {
+  if (severity === 'critical') return 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30'
+  if (severity === 'warning') return 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30'
+  return 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20'
+}
+
+function EnvSecurityPanel({
+  security,
+  geminiProbe,
+  probingGemini,
+  onRefresh,
+  onProbeGemini,
+}: {
+  security: EnvSecurityAudit | null
+  geminiProbe?: GeminiKeyProbeResult
+  probingGemini: boolean
+  onRefresh: () => void
+  onProbeGemini: () => void
+}) {
+  if (!security) return null
+
+  const critical = security.findings.filter((f) => f.severity === 'critical').length
+  const warning = security.findings.filter((f) => f.severity === 'warning').length
+
+  return (
+    <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <TitleWithHint
+            as="h3"
+            className="text-base font-bold text-gray-900 dark:text-white"
+            hint="서버 환경 변수 기준 점검입니다. 키 값은 노출하지 않습니다. 로테이션·시크릿 강도는 터미널 npm run env:check 로도 확인할 수 있습니다."
+          >
+            🛡️ 보안 · 환경 점검
+          </TitleWithHint>
+          <p className="text-sm text-gray-500 mt-1">
+            {security.ok ? (
+              <span className="text-green-600 dark:text-green-400 font-medium">● critical 없음</span>
+            ) : (
+              <span className="text-red-600 dark:text-red-400 font-medium">
+                ● critical {critical}건 — 조치 필요
+              </span>
+            )}
+            {warning > 0 && (
+              <span className="ml-2 text-amber-600 dark:text-amber-400">warning {warning}건</span>
+            )}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="shrink-0 text-xs px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition"
+        >
+          ↻ 다시 점검
+        </button>
+      </div>
+
+      {security.findings.length === 0 ? (
+        <p className="text-sm text-gray-500">현재 서버 기준으로 critical·warning 항목이 없습니다.</p>
+      ) : (
+        <ul className="space-y-2 mb-4">
+          {security.findings.map((f) => (
+            <li
+              key={f.id}
+              className={`rounded-xl border px-3 py-2.5 text-sm ${severityStyles(f.severity)}`}
+            >
+              <p className="font-semibold text-gray-900 dark:text-white">
+                {f.severity === 'critical' ? '🔴' : f.severity === 'warning' ? '🟡' : '🔵'} {f.title}
+              </p>
+              <p className="text-gray-600 dark:text-gray-400 mt-0.5 text-xs leading-relaxed">{f.detail}</p>
+              {f.action && (
+                <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 font-mono">{f.action}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mb-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">키 로테이션 우선순위</p>
+        <ul className="space-y-1.5 text-xs text-gray-600 dark:text-gray-400">
+          {security.rotation.map((r) => (
+            <li key={r.envKey} className="flex gap-2">
+              <span className="shrink-0">{r.priority === 'high' ? '🔴' : '🟠'}</span>
+              <span>
+                <span className="font-medium text-gray-800 dark:text-gray-200">{r.label}</span>
+                <span className="text-gray-400"> ({r.envKey})</span>
+                <span className="block mt-0.5">{r.reason}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+        <button
+          type="button"
+          disabled={probingGemini}
+          onClick={onProbeGemini}
+          className="text-xs px-3 py-1.5 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium disabled:opacity-50"
+        >
+          {probingGemini ? 'Gemini 확인 중…' : 'Gemini 키 실제 호출 테스트'}
+        </button>
+        {geminiProbe && (
+          <span
+            className={`text-xs self-center ${geminiProbe.ok ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+          >
+            {geminiProbe.ok ? '✅' : '❌'} {geminiProbe.message}
+          </span>
+        )}
+      </div>
+
+      <p className="text-[11px] text-gray-400 mt-3 leading-relaxed">
+        터미널: <code className="font-mono">npm run env:check</code> · 새 시크릿:{' '}
+        <code className="font-mono">npm run env:secret</code> · Gemini 유출 차단 시 AI Studio에서 재발급 후 dev 재시작·n8n 재기동
+      </p>
+    </section>
+  )
+}
+
 function ApiServiceRow({ svc }: { svc: ApiServiceStatus }) {
   const [pinging, setPinging] = useState(false)
   const [pingResult, setPingResult] = useState<'ok' | 'fail' | null>(null)
@@ -249,16 +370,33 @@ export default function SettingsView({ addToast }: { addToast: AddToast }) {
 
   // ── API 연동 현황 ─────────────────────────────────────────────────
   const [services, setServices] = useState<ApiServiceStatus[]>([])
+  const [security, setSecurity] = useState<EnvSecurityAudit | null>(null)
+  const [geminiProbe, setGeminiProbe] = useState<GeminiKeyProbeResult | undefined>()
   const [apiLoading, setApiLoading] = useState(true)
+  const [probingGemini, setProbingGemini] = useState(false)
   const [apiCategory, setApiCategory] = useState<'all' | ApiServiceStatus['category']>('all')
 
-  useEffect(() => {
-    fetch('/api/dashboard/settings')
+  const loadSettings = useCallback((opts?: { probeGemini?: boolean }) => {
+    const q = opts?.probeGemini ? '?probe=gemini' : ''
+    setApiLoading(true)
+    if (opts?.probeGemini) setProbingGemini(true)
+    return fetch(`/api/dashboard/settings${q}`)
       .then((r) => r.json())
-      .then((d: SettingsApiResponse) => setServices(d.services ?? []))
-      .catch(() => {})
-      .finally(() => setApiLoading(false))
-  }, [])
+      .then((d: SettingsApiResponse) => {
+        setServices(d.services ?? [])
+        setSecurity(d.security ?? null)
+        if (d.geminiProbe) setGeminiProbe(d.geminiProbe)
+      })
+      .catch(() => addToast('설정 정보를 불러오지 못했습니다', 'error'))
+      .finally(() => {
+        setApiLoading(false)
+        setProbingGemini(false)
+      })
+  }, [addToast])
+
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
 
   const categories = ['all', 'database', 'api', 'webhook', 'auth'] as const
   const filteredServices = apiCategory === 'all'
@@ -378,6 +516,14 @@ export default function SettingsView({ addToast }: { addToast: AddToast }) {
         </div>
       </section>
 
+      <EnvSecurityPanel
+        security={security}
+        geminiProbe={geminiProbe}
+        probingGemini={probingGemini}
+        onRefresh={() => loadSettings()}
+        onProbeGemini={() => loadSettings({ probeGemini: true })}
+      />
+
       {/* ═══════════════════════════════════════════
           🔌 API 연동 현황
       ═══════════════════════════════════════════ */}
@@ -407,14 +553,7 @@ export default function SettingsView({ addToast }: { addToast: AddToast }) {
           </div>
           <button
             type="button"
-            onClick={() => {
-              setApiLoading(true)
-              fetch('/api/dashboard/settings')
-                .then((r) => r.json())
-                .then((d: SettingsApiResponse) => setServices(d.services ?? []))
-                .catch(() => {})
-                .finally(() => setApiLoading(false))
-            }}
+            onClick={() => loadSettings()}
             className="shrink-0 text-xs px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition"
           >
             ↻ 새로고침

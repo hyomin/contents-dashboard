@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "verify:collect": "node scripts/verify-youtube-pipeline.mjs"
+    "verify:collect": "node scripts/verify-youtube-pipeline.mjs",
+    "env:check": "npx --yes tsx scripts/env-check.ts",
+    "env:secret": "node scripts/generate-dashboard-secret.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

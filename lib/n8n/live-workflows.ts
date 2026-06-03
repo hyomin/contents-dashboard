@@ -174,8 +174,8 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     roadmapServiceIds: ['longform-script'],
     linkedViewIds: ['content-guide', 'generation-history', 'content-studio'],
     dashboardApis: [
-      { method: 'POST', path: '/api/dashboard/script-guide', label: '스크립트 가이드 생성 (n8n 1순위)' },
-      { method: 'POST', path: '/api/dashboard/content-polish', label: '내 콘텐츠화 (대시보드 전용)' },
+      { method: 'POST', path: '/api/dashboard/script-guide', label: '발행용 콘텐츠 생성 (Gemini 1회)' },
+      { method: 'POST', path: '/api/dashboard/content-polish', label: '콘텐츠 정재 (레거시·수동)' },
       { method: 'GET', path: '/api/dashboard/generation-history', label: '생성 히스토리' },
     ],
   },

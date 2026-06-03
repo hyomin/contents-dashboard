@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { API_BILLING_NOTE, API_SERVICE_BILLING, WEBHOOK_BILLING, WEBHOOK_BILLING_NOTE } from '@/lib/dashboard/service-billing'
+import {
+  auditEnvSecurity,
+  probeGeminiApiKey,
+  type EnvSecurityAudit,
+  type GeminiKeyProbeResult,
+} from '@/lib/dashboard/env-security'
 
 export type BillingTier = 'free' | 'paid'
 
@@ -44,10 +50,13 @@ function billingFor(key: string, category: ApiServiceStatus['category']): Pick<A
 
 export interface SettingsApiResponse {
   services: ApiServiceStatus[]
+  security: EnvSecurityAudit
+  geminiProbe?: GeminiKeyProbeResult
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const e = process.env
+  const probeGemini = request.nextUrl.searchParams.get('probe') === 'gemini'
 
   const raw: Omit<ApiServiceStatus, 'billing' | 'billingNote'>[] = [
     {
@@ -162,6 +171,14 @@ export async function GET() {
       usedIn: ['대시보드 접근 인증', '세션 관리'],
       category: 'auth',
     },
+    {
+      key: 'DASHBOARD_API_SECRET',
+      name: '대시보드 API 시크릿',
+      configured: !!e.DASHBOARD_API_SECRET?.trim(),
+      preview: maskValue(e.DASHBOARD_API_SECRET),
+      usedIn: ['n8n → 대시보드 API', 'cron 자동 수집', '수집·쓰기 뮤테이션 인증'],
+      category: 'auth',
+    },
   ]
 
   const services: ApiServiceStatus[] = raw.map((s) => ({
@@ -169,7 +186,13 @@ export async function GET() {
     ...billingFor(s.key, s.category),
   }))
 
-  return NextResponse.json({ services } satisfies SettingsApiResponse)
+  const security = auditEnvSecurity(e)
+  let geminiProbe: GeminiKeyProbeResult | undefined
+  if (probeGemini && e.GEMINI_API_KEY?.trim()) {
+    geminiProbe = await probeGeminiApiKey(e.GEMINI_API_KEY)
+  }
+
+  return NextResponse.json({ services, security, geminiProbe } satisfies SettingsApiResponse)
 }
 
 /** n8n 웹훅 연결 테스트 (HEAD/POST probe) */

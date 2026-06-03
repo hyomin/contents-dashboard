@@ -72,8 +72,7 @@ async function callGemini(
   const apiKey = process.env.GEMINI_API_KEY?.trim()
   if (!apiKey) return { text: '', sources: [] }
 
-  // 시도 순서: 2.5 Flash → 2.0 Flash (fallback)
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash']
+  const models = ['gemini-2.5-flash', 'gemini-2.5-pro']
 
   for (const model of models) {
     try {
@@ -83,7 +82,9 @@ async function callGemini(
           temperature: 0.4,
           maxOutputTokens: 2048,
           // 2.5 Flash Thinking 모드 비활성화 → 빠르고 예측 가능한 JSON 출력
-          ...(model === 'gemini-2.5-flash' ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+          ...(model.startsWith('gemini-2.5')
+            ? { thinkingConfig: { thinkingBudget: 0 } }
+            : {}),
         },
       }
       if (useSearch) {

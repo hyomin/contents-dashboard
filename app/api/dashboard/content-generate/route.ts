@@ -13,11 +13,16 @@
  *   서버에서 최신 Outlier 제목·트렌딩 키워드·RSS 주제를 자동으로 fetch해 merge한다.
 */
 import { NextRequest, NextResponse } from 'next/server'
-import { callGeminiGenerateContent, resolveGeminiModel } from '@/lib/dashboard/gemini-models'
+import {
+  callGeminiGenerateContent,
+  formatGeminiApiError,
+  resolveGeminiModel,
+} from '@/lib/dashboard/gemini-models'
 import {
   buildReferencePromptBlock,
   type AiScriptGuideReference,
 } from '@/lib/dashboard/guide-reference-modes'
+import { buildShortformCategoryPromptBlock } from '@/lib/dashboard/shortform-categories'
 
 export type ContentFormat = 'longform' | 'shortform' | 'carousel' | 'blog' | 'sns-caption'
 
@@ -39,6 +44,7 @@ export interface ContentGenerateRequest {
     suppressAutoContext?: boolean
     /** 구조·내용 레퍼런스 (신규 — outlierTitles 대체 가능) */
     guideReferences?: AiScriptGuideReference[]
+    shortformCategoryId?: string
   }
   /** Gemini 모델 ID */
   aiModel?: string
@@ -158,11 +164,12 @@ ${topicLine}${ctx}${src}
 }`,
       }
 
-    case 'shortform':
+    case 'shortform': {
+      const shortformBlock = buildShortformCategoryPromptBlock(req.context?.shortformCategoryId)
       return {
         maxOutputTokens: 2048,
         prompt: `${base} ${isTransform ? '숏폼(YouTube Shorts / Reels, 60초 이내) 스크립트로 변환' : '숏폼(60초) 스크립트를 생성'}해주세요.
-${topicLine}${ctx}${src}
+${topicLine}${shortformBlock}${ctx}${src}
 
 반드시 JSON만 응답:
 {
@@ -175,6 +182,7 @@ ${topicLine}${ctx}${src}
   "fullScript": "전체 말할 대본 (자연스러운 구어체)"
 }`,
       }
+    }
 
     case 'carousel':
       return {
@@ -329,7 +337,11 @@ export async function POST(req: NextRequest) {
 
     if (!result.ok) {
       console.error('[content-generate] gemini error', result.status, result.error)
-      return NextResponse.json({ error: `Gemini API 오류 (${result.status})` }, { status: 500 })
+      const httpStatus = result.status === 403 ? 503 : result.status >= 500 ? 502 : 500
+      return NextResponse.json(
+        { error: formatGeminiApiError(result.status, result.error) },
+        { status: httpStatus },
+      )
     }
 
     const text = result.text

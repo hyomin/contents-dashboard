@@ -1,3 +1,9 @@
+import {
+  buildShortformCategoryPromptBlock,
+  buildTopicGuideAngleRules,
+  findShortformCategory,
+} from '@/lib/dashboard/shortform-categories'
+
 export interface TopicKeywordGuideSuggestion {
   id: string
   /** 발행 주제 필드에 매핑되는 제목 */
@@ -14,12 +20,31 @@ export interface TopicKeywordGuideResult {
   generatedAt: string
 }
 
-export function buildTopicKeywordGuidePrompt(seedKeyword: string, category?: string): string {
-  const categoryHint = category
-    ? `\n선택 포맷 힌트: ${category === 'writing' ? '블로그·글쓰기' : category === 'image' ? '인스타 캐러셀·이미지' : '영상·롱폼'}`
-    : ''
+export function buildTopicKeywordGuidePrompt(
+  seedKeyword: string,
+  category?: string,
+  shortformCategoryId?: string,
+): string {
+  let categoryHint = ''
+  if (category === 'writing') categoryHint = '\n선택 포맷 힌트: 블로그·글쓰기'
+  else if (category === 'image') categoryHint = '\n선택 포맷 힌트: 인스타 캐러셀·이미지'
+  else if (category === 'video') {
+    const cat = findShortformCategory(shortformCategoryId)
+    categoryHint = '\n선택 포맷 힌트: YouTube Shorts·Reels·TikTok 숏폼 (60초 이내)'
+    categoryHint += buildShortformCategoryPromptBlock(shortformCategoryId)
+    categoryHint += buildTopicGuideAngleRules(shortformCategoryId)
+    if (!cat) {
+      categoryHint +=
+        '\n⚠️ 숏폼 카테고리가 없으면 angle을 일반 숏폼으로만 작성.'
+    }
+  }
 
-  return `당신은 콘텐츠 기획 에디터입니다. 사용자가 «주제 가이드 키워드»를 입력했습니다. 이 키워드와 **직접 관련되거나**, 독자에게 **흥미롭게 다룰 수 있는** 발행 주제 예시를 제안하세요.
+  const angleRule =
+    category === 'video'
+      ? '5. **angle (필수)**: 위 «숏폼 카테고리» 장르에 맞는 **스토리 전개·톤·엔딩**만 80~150자. 다른 장르(예: 썰↔개그) 톤 혼용 금지.'
+      : '5. angle은 다룰 핵심 정보·스토리 포인트 (선택, 60자 내외).'
+
+  return `당신은 숏폼·콘텐츠 기획 에디터입니다. 사용자가 «주제 가이드 키워드»를 입력했습니다. 이 키워드와 관련된 **발행 주제 후보**를 제안하세요. 제안마다 **선택된 숏폼 카테고리 장르**에 맞게 angle을 반드시 다르게 쓰세요.
 ${categoryHint}
 
 ## 입력 키워드
@@ -27,10 +52,10 @@ ${seedKeyword.trim()}
 
 ## 규칙
 1. **3~10개** 제안 (키워드가 좁으면 3~5개, 넓으면 최대 10개).
-2. 각 제안은 **실제로 발행 가능한 구체적 주제·키워드 문장** (15~60자 내외).
-3. 같은 의미 반복 금지. 각도·시각·대상·시점을 다르게.
-4. hook은 «왜 클릭/관심을 끌 수 있는지» 1문장 (40자 내외).
-5. angle은 다룰 핵심 정보·스토리 포인트 (선택, 60자 내외).
+2. title: 발행 주제 문장 (15~60자). 같은 뜻 반복 금지 — **전개·관점·결말 유형**을 바꿀 것.
+3. hook: 클릭/관심 이유 1문장 (40자 내외).
+4. title만 바꾸고 angle이 비슷한 제안 금지.
+${angleRule}
 
 반드시 JSON만 응답:
 {
@@ -39,7 +64,7 @@ ${seedKeyword.trim()}
       "id": "1",
       "title": "발행 주제로 쓸 구체적 제목·키워드",
       "hook": "흥미 포인트 한 줄",
-      "angle": "다룰 관련 정보·각도"
+      "angle": "이 숏폼 카테고리로 풀 스토리 전개·톤·엔딩 (80~150자)"
     }
   ]
 }`

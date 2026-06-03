@@ -6,9 +6,11 @@ export interface GeminiModelOption {
 
 export const GEMINI_MODEL_OPTIONS: GeminiModelOption[] = [
   { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', hint: '기본 · 빠름 · 균형' },
-  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', hint: '안정 · 경량' },
   { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', hint: '고품질 · 느림' },
 ]
+
+/** 신규 API 키·계정에서 404 나는 구형 모델 — 폴백에서 제외 */
+export const GEMINI_FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro'] as const
 
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
 
@@ -79,6 +81,28 @@ export async function callGeminiGenerateContent(
       error: err instanceof Error ? err.message : 'Gemini 호출 오류',
     }
   }
+}
+
+export function formatGeminiApiError(status: number, rawError: string): string {
+  try {
+    const parsed = JSON.parse(rawError) as {
+      error?: { message?: string }
+    }
+    const msg = parsed.error?.message?.trim()
+    if (msg?.toLowerCase().includes('leaked')) {
+      return 'GEMINI_API_KEY가 유출로 차단되었습니다. Google AI Studio에서 새 키를 발급한 뒤 .env.local의 GEMINI_API_KEY를 교체하고 개발 서버를 재시작하세요.'
+    }
+    if (msg?.includes('API key not valid') || msg?.includes('API_KEY_INVALID')) {
+      return 'GEMINI_API_KEY가 올바르지 않습니다. .env.local의 키를 확인하세요.'
+    }
+    if (status === 429 || msg?.toLowerCase().includes('quota') || msg?.toLowerCase().includes('rate')) {
+      return 'Gemini API 할당량 또는 요청 한도를 초과했습니다. 잠시 후 다시 시도하세요.'
+    }
+    if (msg) return `Gemini API 오류: ${msg}`
+  } catch {
+    // rawError is not JSON
+  }
+  return `Gemini API 오류 (${status})`
 }
 
 export function extractGeminiTextParts(data: {

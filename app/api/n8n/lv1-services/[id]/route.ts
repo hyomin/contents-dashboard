@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { headersForDashboardInternalFetch } from '@/lib/dashboard/api-auth'
 import { getAutomationService } from '@/lib/n8n/research-roadmap'
 import { parseJsonBody } from '@/lib/utils/request'
 
@@ -213,7 +214,7 @@ export async function POST(
       const keywords = Array.isArray(body.keywords) ? body.keywords : []
       const genRes = await fetch(`${origin}/api/dashboard/content-generate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headersForDashboardInternalFetch(req),
         body: JSON.stringify({
           targetFormat,
           topic,

@@ -3,7 +3,7 @@ import type { GuideCategory } from '@/lib/dashboard/content-creation-guide'
 import type { AiScriptGuideReference } from '@/lib/dashboard/content-creation-guide'
 
 export interface ScriptGuideOutput {
-  mode: 'n8n' | 'dashboard' | 'gemini'
+  mode: 'n8n' | 'dashboard' | 'gemini' | 'direct'
   category: GuideCategory
   intent: string
   targetFormat: ContentFormat
@@ -19,9 +19,13 @@ export interface ScriptGuideOutput {
   message?: string
 }
 
-export function categoryToTargetFormat(category: GuideCategory): ContentFormat {
+export function categoryToTargetFormat(
+  category: GuideCategory,
+  intent?: 'longform_video' | 'shortform_video' | 'blog' | 'carousel' | 'general',
+): ContentFormat {
   if (category === 'writing') return 'blog'
   if (category === 'image') return 'carousel'
+  if (intent === 'shortform_video' || category === 'video') return 'shortform'
   return 'longform'
 }
 
