@@ -229,7 +229,7 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
             <p className="text-4xl mb-3">🤖</p>
             <p className="text-sm font-medium">인사이트를 불러오지 못했습니다.</p>
             <p className="text-xs mt-1 text-gray-300">
-              GEMINI_API_KEY 설정 여부나 네트워크 상태를 확인해주세요.
+              N8N_WEBHOOK_AI_INSIGHTS 연동 여부나 n8n·네트워크 상태를 확인해주세요.
             </p>
             <button
               type="button"

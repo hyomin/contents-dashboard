@@ -50,6 +50,42 @@ export function hasValidDashboardApiSecret(request: NextRequest): boolean {
   return Boolean(provided && safeEqual(provided, secret))
 }
 
+function getUsableCronSecret(): string | null {
+  const secret = process.env.CRON_SECRET?.trim()
+  if (!secret || secret.length < 24) return null
+  if (process.env.NODE_ENV === 'production' && isWeakDashboardSecret(secret)) return null
+  return secret
+}
+
+/** Vercel Cron 전용 — CRON_SECRET Bearer */
+export function hasValidCronSecret(request: NextRequest): boolean {
+  const secret = getUsableCronSecret()
+  if (!secret) return false
+  const provided = getProvidedSecret(request)
+  return Boolean(provided && safeEqual(provided, secret))
+}
+
+/** Vercel 배포에서만 x-vercel-cron 헤더 신뢰 (CRON_SECRET 미설정 시 폴백) */
+export function isTrustedVercelCronRequest(request: NextRequest): boolean {
+  if (process.env.VERCEL !== '1') return false
+  return request.headers.get('x-vercel-cron') === '1'
+}
+
+export function hasValidCronAuth(request: NextRequest): boolean {
+  return (
+    hasValidDashboardApiSecret(request) ||
+    hasValidCronSecret(request) ||
+    isTrustedVercelCronRequest(request)
+  )
+}
+
+/** 라우트 핸들러 이중 방어 — null이면 통과 */
+export async function denyUnlessDashboardMutationAuth(
+  request: NextRequest,
+): Promise<NextResponse | null> {
+  return verifyDashboardApiAuth(request)
+}
+
 /** 대시보드 UI(fetch)에서 오는 동일 출처 요청 — API 키 없이 허용 (비밀키는 브라우저에 넣지 않음) */
 export function isSameOriginBrowserRequest(request: NextRequest): boolean {
   const secFetchSite = request.headers.get('sec-fetch-site')

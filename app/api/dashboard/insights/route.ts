@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 import { buildInsights, buildKeywordScopedInsights, extractTrendingKeywords, textMatchesKeywords } from '@/lib/data/analytics-from-videos'
 import { getOutlierVideos, getVideoStats, getVideosForAnalytics, getChannels } from '@/lib/data/queries'
 import { getRssTopicCandidates } from '@/lib/data/rss-topic-collect'
+import {
+  invokeAiInsightsN8n,
+  isAiInsightsN8nConfigured,
+  isDashboardGeminiDirectEnabled,
+} from '@/lib/dashboard/n8n-ai'
 
 export interface InsightItem {
   icon: string
@@ -158,12 +163,23 @@ function keywordCacheKey(keywords: string[]): string {
   return keywords.map((k) => k.toLowerCase()).sort().join('|')
 }
 
+function summarizeOutliers(
+  outliers: Awaited<ReturnType<typeof getOutlierVideos>>,
+  limit = 10,
+) {
+  return outliers.slice(0, limit).map((v) => ({
+    title: v.title,
+    vsAvg: Number(v.vs_avg),
+    channel: v.channel_name,
+  }))
+}
+
 async function buildKeywordScopedSections(
   keywords: string[],
   videos: Awaited<ReturnType<typeof getVideosForAnalytics>>,
   outliers: Awaited<ReturnType<typeof getOutlierVideos>>,
   rssTopics: Awaited<ReturnType<typeof getRssTopicCandidates>>,
-  hasGemini: boolean,
+  useGeminiDirect: boolean,
 ): Promise<InsightSection[]> {
   const matchingVideos = videos.filter((v) => textMatchesKeywords(v.title, keywords))
   const matchingOutliers = outliers.filter((v) => textMatchesKeywords(v.title, keywords))
@@ -193,7 +209,7 @@ async function buildKeywordScopedSections(
     sampleTitles,
   })
 
-  if (!hasGemini) {
+  if (!useGeminiDirect) {
     return [
       {
         type: 'personal',
@@ -264,8 +280,38 @@ export async function GET(request: Request) {
       getOutlierVideos(1.5, 30),
       getRssTopicCandidates(30),
     ])
-    const hasGemini = !!process.env.GEMINI_API_KEY?.trim()
-    const sections = await buildKeywordScopedSections(keywordsParam, videos, outliers, rssTopics, hasGemini)
+
+    if (isAiInsightsN8nConfigured()) {
+      const n8nSections = await invokeAiInsightsN8n({
+        scope: 'keyword',
+        keywords: keywordsParam,
+        outliers: summarizeOutliers(
+          outliers.filter((v) => textMatchesKeywords(v.title, keywordsParam)),
+        ),
+        rssTopics: rssTopics.slice(0, 12).map((t) => t.ai_title ?? t.title),
+        videoCount: videos.length,
+      })
+      if (n8nSections) {
+        keywordCache.set(cacheKey, { sections: n8nSections, cachedAt: Date.now() })
+        return NextResponse.json({
+          sections: n8nSections,
+          cached: false,
+          scoped: true,
+          keywords: keywordsParam,
+          mode: 'n8n',
+        })
+      }
+    }
+
+    const useGeminiDirect =
+      isDashboardGeminiDirectEnabled() && !!process.env.GEMINI_API_KEY?.trim()
+    const sections = await buildKeywordScopedSections(
+      keywordsParam,
+      videos,
+      outliers,
+      rssTopics,
+      useGeminiDirect,
+    )
     keywordCache.set(cacheKey, { sections, cachedAt: Date.now() })
     return NextResponse.json({ sections, cached: false, scoped: true, keywords: keywordsParam })
   }
@@ -288,12 +334,33 @@ export async function GET(request: Request) {
   const trending = extractTrendingKeywords(videos, 8)
 
   const apiKey = process.env.GEMINI_API_KEY?.trim()
-  const hasGemini = !!apiKey
+  const useGeminiDirect = isDashboardGeminiDirectEnabled() && !!apiKey
+
+  if (isAiInsightsN8nConfigured()) {
+    const n8nSections = await invokeAiInsightsN8n({
+      scope: 'full',
+      stats: {
+        totalVideos: stats.total,
+        avgVsAvg: stats.avgVsAvg,
+        outlierCount: outliers.length,
+        channelCount: channels.length,
+      },
+      outliers: summarizeOutliers(outliers),
+      trending: trending.map((k) => k.keyword),
+      rssTopics: rssTopics.slice(0, 12).map((t) => t.ai_title ?? t.title),
+      categories: Array.from(
+        new Set(channels.map((c) => (c as { category?: string }).category).filter(Boolean)),
+      ),
+    })
+    if (n8nSections) {
+      cache.data = { sections: n8nSections, cachedAt: Date.now() }
+      return NextResponse.json({ sections: n8nSections, cached: false, mode: 'n8n' })
+    }
+  }
 
   let sections: InsightSection[]
 
-  if (!hasGemini) {
-    // Gemini 없으면 규칙 기반 fallback
+  if (!useGeminiDirect) {
     const fallback = buildInsights({
       totalVideos: stats.total,
       avgVsAvg: stats.avgVsAvg,
@@ -313,10 +380,10 @@ export async function GET(request: Request) {
         isAi: false,
       },
     ]
-    return NextResponse.json({ sections, cached: false })
+    return NextResponse.json({ sections, cached: false, mode: 'rules' })
   }
 
-  // ── 컨텍스트 준비 ─────────────────────────────────────────────
+  // ── 컨텍스트 준비 (DASHBOARD_GEMINI_DIRECT=1 일 때만) ─────────
   const outlierTitles = outliers.slice(0, 10).map((v, i) => `${i + 1}. "${v.title}" (vs.avg ${Number(v.vs_avg).toFixed(1)}x)`).join('\n')
   const keywordList = trending.slice(0, 10).map((k) => k.keyword).join(', ')
   const rssList = rssTopics.slice(0, 12).map((t, i) => `${i + 1}. ${t.ai_title ?? t.title}`).join('\n')

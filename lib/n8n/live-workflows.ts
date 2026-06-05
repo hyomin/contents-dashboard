@@ -198,6 +198,25 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
       { method: 'GET', path: '/api/dashboard/videos?type=outliers&limit=10', label: 'Outlier 영상 조회' },
     ],
   },
+  {
+    no: 'W10',
+    key: 'ai-insights',
+    name: 'AI 인사이트 (Gemini + 수집 데이터)',
+    webhookPath: 'ai-insights',
+    envWebhookKey: 'N8N_WEBHOOK_AI_INSIGHTS',
+    workflowFile: 'N8N_AI_INSIGHTS.json',
+    triggers: ['webhook', 'manual'],
+    scheduleHint: '수동 실행 (AI 인사이트·개요 키워드 분석 시)',
+    description:
+      '대시보드가 전달한 Outlier·트렌딩·RSS·통계 → Gemini가 korea/personal/global 인사이트 JSON 생성. insights API 1순위.',
+    coreNodes: 'Webhook · Code · Gemini API',
+    roadmapServiceIds: ['weekly-trend-report'],
+    linkedViewIds: ['ai-insight', 'overview'],
+    dashboardApis: [
+      { method: 'GET', path: '/api/dashboard/insights', label: 'AI 인사이트 조회' },
+      { method: 'GET', path: '/api/dashboard/insights?keywords=', label: '키워드 스코프 인사이트' },
+    ],
+  },
 ]
 
 export interface N8nArchivedWorkflow {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { denyUnlessDashboardMutationAuth } from '@/lib/dashboard/api-auth'
 import type { AiScriptGuideRequestContext } from '@/lib/dashboard/content-creation-guide'
 import type { ContentPolishResult } from '@/lib/dashboard/content-polish'
 import {
@@ -11,6 +12,11 @@ import {
   formatGeminiApiError,
   resolveGeminiModel,
 } from '@/lib/dashboard/gemini-models'
+import {
+  getLongformScriptWebhookUrl,
+  invokeLongformScriptN8n,
+  isDashboardGeminiDirectEnabled,
+} from '@/lib/dashboard/n8n-ai'
 import { type ScriptGuideOutput } from '@/lib/dashboard/script-guide-output'
 
 export type { ScriptGuideOutput }
@@ -27,7 +33,7 @@ async function generateDirectPublish(
   if (!apiKey) {
     return {
       output: null,
-      error: 'GEMINI_API_KEY가 .env.local에 없습니다. dev 서버 재시작 후 다시 시도하세요.',
+      error: 'GEMINI_API_KEY가 없습니다. n8n Webhook(N8N_WEBHOOK_LONGFORM_SCRIPT)을 설정하세요.',
     }
   }
 
@@ -65,12 +71,16 @@ async function generateDirectPublish(
   return {
     output: {
       ...parsed.script,
+      mode: 'direct',
       polished: parsed.polished,
     },
   }
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await denyUnlessDashboardMutationAuth(req)
+  if (denied) return denied
+
   const body = await req.json() as { context?: AiScriptGuideRequestContext }
   const ctx = body.context
 
@@ -83,25 +93,51 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '발행 주제(키워드)를 입력해 주세요' }, { status: 400 })
   }
 
-  let output: ScriptGuideResponse | null = null
-  let lastError: string | undefined
-
+  // 1순위: n8n longform-script (Gemini는 n8n Docker 환경에서 호출)
   try {
-    const result = await generateDirectPublish(ctx)
-    output = result.output
-    if (result.error) lastError = result.error
+    const n8nResult = await invokeLongformScriptN8n(ctx)
+    if (n8nResult) {
+      return NextResponse.json({
+        ...n8nResult.script,
+        polished: n8nResult.polished,
+      })
+    }
   } catch (err) {
-    console.error('[script-guide] direct publish failed', err)
-    lastError = err instanceof Error ? err.message : '생성 오류'
+    console.error('[script-guide] n8n longform-script failed', err)
   }
 
-  if (!output) {
-    const hasGemini = !!process.env.GEMINI_API_KEY?.trim()
-    const hint = hasGemini
-      ? `마지막 오류: ${lastError ?? '알 수 없음'}.`
-      : 'GEMINI_API_KEY가 .env.local에 설정되어 있는지 확인하고 npm run dev를 재시작하세요.'
-    return NextResponse.json({ error: `발행용 콘텐츠 생성에 실패했습니다. ${hint}` }, { status: 500 })
+  // 2순위: 대시보드 직접 Gemini (DASHBOARD_GEMINI_DIRECT=1 일 때만)
+  if (isDashboardGeminiDirectEnabled()) {
+    let output: ScriptGuideResponse | null = null
+    let lastError: string | undefined
+
+    try {
+      const result = await generateDirectPublish(ctx)
+      output = result.output
+      if (result.error) lastError = result.error
+    } catch (err) {
+      console.error('[script-guide] direct publish failed', err)
+      lastError = err instanceof Error ? err.message : '생성 오류'
+    }
+
+    if (output) return NextResponse.json(output)
+
+    return NextResponse.json(
+      {
+        error: `발행용 콘텐츠 생성에 실패했습니다. ${lastError ?? '알 수 없음'}`,
+        mode: 'gemini-direct',
+      },
+      { status: 500 },
+    )
   }
 
-  return NextResponse.json(output)
+  return NextResponse.json(
+    {
+      error:
+        'n8n 콘텐츠 생성 Webhook에 연결되지 않았습니다. .env.local에 N8N_WEBHOOK_LONGFORM_SCRIPT를 설정하고 n8n에서 [W08] 워크플로를 활성화하세요. (Gemini API 키는 n8n Docker 환경에만 두면 됩니다)',
+      mode: 'n8n-required',
+      webhookHint: getLongformScriptWebhookUrl(),
+    },
+    { status: 503 },
+  )
 }

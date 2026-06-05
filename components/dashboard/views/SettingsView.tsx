@@ -69,6 +69,7 @@ const DEFAULT_SCHEDULES: WebhookSchedule[] = [
   { key: 'N8N_WEBHOOK_TISTORY_COLLECT',       label: '티스토리 수집',           icon: '🟠', defaultInterval: 'daily',  enabled: true,  interval: 'daily'  },
   { key: 'N8N_WEBHOOK_LONGFORM_SCRIPT',       label: '롱폼 스크립트 생성',      icon: '🎬', defaultInterval: 'manual', enabled: false, interval: 'manual' },
   { key: 'N8N_WEBHOOK_TOPIC_SUGGEST',         label: '주제 선별 AI',            icon: '🎯', defaultInterval: 'manual', enabled: false, interval: 'manual' },
+  { key: 'N8N_WEBHOOK_AI_INSIGHTS',           label: 'AI 인사이트',             icon: '💡', defaultInterval: 'manual', enabled: false, interval: 'manual' },
 ]
 
 const LS_KEY = 'dashboard_n8n_schedules'

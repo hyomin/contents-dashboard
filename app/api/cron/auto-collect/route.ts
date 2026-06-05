@@ -3,23 +3,18 @@
  * 12시간마다 대시보드 내부에서 모든 운영 워크플로를 순차 실행합니다.
  *
  * 호출 방법:
- *   - Vercel Cron: vercel.json의 crons 설정 (0 slash12 * * *)
- *   - 서버 crontab: 0 slash12 * * * curl -X POST http://localhost:3000/api/cron/auto-collect -H "Authorization: Bearer $DASHBOARD_API_SECRET"
+ *   - Vercel Cron: vercel.json + CRON_SECRET (Vercel이 Bearer 자동 전송)
+ *   - 서버 crontab: curl -H "Authorization: Bearer $CRON_SECRET" (또는 DASHBOARD_API_SECRET)
  *   - n8n Schedule 노드: 각 워크플로 JSON의 hoursInterval: 12
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { N8N_LIVE_WORKFLOWS, N8N_SCHEDULE_INTERVAL_HOURS } from '@/lib/n8n/live-workflows'
-import { hasValidDashboardApiSecret } from '@/lib/dashboard/api-auth'
+import { hasValidCronAuth } from '@/lib/dashboard/api-auth'
 import { invokeN8nWebhook } from '@/lib/n8n/invoke-webhook'
 
-const CRON_SECRET = process.env.DASHBOARD_API_SECRET
-
-function authOk(req: NextRequest): boolean {
-  if (hasValidDashboardApiSecret(req)) return true
-  // Vercel Cron은 Authorization 헤더 없이 내부에서 호출
-  return req.headers.get('x-vercel-cron') === '1'
-}
+const CRON_BEARER_SECRET =
+  process.env.CRON_SECRET?.trim() || process.env.DASHBOARD_API_SECRET?.trim()
 
 interface RunResult {
   no: string
@@ -32,7 +27,7 @@ interface RunResult {
 }
 
 export async function POST(req: NextRequest) {
-  if (!authOk(req)) {
+  if (!hasValidCronAuth(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -72,7 +67,7 @@ export async function POST(req: NextRequest) {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${CRON_SECRET}`,
+              Authorization: `Bearer ${CRON_BEARER_SECRET}`,
             },
             body: JSON.stringify({ source: 'cron' }),
             signal: AbortSignal.timeout(60000),
@@ -106,7 +101,7 @@ export async function POST(req: NextRequest) {
   let insightsBusted = false
   try {
     const insightsRes = await fetch(`${origin}/api/dashboard/insights?bust=1`, {
-      headers: { Authorization: `Bearer ${CRON_SECRET}` },
+      headers: { Authorization: `Bearer ${CRON_BEARER_SECRET}` },
       signal: AbortSignal.timeout(30000),
     })
     insightsBusted = insightsRes.ok
@@ -126,8 +121,11 @@ export async function POST(req: NextRequest) {
   })
 }
 
-/** GET: 스케줄 정보 조회 (인증 불필요) */
-export async function GET() {
+/** GET: 스케줄 정보 조회 (프로덕션·비-GET mutation은 middleware에서 cron 인증) */
+export async function GET(req: NextRequest) {
+  if (process.env.NODE_ENV === 'production' && !hasValidCronAuth(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   return NextResponse.json({
     description: '12시간마다 모든 운영 워크플로를 자동 실행하는 cron 엔드포인트',
     intervalHours: N8N_SCHEDULE_INTERVAL_HOURS,

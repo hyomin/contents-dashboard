@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { denyUnlessDashboardMutationAuth } from '@/lib/dashboard/api-auth'
+import { requireGeminiDirectOrRespond } from '@/lib/dashboard/n8n-ai'
 import type { GuideCategory } from '@/lib/dashboard/content-creation-guide'
 import { callGeminiGenerateContent, resolveGeminiModel } from '@/lib/dashboard/gemini-models'
 import {
@@ -16,10 +18,13 @@ interface ReferenceSuggestSitesRequest {
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY?.trim()
-  if (!apiKey) {
-    return NextResponse.json({ error: 'GEMINI_API_KEY가 설정되지 않았습니다.' }, { status: 503 })
-  }
+  const denied = await denyUnlessDashboardMutationAuth(req)
+  if (denied) return denied
+
+  const geminiBlocked = requireGeminiDirectOrRespond('레퍼런스 사이트 추천')
+  if (geminiBlocked) return geminiBlocked
+
+  const apiKey = process.env.GEMINI_API_KEY!.trim()
 
   const body = (await req.json()) as ReferenceSuggestSitesRequest
   const publishTopic = body.publishTopic?.trim() ?? ''

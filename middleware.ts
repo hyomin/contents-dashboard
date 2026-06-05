@@ -1,36 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasValidDashboardApiSecret, verifyDashboardApiAuth } from '@/lib/dashboard/api-auth'
+import {
+  hasValidCronAuth,
+  hasValidDashboardApiSecret,
+  verifyDashboardApiAuth,
+} from '@/lib/dashboard/api-auth'
 import { getSessionFromRequest } from '@/lib/auth/session'
-
-const MUTATION_PREFIXES = [
-  '/api/dashboard/collect',
-  '/api/dashboard/collect-all',
-  '/api/dashboard/collect-platform',
-  '/api/dashboard/naver-blog-views',
-  '/api/dashboard/notion-sync',
-  '/api/dashboard/rss-topics',
-  '/api/n8n/invoke',
-  '/api/n8n/lv1-services',
-  '/api/topic-suggest',
-  '/api/dashboard/benchmarks',
-  '/api/dashboard/benchmark-categories',
-  '/api/dashboard/channels',
-  '/api/dashboard/channel-flags',
-  '/api/dashboard/calendar-items',
-  '/api/dashboard/repurpose-items',
-  '/api/dashboard/deploy-tasks',
-  '/api/dashboard/workspace-seed',
-  '/api/dashboard/generation-history',
-  '/api/dashboard/topic-guide-history',
-]
+import { isCronApi, needsMutationApiAuth } from '@/lib/dashboard/mutation-routes'
 
 const PUBLIC_API_PREFIXES = ['/api/auth/login', '/api/auth/logout']
-
-function needsMutationAuth(pathname: string): boolean {
-  return MUTATION_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  )
-}
 
 function isPublicApi(pathname: string): boolean {
   return PUBLIC_API_PREFIXES.some(
@@ -77,8 +54,20 @@ export async function middleware(request: NextRequest) {
   }
 
   const isMutation =
-    method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && needsMutationAuth(pathname)
+    method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && needsMutationApiAuth(pathname)
   const hasMachineAuth = hasValidDashboardApiSecret(request)
+
+  if (isCronApi(pathname)) {
+    const isProduction = process.env.NODE_ENV === 'production'
+    const hasCronSecrets = Boolean(
+      process.env.DASHBOARD_API_SECRET?.trim() || process.env.CRON_SECRET?.trim(),
+    )
+    const cronAuthRequired = isProduction || (method !== 'GET' && hasCronSecrets)
+    if (cronAuthRequired && !hasValidCronAuth(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.next()
+  }
 
   if (isProtectedApi(pathname)) {
     if (!hasSession && !hasMachineAuth) {
@@ -93,7 +82,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  if (!needsMutationAuth(pathname)) return NextResponse.next()
+  if (!needsMutationApiAuth(pathname)) return NextResponse.next()
 
   // Edge 미들웨어에서는 DASHBOARD_API_SECRET 검증 불가 → 라우트(Node)에서 재검증
   if (hasMachineAuth) return NextResponse.next()

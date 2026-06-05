@@ -152,7 +152,15 @@ export async function GET(request: NextRequest) {
       name: 'n8n · 롱폼 스크립트',
       configured: !!e.N8N_WEBHOOK_LONGFORM_SCRIPT,
       webhookUrl: getWebhookLabel(e.N8N_WEBHOOK_LONGFORM_SCRIPT),
-      usedIn: ['콘텐츠 스튜디오 롱폼 대본 생성'],
+      usedIn: ['콘텐츠 가이드 «발행용 생성» (n8n Gemini)'],
+      category: 'webhook',
+    },
+    {
+      key: 'N8N_WEBHOOK_AI_INSIGHTS',
+      name: 'n8n · AI 인사이트',
+      configured: !!e.N8N_WEBHOOK_AI_INSIGHTS,
+      webhookUrl: getWebhookLabel(e.N8N_WEBHOOK_AI_INSIGHTS),
+      usedIn: ['AI 인사이트 · 개요 키워드 분석'],
       category: 'webhook',
     },
     {
@@ -160,7 +168,7 @@ export async function GET(request: NextRequest) {
       name: 'n8n · 주제 선별 AI',
       configured: !!e.N8N_WEBHOOK_TOPIC_SUGGEST,
       webhookUrl: getWebhookLabel(e.N8N_WEBHOOK_TOPIC_SUGGEST),
-      usedIn: ['주제 선별 AI (n8n 우선, Gemini 폴백)'],
+      usedIn: ['주제 선별 AI (n8n 우선)'],
       category: 'webhook',
     },
     {

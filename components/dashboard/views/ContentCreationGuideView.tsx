@@ -449,7 +449,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           ? '\n · [0~N초] 장면별 대본 + 화면(한글) + Google Flow 프롬프트'
           : ''
     const ok = window.confirm(
-      `발행용 콘텐츠를 생성할까요?\n\n발행 주제: ${topicPreview}\nAI 모델: ${modelLabel}\n${refLine}\n포맷: ${CATEGORIES.find((c) => c.id === category)?.label ?? category}${category === 'video' ? `\n숏폼 카테고리: ${findShortformCategory(shortformCategoryId)?.label ?? shortformCategoryId}` : ''}${polishHint}\n\n(Gemini 1회 호출 · 가이드 초안 단계 없음)`,
+      `발행용 콘텐츠를 생성할까요?\n\n발행 주제: ${topicPreview}\nAI 모델: ${modelLabel}\n${refLine}\n포맷: ${CATEGORIES.find((c) => c.id === category)?.label ?? category}${category === 'video' ? `\n숏폼 카테고리: ${findShortformCategory(shortformCategoryId)?.label ?? shortformCategoryId}` : ''}${polishHint}\n\n(n8n Gemini 1회 호출 · 가이드 초안 단계 없음)`,
     )
     if (!ok) return
 

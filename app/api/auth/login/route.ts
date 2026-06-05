@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyLoginCredentials } from '@/lib/auth/credentials'
 import {
+  buildLoginRateLimitKey,
+  checkLoginRateLimit,
+  clearLoginAttempts,
+  recordLoginFailure,
+} from '@/lib/auth/login-rate-limit'
+import {
   createSessionPayload,
   getSessionSecret,
   signSessionToken,
@@ -36,10 +42,24 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  const rateKey = buildLoginRateLimitKey(request, loginId)
+  const rate = checkLoginRateLimit(rateKey)
+  if (!rate.allowed) {
+    return NextResponse.json(
+      {
+        error: `로그인 시도가 너무 많습니다. ${rate.retryAfterSec ?? 900}초 후 다시 시도해 주세요.`,
+      },
+      { status: 429 },
+    )
+  }
+
   const verified = await verifyLoginCredentials(loginId, password)
   if (!verified.ok) {
+    recordLoginFailure(rateKey)
     return NextResponse.json({ error: verified.error }, { status: 401 })
   }
+
+  clearLoginAttempts(rateKey)
 
   const payload = createSessionPayload(loginId)
   const token = await signSessionToken(payload, secret)

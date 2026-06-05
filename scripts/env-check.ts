@@ -89,15 +89,30 @@ async function main() {
     console.log(`   ${r.reason}`)
   }
 
+  const n8nAi = ['N8N_WEBHOOK_LONGFORM_SCRIPT', 'N8N_WEBHOOK_AI_INSIGHTS', 'N8N_WEBHOOK_URL', 'N8N_WEBHOOK_TOPIC_SUGGEST'].some(
+    (k) => Boolean(env[k]?.trim()),
+  )
+  const geminiDirect =
+    env.DASHBOARD_GEMINI_DIRECT?.trim().toLowerCase() === '1' ||
+    env.DASHBOARD_GEMINI_DIRECT?.trim().toLowerCase() === 'true'
+
   if (probe) {
     console.log('\n--- Gemini 키 실제 호출 (--probe) ---')
-    const result = await probeGeminiApiKey(env.GEMINI_API_KEY ?? '')
-    console.log(result.ok ? `✅ ${result.message}` : `❌ ${result.message}`)
-  } else if (env.GEMINI_API_KEY) {
+    if (!env.GEMINI_API_KEY?.trim()) {
+      console.log(n8nAi ? '⏭️  GEMINI_API_KEY 없음 — n8n 경유 운영 (probe 생략)' : '❌ GEMINI_API_KEY 없음')
+    } else if (!geminiDirect && n8nAi) {
+      console.log('⏭️  n8n 경유 운영 중 — 대시보드 GEMINI probe 생략 (키는 n8n Docker에서 확인)')
+    } else {
+      const result = await probeGeminiApiKey(env.GEMINI_API_KEY ?? '')
+      console.log(result.ok ? `✅ ${result.message}` : `❌ ${result.message}`)
+    }
+  } else if (env.GEMINI_API_KEY && geminiDirect) {
     console.log('\n💡 Gemini 키 유효성은 npm run env:check -- --probe 로 확인')
+  } else if (n8nAi) {
+    console.log('\n💡 AI는 n8n Webhook 경유 — Gemini 키는 n8n Docker .env에 설정')
   }
 
-  console.log('\n새 DASHBOARD_API_SECRET: npm run env:secret\n')
+  console.log('\n새 시크릿 생성: npm run env:secret (DASHBOARD_API_SECRET + CRON_SECRET + SESSION)\n')
 
   process.exit(audit.ok ? 0 : 1)
 }

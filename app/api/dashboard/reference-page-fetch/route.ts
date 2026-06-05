@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { denyUnlessDashboardMutationAuth } from '@/lib/dashboard/api-auth'
 import { fetchReferencePage, isAllowedReferenceUrl } from '@/lib/dashboard/reference-page-fetch'
 
 export async function POST(req: NextRequest) {
+  const denied = await denyUnlessDashboardMutationAuth(req)
+  if (denied) return denied
+
   const body = (await req.json()) as { url?: string }
   const url = body.url?.trim() ?? ''
 

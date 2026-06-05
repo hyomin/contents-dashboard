@@ -11,6 +11,7 @@ export const WEBHOOK_BILLING: Record<string, BillingTier> = {
   N8N_WEBHOOK_TISTORY_COLLECT: 'free',
   N8N_WEBHOOK_LONGFORM_SCRIPT: 'paid',
   N8N_WEBHOOK_TOPIC_SUGGEST: 'paid',
+  N8N_WEBHOOK_AI_INSIGHTS: 'paid',
 }
 
 export const API_SERVICE_BILLING: Record<string, BillingTier> = {
@@ -29,6 +30,7 @@ export const WEBHOOK_BILLING_NOTE: Record<string, string> = {
   N8N_WEBHOOK_NAVER_BLOG_COLLECT: 'Naver Open API',
   N8N_WEBHOOK_LONGFORM_SCRIPT: 'Gemini AI 토큰',
   N8N_WEBHOOK_TOPIC_SUGGEST: 'Gemini AI 토큰',
+  N8N_WEBHOOK_AI_INSIGHTS: 'Gemini AI 토큰',
 }
 
 export const API_BILLING_NOTE: Record<string, string> = {

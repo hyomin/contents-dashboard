@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { denyUnlessDashboardMutationAuth } from '@/lib/dashboard/api-auth'
+import { isDashboardGeminiDirectEnabled } from '@/lib/dashboard/n8n-ai'
 import { invokeN8nWebhook } from '@/lib/n8n/invoke-webhook'
 
 interface RefUrl {
@@ -183,6 +185,9 @@ ${refList || '(레퍼런스 없음 - 카테고리와 플랫폼 기반으로 최�
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await denyUnlessDashboardMutationAuth(req)
+  if (denied) return denied
+
   const body = (await req.json()) as {
     categoryId?: string
     category?: string
@@ -191,7 +196,8 @@ export async function POST(req: NextRequest) {
     trendingKeywords?: string[]
   }
 
-  const webhookUrl = process.env.N8N_WEBHOOK_URL
+  const webhookUrl =
+    process.env.N8N_WEBHOOK_TOPIC_SUGGEST?.trim() || process.env.N8N_WEBHOOK_URL?.trim()
 
   // 1순위: n8n 웹훅
   if (webhookUrl) {
@@ -211,7 +217,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 2순위: Gemini 직접 호출
+  // 2순위: Gemini 직접 호출 (DASHBOARD_GEMINI_DIRECT=1 일 때만)
+  if (!isDashboardGeminiDirectEnabled()) {
+    return NextResponse.json(
+      {
+        error:
+          'n8n 주제 선별 Webhook에 연결되지 않았습니다. N8N_WEBHOOK_URL 또는 N8N_WEBHOOK_TOPIC_SUGGEST를 설정하세요.',
+        mode: 'n8n-required',
+      },
+      { status: 503 },
+    )
+  }
+
   const geminiResult = await suggestWithGemini({
     category: body.category ?? body.categoryId ?? '일반',
     platform: body.platform ?? 'youtube',
@@ -226,7 +243,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(
     {
       error:
-        'AI 분석을 사용할 수 없습니다. GEMINI_API_KEY 또는 N8N_WEBHOOK_URL을 확인해주세요.',
+        'AI 분석을 사용할 수 없습니다. N8N_WEBHOOK_URL(또는 N8N_WEBHOOK_TOPIC_SUGGEST)을 설정하고 n8n 워크플로를 활성화하세요.',
       mode: 'error',
     },
     { status: 503 },

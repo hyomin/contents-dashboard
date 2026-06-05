@@ -13,6 +13,8 @@
  *   서버에서 최신 Outlier 제목·트렌딩 키워드·RSS 주제를 자동으로 fetch해 merge한다.
 */
 import { NextRequest, NextResponse } from 'next/server'
+import { denyUnlessDashboardMutationAuth } from '@/lib/dashboard/api-auth'
+import { requireGeminiDirectOrRespond } from '@/lib/dashboard/n8n-ai'
 import {
   callGeminiGenerateContent,
   formatGeminiApiError,
@@ -300,9 +302,13 @@ function mergeContext(
 // ─── 메인 핸들러 ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY?.trim()
-  if (!apiKey)
-    return NextResponse.json({ error: 'GEMINI_API_KEY가 설정되지 않았습니다.' }, { status: 503 })
+  const denied = await denyUnlessDashboardMutationAuth(req)
+  if (denied) return denied
+
+  const geminiBlocked = requireGeminiDirectOrRespond('포맷 변환')
+  if (geminiBlocked) return geminiBlocked
+
+  const apiKey = process.env.GEMINI_API_KEY!.trim()
 
   const body = (await req.json()) as ContentGenerateRequest
 

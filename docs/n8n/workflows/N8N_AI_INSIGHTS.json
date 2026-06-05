@@ -1,0 +1,143 @@
+{
+  "name": "[W10] AI 인사이트 (Gemini, 대시보드 데이터 연동)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-insights",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "node-webhook-insights",
+      "name": "Webhook 수신",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 200],
+      "webhookId": "ai-insights-webhook"
+    },
+    {
+      "parameters": {},
+      "id": "node-manual-insights",
+      "name": "수동 실행",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "let scope = 'full';\nlet keywords = [];\nlet stats = {};\nlet outliers = [];\nlet trending = [];\nlet rssTopics = [];\nlet categories = [];\ntry {\n  const wh = $('Webhook 수신').all();\n  if (wh.length) {\n    const raw = wh[0].json;\n    const b = raw.body ?? raw;\n    const parsed = typeof b === 'string' ? JSON.parse(b) : b;\n    if (parsed?.scope) scope = String(parsed.scope);\n    if (Array.isArray(parsed?.keywords)) keywords = parsed.keywords.map(String);\n    if (parsed?.stats && typeof parsed.stats === 'object') stats = parsed.stats;\n    if (Array.isArray(parsed?.outliers)) outliers = parsed.outliers;\n    if (Array.isArray(parsed?.trending)) trending = parsed.trending.map(String);\n    if (Array.isArray(parsed?.rssTopics)) rssTopics = parsed.rssTopics.map(String);\n    if (Array.isArray(parsed?.categories)) categories = parsed.categories.map(String);\n  }\n} catch {}\nif (scope !== 'keyword') scope = 'full';\nreturn [{ json: { scope, keywords, stats, outliers, trending, rssTopics, categories, source: 'n8n' } }];"
+      },
+      "id": "node-parse-insights",
+      "name": "파라미터 파싱",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 290]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $input.first().json;\nconst geminiKey = ($env.GEMINI_API_KEY || '').trim();\n\nconst outlierLines = (p.outliers || []).slice(0, 10).map((o, i) => {\n  const title = o.title || o.name || '제목 없음';\n  const vs = o.vsAvg != null ? ` vs.Avg ${Number(o.vsAvg).toFixed(1)}x` : '';\n  return `${i + 1}. \"${title}\"${vs}`;\n}).join('\\n') || '데이터 없음';\n\nconst trendLine = (p.trending || []).slice(0, 10).join(', ') || '데이터 없음';\nconst rssLine = (p.rssTopics || []).slice(0, 12).map((t, i) => `${i + 1}. ${t}`).join('\\n') || '데이터 없음';\nconst catLine = (p.categories || []).join(', ') || '미분류';\nconst stats = p.stats || {};\nconst kwLabel = (p.keywords || []).join(', ') || '';\n\nconst JSON_FORMAT = '[{\"icon\":\"이모지\",\"text\":\"설명 2-3문장\",\"action\":\"추천 액션\"}]';\n\nlet prompt = '';\nif (p.scope === 'keyword' && kwLabel) {\n  prompt = `당신은 유튜브 콘텐츠 전략가입니다.\\n키워드: ${kwLabel}\\n\\n[관련 Outlier]\\n${outlierLines}\\n\\n[RSS 주제]\\n${rssLine}\\n\\n키워드 범위 안에서만 콘텐츠 제작 추천 4가지.\\n반드시 아래 JSON만 응답:\\n{\"sections\":[{\"type\":\"personal\",\"title\":\"🔍 «${kwLabel}» 키워드 인사이트\",\"subtitle\":\"n8n · Gemini 분석\",\"items\":${JSON_FORMAT},\"isAi\":true}]}`;\n} else {\n  prompt = `당신은 멀티플랫폼 콘텐츠 전략가입니다. 아래 수집 데이터를 바탕으로 인사이트를 작성하세요.\\n\\n[통계] 영상 ${stats.totalVideos ?? 0}개 · 평균 vs.Avg ${stats.avgVsAvg ?? 0} · Outlier ${stats.outlierCount ?? 0}개 · 채널 ${stats.channelCount ?? 0}개\\n\\n[Outlier TOP]\\n${outlierLines}\\n\\n[트렌딩 키워드]\\n${trendLine}\\n\\n[RSS 주제]\\n${rssLine}\\n\\n[채널 카테고리]\\n${catLine}\\n\\n반드시 아래 JSON만 응답 (다른 텍스트 없이):\\n{\"sections\":[{\"type\":\"korea\",\"title\":\"🇰🇷 지금 한국 트렌드\",\"subtitle\":\"Gemini 분석\",\"items\":${JSON_FORMAT},\"isAi\":true},{\"type\":\"personal\",\"title\":\"📊 내 데이터 기반 추천\",\"subtitle\":\"수집 데이터 분석\",\"items\":${JSON_FORMAT},\"isAi\":true},{\"type\":\"global\",\"title\":\"🌐 글로벌 트렌드\",\"subtitle\":\"Gemini 분석\",\"items\":${JSON_FORMAT},\"isAi\":true}]}`;\n}\n\nif (!geminiKey) {\n  return [{ json: { ...p, geminiSkip: true, geminiReason: 'GEMINI_API_KEY 미설정' } }];\n}\n\nreturn [{ json: { ...p, geminiSkip: false, geminiKey, geminiPrompt: prompt } }];"
+      },
+      "id": "node-insights-prompt",
+      "name": "Gemini 프롬프트 준비",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 290]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "skip-gemini",
+              "leftValue": "={{ $json.geminiSkip }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-insights-skip",
+      "name": "Gemini 스킵?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [760, 290]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={{ $json.geminiKey }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ contents: [{ parts: [{ text: $json.geminiPrompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 4096, thinkingConfig: { thinkingBudget: 0 } } }) }}",
+        "options": { "timeout": 90000 }
+      },
+      "id": "node-gemini-insights",
+      "name": "Gemini: 인사이트 생성",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [980, 190],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const params = $('Gemini 프롬프트 준비').first().json;\nconst geminiRaw = $input.first().json;\n\nfunction parseSections(text) {\n  if (!text) return null;\n  try {\n    const fence = text.match(/```(?:json)?\\s*\\n?([\\s\\S]*?)\\n?```/);\n    const cleaned = fence ? fence[1].trim() : text;\n    const objMatch = cleaned.match(/\\{[\\s\\S]*\\}/);\n    if (!objMatch) return null;\n    const fixed = objMatch[0].replace(/,\\s*([}\\]])/g, '$1');\n    const parsed = JSON.parse(fixed);\n    if (Array.isArray(parsed.sections) && parsed.sections.length) return parsed.sections;\n    if (Array.isArray(parsed) && parsed.length) return [{ type: 'personal', title: 'AI 인사이트', subtitle: 'n8n · Gemini', items: parsed, isAi: true }];\n  } catch {}\n  return null;\n}\n\nlet sections = null;\ntry {\n  const parts = geminiRaw?.candidates?.[0]?.content?.parts || [];\n  const text = parts.filter(p => !p.thought).map(p => p.text || '').join('\\n');\n  sections = parseSections(text);\n} catch {}\n\nif (!sections) {\n  const topOut = (params.outliers || [])[0];\n  const fallbackItem = {\n    icon: '📊',\n    text: topOut ? `최고 Outlier «${topOut.title}» — vs.Avg ${Number(topOut.vsAvg || 0).toFixed(1)}x. 이 주제 각도로 파생 콘텐츠를 기획해 보세요.` : '수집 데이터를 바탕으로 Outlier·트렌딩 키워드를 조합한 콘텐츠를 기획해 보세요.',\n    action: '콘텐츠 가이드에서 발행 주제 입력',\n  };\n  sections = params.scope === 'keyword' && (params.keywords || []).length\n    ? [{ type: 'personal', title: `🔍 «${params.keywords.join(', ')}» 키워드 인사이트`, subtitle: 'Gemini 파싱 폴백', items: [fallbackItem], isAi: false }]\n    : [\n        { type: 'korea', title: '🇰🇷 지금 한국 트렌드', subtitle: 'Gemini 파싱 폴백', items: [{ icon: '💡', text: '한국 시니어·재테크 관련 숏폼·블로그 수요가 꾸준합니다.', action: '트렌딩 키워드 확인' }], isAi: false },\n        { type: 'personal', title: '📊 내 데이터 기반 추천', subtitle: '수집 데이터 요약', items: [fallbackItem], isAi: false },\n        { type: 'global', title: '🌐 글로벌 트렌드', subtitle: 'Gemini 파싱 폴백', items: [{ icon: '🌐', text: '글로벌 경제·라이프스타일 해설형 롱폼이 안정적 수요를 보입니다.', action: 'Outlier 분석' }], isAi: false },\n      ];\n}\n\nreturn [{ json: { ok: true, mode: 'n8n', sections, generatedAt: new Date().toISOString(), aiEnhanced: !!geminiRaw?.candidates?.[0] } }];"
+      },
+      "id": "node-insights-parse",
+      "name": "Gemini 결과 파싱",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 190]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $input.first().json;\nconst topOut = (p.outliers || [])[0];\nconst item = {\n  icon: '⚠️',\n  text: topOut ? `GEMINI_API_KEY 미설정 — «${topOut.title}» 등 수집 데이터만 표시됩니다. n8n Docker에 GEMINI_API_KEY를 설정하세요.` : 'GEMINI_API_KEY 미설정 — n8n Docker .env에 키를 추가하세요.',\n  action: '설정 → n8n Webhook 확인',\n};\nconst sections = p.scope === 'keyword' && (p.keywords || []).length\n  ? [{ type: 'personal', title: `🔍 «${p.keywords.join(', ')}» 키워드 인사이트`, subtitle: '규칙 기반 폴백', items: [item], isAi: false }]\n  : [\n      { type: 'personal', title: '📊 내 데이터 기반 추천', subtitle: '규칙 기반 폴백', items: [item], isAi: false },\n    ];\nreturn [{ json: { ok: true, mode: 'fallback', sections, generatedAt: new Date().toISOString(), message: 'GEMINI_API_KEY 미설정' } }];"
+      },
+      "id": "node-insights-fallback",
+      "name": "폴백 (API키 없음)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 390]
+    }
+  ],
+  "connections": {
+    "Webhook 수신": {
+      "main": [[{ "node": "파라미터 파싱", "type": "main", "index": 0 }]]
+    },
+    "수동 실행": {
+      "main": [[{ "node": "파라미터 파싱", "type": "main", "index": 0 }]]
+    },
+    "파라미터 파싱": {
+      "main": [[{ "node": "Gemini 프롬프트 준비", "type": "main", "index": 0 }]]
+    },
+    "Gemini 프롬프트 준비": {
+      "main": [[{ "node": "Gemini 스킵?", "type": "main", "index": 0 }]]
+    },
+    "Gemini 스킵?": {
+      "main": [
+        [{ "node": "폴백 (API키 없음)", "type": "main", "index": 0 }],
+        [{ "node": "Gemini: 인사이트 생성", "type": "main", "index": 0 }]
+      ]
+    },
+    "Gemini: 인사이트 생성": {
+      "main": [[{ "node": "Gemini 결과 파싱", "type": "main", "index": 0 }]]
+    },
+    "Gemini 결과 파싱": {
+      "main": [[]]
+    },
+    "폴백 (API키 없음)": {
+      "main": [[]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "AI 인사이트" }, { "name": "Gemini" }],
+  "pinData": {}
+}

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { denyUnlessDashboardMutationAuth } from '@/lib/dashboard/api-auth'
+import { requireGeminiDirectOrRespond } from '@/lib/dashboard/n8n-ai'
 import {
   buildContentPolishPrompt,
   parseContentPolishResponse,
@@ -14,10 +16,13 @@ import {
 export type { ContentPolishRequest, ContentPolishResult }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY?.trim()
-  if (!apiKey) {
-    return NextResponse.json({ error: 'GEMINI_API_KEY가 설정되지 않았습니다.' }, { status: 503 })
-  }
+  const denied = await denyUnlessDashboardMutationAuth(req)
+  if (denied) return denied
+
+  const geminiBlocked = requireGeminiDirectOrRespond('콘텐츠 정재')
+  if (geminiBlocked) return geminiBlocked
+
+  const apiKey = process.env.GEMINI_API_KEY!.trim()
 
   const body = (await req.json()) as ContentPolishRequest
   if (!body.fullScript?.trim()) {
