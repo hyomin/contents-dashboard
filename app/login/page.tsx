@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { LoginForm } from '@/components/auth/login-form'
 import { isDashboardAuthReady } from '@/lib/auth/credentials'
-import { SESSION_IDLE_MS } from '@/lib/auth/constants'
+import { formatSessionIdleTimeoutLabel } from '@/lib/auth/constants'
 
 function LoginFormFallback() {
   return (
@@ -15,7 +15,7 @@ function LoginFormFallback() {
 
 export default async function LoginPage() {
   const isAuthReady = await isDashboardAuthReady()
-  const idleMinutes = SESSION_IDLE_MS / 60_000
+  const idleLabel = formatSessionIdleTimeoutLabel()
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-gradient-to-br from-slate-50 via-indigo-50/40 to-slate-100 dark:from-gray-950 dark:via-indigo-950/20 dark:to-gray-900">
@@ -51,7 +51,7 @@ export default async function LoginPage() {
           </Suspense>
 
           <p className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
-            {idleMinutes}분간 활동이 없으면 자동으로 로그아웃됩니다
+            {idleLabel}간 활동이 없으면 자동으로 로그아웃됩니다
           </p>
         </div>
       </div>

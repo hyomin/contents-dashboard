@@ -526,7 +526,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     const p = new URLSearchParams(searchParams.toString())
     p.set('view', 'content-studio')
     router.push(`${pathname}?${p.toString()}`)
-    addToast('콘텐츠 제작 화면으로 이동합니다', 'success')
+    addToast('발행 편집 화면으로 이동합니다 (선택)', 'success')
   }
 
   const loadFromHistory = (item: GenerationHistoryItem, view: 'draft' | 'polished', silent = false) => {
@@ -582,7 +582,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     const p = new URLSearchParams(searchParams.toString())
     p.set('view', 'content-studio')
     router.push(`${pathname}?${p.toString()}`)
-    addToast('콘텐츠 제작 화면으로 이동합니다', 'success')
+    addToast('발행 편집 화면으로 이동합니다 (선택)', 'success')
   }
 
   const clearReferences = () => {
@@ -1383,9 +1383,10 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
               <button
                 type="button"
                 onClick={goToContentStudio}
-                className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90 transition shrink-0"
+                className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition shrink-0"
+                title="가이드에서 복사·편집으로도 충분하면 생략 가능"
               >
-                콘텐츠 제작 →
+                발행 편집 (선택) →
               </button>
             </div>
 
@@ -1508,13 +1509,17 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
               </p>
             )}
 
-            <button
-              type="button"
-              onClick={goToContentStudio}
-              className="w-full py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-200 text-white dark:text-gray-900 hover:opacity-90 transition"
-            >
-              발행용 본문으로 콘텐츠 제작 →
-            </button>
+            <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+              위 «전체 복사»·씬별 Flow 복사로 바로 제작 가능합니다. 문장만 더 다듬거나 .txt로 보낼 때만{' '}
+              <button
+                type="button"
+                onClick={goToContentStudio}
+                className="font-semibold text-indigo-600 dark:text-indigo-400 underline"
+              >
+                발행 편집·변환
+              </button>
+              으로 이동하세요.
+            </p>
           </div>
         )}
       </section>

@@ -127,18 +127,18 @@ export const VIEW_META: Record<string, ViewMeta> = {
     desc: '연동된 n8n 워크플로를 카테고리별로 확인하고 Webhook·API로 실행합니다. 편집기 로그인 없이 대시보드에서 바로 실행할 수 있습니다.',
   },
   settings: { title: '설정', desc: '테마 및 대시보드 환경 설정' },
-  create: { title: '콘텐츠 만들기', desc: '콘텐츠 가이드와 제작 도구로 기획부터 초안까지 진행합니다.' },
+  create: { title: '콘텐츠 만들기', desc: '가이드에서 발행용 스크립트 생성 → (선택) 편집·변환 → 히스토리 보관.' },
   'content-guide': {
     title: '콘텐츠 가이드',
-    desc: '글·이미지·영상 유형별 체크리스트와 트렌드·직접 선택 레퍼런스로 기획을 정리합니다. AI 스크립트·대본 가이드 생성을 지원합니다.',
+    desc: '발행 주제·레퍼런스·가이드라인(MD) 기반으로 발행용 스크립트·본문을 한 번에 생성합니다. 숏폼은 Flow 씬별 붙여넣기 블록까지 포함합니다.',
   },
   'content-studio': {
-    title: '콘텐츠 제작',
-    desc: '실제 업로드에 쓸 제목·본문·메모 초안을 작성하고 이 브라우저에 저장합니다.',
+    title: '발행 편집·변환',
+    desc: '가이드에서 만든 본문을 최종 수정·메모하고, 블로그↔숏폼 등 포맷 변환 초안을 만듭니다. (localStorage)',
   },
   'generation-history': {
     title: '히스토리 관리',
-    desc: '콘텐츠 가이드에서 생성한 원본(가이드 초안)과 «내 콘텐츠화» 결과를 Supabase에 보관·검색·재활용합니다.',
+    desc: '콘텐츠 가이드에서 생성·저장한 발행용 결과를 Supabase에서 검색·복사·재활용합니다.',
   },
   n8n: {
     title: 'n8n',
@@ -211,7 +211,7 @@ export const NAV_TREE: DashboardNavItem[] = [
     icon: '✨',
     children: [
       { id: 'content-guide', label: '콘텐츠 가이드', icon: '📋' },
-      { id: 'content-studio', label: '콘텐츠 제작', icon: '✍️' },
+      { id: 'content-studio', label: '발행 편집·변환', icon: '✍️' },
       { id: 'generation-history', label: '히스토리 관리', icon: '📚' },
     ],
   },

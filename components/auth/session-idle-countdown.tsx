@@ -5,16 +5,20 @@ import { SESSION_IDLE_MS } from '@/lib/auth/constants'
 
 function formatCountdown(remainingMs: number): string {
   const totalSeconds = Math.ceil(remainingMs / 1000)
-  const minutes = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = totalSeconds % 60
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
 function getUrgencyClass(remainingMs: number): string {
-  if (remainingMs <= 60_000) {
+  if (remainingMs <= 5 * 60_000) {
     return 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300'
   }
-  if (remainingMs <= 120_000) {
+  if (remainingMs <= 30 * 60_000) {
     return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200'
   }
   return 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-200'
@@ -38,7 +42,7 @@ export function SessionIdleCountdown() {
           style={{ width: `${progress}%` }}
         />
       </span>
-      <span className="min-w-[2.5rem] text-right">{formatCountdown(remainingMs)}</span>
+      <span className="min-w-[3.5rem] text-right">{formatCountdown(remainingMs)}</span>
     </div>
   )
 }

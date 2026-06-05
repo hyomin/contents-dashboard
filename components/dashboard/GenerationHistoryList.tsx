@@ -251,7 +251,7 @@ export function GenerationHistoryList({
                     onClick={() => onGoToStudio(item, view === 'polished' && !!item.polished)}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90 transition"
                   >
-                    콘텐츠 제작 →
+                    발행 편집 →
                   </button>
                   <button
                     type="button"

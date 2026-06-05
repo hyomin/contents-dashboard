@@ -76,7 +76,7 @@ export default function GenerationHistoryView({ addToast }: { addToast: AddToast
     const p = new URLSearchParams(searchParams.toString())
     p.set('view', 'content-studio')
     router.push(`${pathname}?${p.toString()}`)
-    addToast('콘텐츠 제작 화면으로 이동합니다', 'success')
+    addToast('발행 편집 화면으로 이동합니다', 'success')
   }
 
   const openInGuide = (item: GenerationHistoryItem, view: 'draft' | 'polished') => {

@@ -14,11 +14,8 @@ import type {
   BlogResult,
   SnsCaptionResult,
 } from '@/app/api/dashboard/content-generate/route'
-import type { TrendingKeyword } from '@/lib/data/analytics-from-videos'
-import type { RssTopicCandidateRow } from '@/lib/data/rss-topic-collect'
 import { consumeContentStudioImport } from '@/lib/dashboard/content-studio-import'
 import { Spinner } from '@/components/dashboard/ui/loading'
-import { usePlanningQueue, SOURCE_LABELS } from '@/lib/hooks/use-planning-queue'
 
 const STORAGE_KEY = 'content-studio-drafts-v2'
 
@@ -211,41 +208,22 @@ function AiGeneratePanel({
   addToast,
   onApply,
   onNewDraft,
+  onGoGuide,
 }: {
   currentBody: string
   currentFormat: ContentFormat | 'script'
   addToast: AddToast
   onApply: (body: string, title?: string) => void
   onNewDraft: (body: string, title: string, format: ContentFormat) => void
+  onGoGuide: () => void
 }) {
-  const [mode, setMode] = useState<'create' | 'convert'>(currentBody.trim() ? 'create' : 'create')
-  const [targetFormat, setTargetFormat] = useState<ContentFormat>('longform')
-  const [topic, setTopic] = useState('')
+  const [targetFormat, setTargetFormat] = useState<ContentFormat>('shortform')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ContentGenerateResult | null>(null)
-  const [trendingKeywords, setTrendingKeywords] = useState<string[]>([])
-  const [rssTopics, setRssTopics] = useState<string[]>([])
-  const { items: queueItems, removeItem: removeFromQueue, markUsed, clearUsed } = usePlanningQueue()
-  const pendingQueue = queueItems.filter((q) => !q.used)
-
-  useEffect(() => {
-    fetch('/api/dashboard/trending?limit=6')
-      .then(r => r.json())
-      .then((d: { keywords?: TrendingKeyword[] }) => setTrendingKeywords((d.keywords ?? []).map(k => k.keyword)))
-      .catch(() => {})
-    fetch('/api/dashboard/rss-topics?limit=5')
-      .then(r => r.json())
-      .then((d: { topics?: RssTopicCandidateRow[] }) => setRssTopics((d.topics ?? []).map(t => t.ai_title ?? t.title)))
-      .catch(() => {})
-  }, [])
 
   const generate = async () => {
-    if (mode === 'create' && !topic.trim()) {
-      addToast('주제를 입력해주세요', 'warning')
-      return
-    }
-    if (mode === 'convert' && !currentBody.trim()) {
-      addToast('변환할 초안 내용이 없습니다. 본문을 먼저 작성해주세요', 'warning')
+    if (!currentBody.trim()) {
+      addToast('변환할 초안이 없습니다. 가이드에서 불러오거나 본문을 입력해 주세요', 'warning')
       return
     }
     setLoading(true)
@@ -253,14 +231,8 @@ function AiGeneratePanel({
     try {
       const reqBody: ContentGenerateRequest = {
         targetFormat,
-        ...(mode === 'create' ? { topic: topic.trim() } : {
-          sourceContent: currentBody,
-          sourceFormat: currentFormat !== 'script' ? currentFormat : undefined,
-        }),
-        context: {
-          trendingKeywords,
-          rssTopics,
-        },
+        sourceContent: currentBody,
+        sourceFormat: currentFormat !== 'script' ? currentFormat : undefined,
       }
       const res = await fetch('/api/dashboard/content-generate', {
         method: 'POST',
@@ -286,31 +258,18 @@ function AiGeneratePanel({
   return (
     <div className="bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 border border-violet-200 dark:border-violet-800 rounded-2xl p-5 space-y-4">
       <div className="flex items-center gap-2">
-        <span className="text-base">✨</span>
-        <h3 className="text-sm font-bold text-violet-900 dark:text-violet-200">AI 콘텐츠 생성</h3>
-        <span className="ml-auto text-[10px] text-violet-500 dark:text-violet-400">Gemini 2.5 Flash</span>
+        <span className="text-base">🔄</span>
+        <h3 className="text-sm font-bold text-violet-900 dark:text-violet-200">포맷 변환</h3>
+        <span className="ml-auto text-[10px] text-violet-500 dark:text-violet-400">현재 초안 → 다른 포맷</span>
       </div>
 
-      {/* 모드 토글 */}
-      <div className="flex gap-2 p-1 bg-white/60 dark:bg-gray-900/40 rounded-xl">
-        {([
-          { v: 'create' as const, label: '✏️ 처음부터 생성' },
-          { v: 'convert' as const, label: '🔄 현재 초안 변환' },
-        ] as const).map(m => (
-          <button
-            key={m.v}
-            type="button"
-            onClick={() => setMode(m.v)}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition ${
-              mode === m.v
-                ? 'bg-violet-600 text-white shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-white/80 dark:hover:bg-gray-800/60'
-            }`}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
+      <p className="text-xs text-violet-800/90 dark:text-violet-200/90 leading-relaxed">
+        발행용 스크립트·Flow 블록·가이드라인 반영 생성은{' '}
+        <button type="button" onClick={onGoGuide} className="font-semibold underline hover:text-violet-600">
+          콘텐츠 가이드
+        </button>
+        에서 «내 콘텐츠 생성»으로 진행하세요. 이 화면은 <strong>이미 있는 본문</strong>을 다른 포맷 초안으로 바꿀 때만 사용합니다.
+      </p>
 
       {/* 목표 포맷 선택 */}
       <div>
@@ -338,92 +297,12 @@ function AiGeneratePanel({
         </div>
       </div>
 
-      {/* 기획 큐 */}
-      {pendingQueue.length > 0 && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1">
-              📋 기획 큐
-              <span className="ml-1 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full px-1.5 py-0.5 text-[10px]">
-                {pendingQueue.length}
-              </span>
-            </p>
-            <button
-              type="button"
-              onClick={() => clearUsed()}
-              className="text-[10px] text-amber-600 hover:text-amber-800 transition"
-            >
-              사용됨 정리
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-            {pendingQueue.map((item) => (
-              <div key={item.id} className="flex items-center gap-1 bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-700 rounded-lg pl-2 pr-1 py-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTopic(item.keyword)
-                    setMode('create')
-                    markUsed(item.id)
-                  }}
-                  className="text-[11px] text-gray-800 dark:text-gray-200 hover:text-violet-600 dark:hover:text-violet-400 transition font-medium"
-                >
-                  {item.keyword.slice(0, 30)}{item.keyword.length > 30 ? '…' : ''}
-                </button>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${SOURCE_LABELS[item.source].color}`}>
-                  {SOURCE_LABELS[item.source].label}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeFromQueue(item.id)}
-                  className="text-gray-300 hover:text-red-400 transition text-[10px] ml-0.5"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 모드별 입력 */}
-      {mode === 'create' ? (
-        <div>
-          <label className="text-[11px] font-semibold text-violet-700 dark:text-violet-400 mb-1.5 block">
-            주제 키워드
-          </label>
-          <input
-            type="text"
-            value={topic}
-            onChange={e => setTopic(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && generate()}
-            placeholder="예: 금리 인상 시대 재테크 전략"
-            className="w-full px-3 py-2 text-sm rounded-xl border border-violet-200 dark:border-violet-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500"
-          />
-          {/* 빠른 RSS 주제 삽입 */}
-          {rssTopics.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {rssTopics.slice(0, 4).map((t, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setTopic(t.slice(0, 40))}
-                  className="text-[10px] px-2 py-1 rounded-full bg-white dark:bg-gray-800 border border-violet-200 dark:border-violet-700 text-violet-700 dark:text-violet-300 hover:bg-violet-50 transition"
-                >
-                  {t.slice(0, 25)}…
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-3 text-xs text-gray-500 dark:text-gray-400">
-          <span className="font-semibold text-gray-700 dark:text-gray-300">변환 소스:</span>{' '}
-          {currentBody.trim()
-            ? `현재 초안 (${FORMAT_META[currentFormat]?.label ?? currentFormat}) · ${currentBody.length}자`
-            : '⚠️ 본문이 비어 있습니다. 먼저 내용을 작성해주세요.'}
-        </div>
-      )}
+      <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-3 text-xs text-gray-500 dark:text-gray-400">
+        <span className="font-semibold text-gray-700 dark:text-gray-300">변환 소스:</span>{' '}
+        {currentBody.trim()
+          ? `현재 초안 (${FORMAT_META[currentFormat]?.label ?? currentFormat}) · ${currentBody.length}자`
+          : '⚠️ 본문이 비어 있습니다. 콘텐츠 가이드에서 불러오거나 직접 붙여넣으세요.'}
+      </div>
 
       {/* 생성 버튼 */}
       <button
@@ -442,7 +321,7 @@ function AiGeneratePanel({
             {FORMAT_META[targetFormat].label} 생성 중...
           </span>
         ) : (
-          `✨ ${FORMAT_META[targetFormat].label} ${mode === 'convert' ? '변환' : '생성'}`
+          `🔄 ${FORMAT_META[targetFormat].label}로 변환`
         )}
       </button>
 
@@ -544,7 +423,7 @@ export default function ContentStudioView({ addToast }: { addToast: AddToast }) 
       setActiveId(d.id)
       applyToForm(d)
       persistDrafts(next)
-      addToast('콘텐츠 가이드에서 스크립트를 불러왔습니다', 'success')
+      addToast('콘텐츠 가이드에서 발행용 본문을 불러왔습니다', 'success')
       return
     }
 
@@ -669,6 +548,14 @@ export default function ContentStudioView({ addToast }: { addToast: AddToast }) 
 
   return (
     <div className="space-y-6 max-w-6xl">
+      <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/80 dark:bg-indigo-950/30 px-4 py-3 text-sm text-indigo-900 dark:text-indigo-100">
+        <p className="font-semibold">이 화면의 역할</p>
+        <p className="mt-1 text-xs text-indigo-800/90 dark:text-indigo-200/90 leading-relaxed">
+          <strong>콘텐츠 가이드</strong>에서 스크립트·Flow 블록·발행 본문을 만든 뒤, 여기서는 최종 문장 수정·촬영 메모·.txt보내기·
+          <strong>다른 포맷으로 변환</strong>(예: 블로그 → 숏폼)만 합니다. 처음부터 AI 생성은 가이드에서 하세요.
+        </p>
+      </div>
+
       <N8nLv1ServicesSection viewId="content-studio" addToast={addToast} />
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -753,7 +640,7 @@ export default function ContentStudioView({ addToast }: { addToast: AddToast }) 
                   : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-sm hover:shadow-md'
               }`}
             >
-              {showAiPanel ? '✨ AI 패널 닫기' : '✨ AI 생성'}
+              {showAiPanel ? '🔄 변환 패널 닫기' : '🔄 포맷 변환'}
             </button>
           </div>
 
@@ -765,6 +652,7 @@ export default function ContentStudioView({ addToast }: { addToast: AddToast }) 
               addToast={addToast}
               onApply={handleApply}
               onNewDraft={handleNewDraft}
+              onGoGuide={goGuide}
             />
           )}
 
@@ -831,7 +719,7 @@ export default function ContentStudioView({ addToast }: { addToast: AddToast }) 
           </label>
 
           <p className="text-xs text-gray-400">
-            초안은 이 브라우저 localStorage에 저장됩니다.
+            초안은 이 브라우저 localStorage에만 저장됩니다. 발행용 원본은 콘텐츠 가이드·히스토리(Supabase)에 보관됩니다.
           </p>
         </div>
       </div>

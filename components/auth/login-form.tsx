@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { formatSessionIdleTimeoutLabel } from '@/lib/auth/constants'
 
 interface LoginFormProps {
   isAuthReady: boolean
@@ -53,7 +54,7 @@ export function LoginForm({ isAuthReady }: LoginFormProps) {
           className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100"
         >
           {reason === 'idle'
-            ? '10분간 활동이 없어 자동 로그아웃되었습니다. 다시 로그인해 주세요.'
+            ? `${formatSessionIdleTimeoutLabel()}간 활동이 없어 자동 로그아웃되었습니다. 다시 로그인해 주세요.`
             : '세션이 만료되었습니다. 다시 로그인해 주세요.'}
         </div>
       )}
