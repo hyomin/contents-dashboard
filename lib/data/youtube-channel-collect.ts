@@ -261,11 +261,13 @@ export async function collectYoutubeChannelData(params: {
     return { ok: false, channel_id, error: `영상 저장 실패: ${vidErr.message}` }
   }
 
+  // lookback 이전 영상은 영구 삭제 대신 archived 처리 — 설정 변경 시 데이터 유실 방지
   await supabaseAdmin
     .from('videos')
-    .delete()
+    .update({ is_archived: true, updated_at: new Date().toISOString() })
     .eq('channel_id', channel_id)
     .eq('platform', 'youtube')
+    .eq('is_archived', false)
     .lt('published_at', publishedAfter)
 
   return {
