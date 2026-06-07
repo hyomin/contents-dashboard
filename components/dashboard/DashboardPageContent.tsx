@@ -2,36 +2,108 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import type { Video, Toast, ToastKind } from '@/lib/dashboard/dashboard-types'
 import { ToastContainer, VideoModal } from '@/components/dashboard/ToastContainer'
 import {
   loadNotificationSettings,
   shouldShowToast,
 } from '@/lib/dashboard/notification-settings'
-import BenchmarkViewComponent from '@/components/dashboard/BenchmarkView'
-import TopicSuggestView from '@/components/dashboard/TopicSuggestView'
-import {
-  OverviewView,
-  PlatformView,
-  OutlierView,
-  TrendingView,
-  AiInsightView,
-  MyChannelsView,
-  CalendarView,
-  DataCollectView,
-  RevenueView,
-  RepurposeView,
-  DeployView,
-  AutomationView,
-  SettingsView,
-  ContentCreationGuideView,
-  ContentStudioView,
-  GenerationHistoryView,
-  Lv1AutomationHubView,
-  AnalysisHubView,
-} from '@/components/dashboard/views'
 import { resolveViewMeta } from '@/lib/dashboard/dashboard-nav'
 import { PageHeader } from '@/components/dashboard/info-hint'
+
+// ─── 뷰 로딩 중 폴백 ──────────────────────────────────────────────
+function ViewFallback() {
+  return (
+    <div className="animate-pulse">
+      <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-2xl" />
+    </div>
+  )
+}
+
+// ─── Lazy-loaded 뷰 (초기 번들에서 분리) ──────────────────────────
+const OverviewView = dynamic(
+  () => import('@/components/dashboard/views/OverviewView'),
+  { loading: ViewFallback },
+)
+const PlatformView = dynamic(
+  () => import('@/components/dashboard/views/PlatformView'),
+  { loading: ViewFallback },
+)
+const AnalysisHubView = dynamic(
+  () => import('@/components/dashboard/views/AnalysisHubView').then(m => ({ default: m.AnalysisHubView })),
+  { loading: ViewFallback },
+)
+const OutlierView = dynamic(
+  () => import('@/components/dashboard/views/OutlierView'),
+  { loading: ViewFallback },
+)
+const TrendingView = dynamic(
+  () => import('@/components/dashboard/views/TrendingView'),
+  { loading: ViewFallback },
+)
+const AiInsightView = dynamic(
+  () => import('@/components/dashboard/views/AiInsightView'),
+  { loading: ViewFallback },
+)
+const MyChannelsView = dynamic(
+  () => import('@/components/dashboard/views/MyChannelsView'),
+  { loading: ViewFallback },
+)
+const CalendarView = dynamic(
+  () => import('@/components/dashboard/views/CalendarView'),
+  { loading: ViewFallback },
+)
+const DataCollectView = dynamic(
+  () => import('@/components/dashboard/views/DataCollectView'),
+  { loading: ViewFallback },
+)
+const RevenueView = dynamic(
+  () => import('@/components/dashboard/views/RevenueView'),
+  { loading: ViewFallback },
+)
+const RepurposeView = dynamic(
+  () => import('@/components/dashboard/views/RepurposeView'),
+  { loading: ViewFallback },
+)
+const DeployView = dynamic(
+  () => import('@/components/dashboard/views/DeployView'),
+  { loading: ViewFallback },
+)
+const AutomationView = dynamic(
+  () => import('@/components/dashboard/views/AutomationView'),
+  { loading: ViewFallback },
+)
+const Lv1AutomationHubView = dynamic(
+  () => import('@/components/dashboard/views/Lv1AutomationHubView'),
+  { loading: ViewFallback },
+)
+const SettingsView = dynamic(
+  () => import('@/components/dashboard/views/SettingsView'),
+  { loading: ViewFallback },
+)
+const ContentCreationGuideView = dynamic(
+  () => import('@/components/dashboard/views/ContentCreationGuideView'),
+  { loading: ViewFallback },
+)
+const ContentStudioView = dynamic(
+  () => import('@/components/dashboard/views/ContentStudioView'),
+  { loading: ViewFallback },
+)
+const GenerationHistoryView = dynamic(
+  () => import('@/components/dashboard/views/GenerationHistoryView'),
+  { loading: ViewFallback },
+)
+const BenchmarkViewComponent = dynamic(
+  () => import('@/components/dashboard/BenchmarkView'),
+  { loading: ViewFallback },
+)
+const TopicSuggestView = dynamic(
+  () => import('@/components/dashboard/TopicSuggestView'),
+  { loading: ViewFallback },
+)
+
+// ─────────────────────────────────────────────────────────────────
 
 function ComingSoon({ title }: { title: string }) {
   return (
