@@ -9,6 +9,8 @@
 | **[SUMMARY.md](./SUMMARY.md)** | **현재 현황 요약** (진입점 · 2026-05-31) |
 | [guides/DASHBOARD_OVERVIEW_20260530.md](./guides/DASHBOARD_OVERVIEW_20260530.md) | 화면·API·DB·n8n **상세 맵** |
 | [guides/CONTENT_CREATION_PIPELINE_RECOVERY.md](./guides/CONTENT_CREATION_PIPELINE_RECOVERY.md) | 콘텐츠 생성 파이프라인 복구 |
+| [guides/CONTENT_CREATION_WORKFLOW.md](./guides/CONTENT_CREATION_WORKFLOW.md) | **콘텐츠 생성 단계별 진행 가이드** + 부족한 점 점검 |
+| [guides/CONTENT_PRODUCTION_AZ_CHECKLIST.md](./guides/CONTENT_PRODUCTION_AZ_CHECKLIST.md) | **A-Z 액션 체크리스트** — 한 편 만들 때 따라 하는 실행 순서 |
 | [CHANGELOG.md](./CHANGELOG.md) | 날짜별 작업 이력 |
 | [migrations/](./migrations/) | Supabase SQL (`00`~`12`) |
 | [n8n/](./n8n/) | n8n 워크플로 JSON·설정 |
