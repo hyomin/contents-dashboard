@@ -12,7 +12,10 @@
       "name": "Webhook 수신",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [100, 200],
+      "position": [
+        100,
+        200
+      ],
       "webhookId": "topic-suggest-webhook"
     },
     {
@@ -21,7 +24,10 @@
       "name": "수동 실행",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [100, 380]
+      "position": [
+        100,
+        380
+      ]
     },
     {
       "parameters": {
@@ -31,7 +37,10 @@
       "name": "파라미터 파싱",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [320, 290]
+      "position": [
+        320,
+        290
+      ]
     },
     {
       "parameters": {
@@ -40,16 +49,24 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-dashboard-api-key", "value": "={{ $env.DASHBOARD_API_SECRET || '' }}" }
+            {
+              "name": "x-dashboard-api-key",
+              "value": "={{ $env.DASHBOARD_API_SECRET || '' }}"
+            }
           ]
         },
-        "options": { "timeout": 15000 }
+        "options": {
+          "timeout": 15000
+        }
       },
       "id": "node-fetch-rss",
       "name": "RSS 주제 조회",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [540, 190],
+      "position": [
+        540,
+        190
+      ],
       "continueOnFail": true
     },
     {
@@ -59,49 +76,38 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-dashboard-api-key", "value": "={{ $env.DASHBOARD_API_SECRET || '' }}" }
+            {
+              "name": "x-dashboard-api-key",
+              "value": "={{ $env.DASHBOARD_API_SECRET || '' }}"
+            }
           ]
         },
-        "options": { "timeout": 15000 }
+        "options": {
+          "timeout": 15000
+        }
       },
       "id": "node-fetch-outlier",
       "name": "Outlier 영상 조회",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [540, 390],
+      "position": [
+        540,
+        390
+      ],
       "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "const params = $('파라미터 파싱').first().json;\nconst geminiKey = ($env.GEMINI_API_KEY || '').trim();\n\nlet rssTopics = [];\nlet outlierTitles = [];\ntry {\n  const rssData = $('RSS 주제 조회').first()?.json;\n  rssTopics = (rssData?.topics || []).slice(0, 8).map(t => t.ai_title || t.title).filter(Boolean);\n} catch {}\ntry {\n  const outlierData = $('Outlier 영상 조회').first()?.json;\n  outlierTitles = (outlierData?.videos || []).slice(0, 8).map(v => v.title).filter(Boolean);\n} catch {}\n\nif (!geminiKey) {\n  return [{ json: { ...params, geminiSkip: true, geminiReason: 'GEMINI_API_KEY 미설정', rssTopics, outlierTitles } }];\n}\n\nconst contextParts = [];\nif (rssTopics.length) contextParts.push(`최근 RSS 트렌드 키워드:\\n${rssTopics.map((t,i) => `${i+1}. ${t}`).join('\\n')}`);\nif (outlierTitles.length) contextParts.push(`최근 아웃라이어(히트) 영상 제목:\\n${outlierTitles.map((t,i) => `${i+1}. ${t}`).join('\\n')}`);\nif (params.keywords) contextParts.push(`추가 키워드: ${params.keywords}`);\n\nconst contextText = contextParts.length ? contextParts.join('\\n\\n') : `타겟 오디언스: ${params.targetAudience}`;\n\nconst prompt = `당신은 ${params.targetAudience} 타겟 유튜브 채널의 콘텐츠 기획 전문가입니다.\\n아래 데이터를 참고해 이번 주 제작할 영상 주제 ${params.count}개를 추천해 주세요.\\n\\n${contextText}\\n\\n아래 JSON 배열로만 응답 (다른 텍스트 없이):\\n[\\n  {\\n    \"rank\": 1,\\n    \"topic\": \"주제 키워드 (20자 이내)\",\\n    \"title\": \"클릭하고 싶은 유튜브 제목 (35자 이내)\",\\n    \"reason\": \"추천 이유 — 트렌드/아웃라이어/시즌 등 근거 한 문장\",\\n    \"format\": \"longform 또는 shortform\",\\n    \"urgency\": \"high 또는 medium 또는 low\"\\n  }\\n]\\n\\n조건:\\n- ${params.targetAudience}이 실제로 검색하거나 공유할 만한 주제\\n- 경쟁이 적고 내 채널 강점을 살릴 수 있는 각도\\n- 제목은 숫자/구체적 이점 포함 권장`;\n\nreturn [{ json: {\n  ...params,\n  geminiSkip: false,\n  geminiKey,\n  geminiPrompt: prompt,\n  rssTopics,\n  outlierTitles,\n} }];"
+        "jsCode": "const params = $('파라미터 파싱').first().json;\nlet rssTopics = [];\nlet outlierTitles = [];\ntry {\n  const rssData = $('RSS 주제 조회').first()?.json;\n  rssTopics = (rssData?.topics || []).slice(0, 8).map(t => t.ai_title || t.title).filter(Boolean);\n} catch {}\ntry {\n  const outlierData = $('Outlier 영상 조회').first()?.json;\n  outlierTitles = (outlierData?.videos || []).slice(0, 8).map(v => v.title).filter(Boolean);\n} catch {}\n\n\nconst contextParts = [];\nif (rssTopics.length) contextParts.push(`최근 RSS 트렌드 키워드:\\n${rssTopics.map((t,i) => `${i+1}. ${t}`).join('\\n')}`);\nif (outlierTitles.length) contextParts.push(`최근 아웃라이어(히트) 영상 제목:\\n${outlierTitles.map((t,i) => `${i+1}. ${t}`).join('\\n')}`);\nif (params.keywords) contextParts.push(`추가 키워드: ${params.keywords}`);\n\nconst contextText = contextParts.length ? contextParts.join('\\n\\n') : `타겟 오디언스: ${params.targetAudience}`;\n\nconst prompt = `당신은 ${params.targetAudience} 타겟 유튜브 채널의 콘텐츠 기획 전문가입니다.\\n아래 데이터를 참고해 이번 주 제작할 영상 주제 ${params.count}개를 추천해 주세요.\\n\\n${contextText}\\n\\n아래 JSON 배열로만 응답 (다른 텍스트 없이):\\n[\\n  {\\n    \"rank\": 1,\\n    \"topic\": \"주제 키워드 (20자 이내)\",\\n    \"title\": \"클릭하고 싶은 유튜브 제목 (35자 이내)\",\\n    \"reason\": \"추천 이유 — 트렌드/아웃라이어/시즌 등 근거 한 문장\",\\n    \"format\": \"longform 또는 shortform\",\\n    \"urgency\": \"high 또는 medium 또는 low\"\\n  }\\n]\\n\\n조건:\\n- ${params.targetAudience}이 실제로 검색하거나 공유할 만한 주제\\n- 경쟁이 적고 내 채널 강점을 살릴 수 있는 각도\\n- 제목은 숫자/구체적 이점 포함 권장`;\n\nreturn [{ json: {\n  ...params,\n  geminiPrompt: prompt,\n  rssTopics,\n  outlierTitles,\n} }];"
       },
       "id": "node-build-prompt",
       "name": "Gemini 프롬프트 구성",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [760, 290]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-          "conditions": [
-            {
-              "id": "skip-gemini",
-              "leftValue": "={{ $json.geminiSkip }}",
-              "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "node-if-skip",
-      "name": "Gemini 스킵?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [980, 290]
+      "position": [
+        760,
+        290
+      ]
     },
     {
       "parameters": {
@@ -109,20 +115,38 @@
         "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={{ $json.geminiKey }}",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
         },
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ contents: [{ parts: [{ text: $json.geminiPrompt }] }], generationConfig: { temperature: 0.6, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } } }) }}",
-        "options": { "timeout": 30000 }
+        "options": {
+          "timeout": 30000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "googlePalmApi"
       },
       "id": "node-gemini-call",
       "name": "Gemini: 주제 추천",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 190],
-      "continueOnFail": true
+      "position": [
+        1200,
+        190
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "9e3a2158",
+          "name": "Google Gemini API"
+        }
+      }
     },
     {
       "parameters": {
@@ -132,7 +156,10 @@
       "name": "Gemini 결과 파싱",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1420, 190]
+      "position": [
+        1420,
+        190
+      ]
     },
     {
       "parameters": {
@@ -142,7 +169,10 @@
       "name": "폴백 (키 없음)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1200, 390]
+      "position": [
+        1200,
+        390
+      ]
     },
     {
       "parameters": {
@@ -151,64 +181,160 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "x-dashboard-api-key", "value": "={{ $env.DASHBOARD_API_SECRET || '' }}" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-dashboard-api-key",
+              "value": "={{ $env.DASHBOARD_API_SECRET || '' }}"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ workflowKey: 'topic-suggest', summary: { count: $json.count, aiEnhanced: $json.aiEnhanced, mode: $json.mode } }) }}",
-        "options": { "timeout": 20000 }
+        "options": {
+          "timeout": 20000
+        }
       },
       "id": "node-notion-log",
       "name": "Notion 기록",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1640, 290],
+      "position": [
+        1640,
+        290
+      ],
       "continueOnFail": true
     }
   ],
   "connections": {
     "Webhook 수신": {
-      "main": [[{ "node": "파라미터 파싱", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "파라미터 파싱",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "수동 실행": {
-      "main": [[{ "node": "파라미터 파싱", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "파라미터 파싱",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "파라미터 파싱": {
-      "main": [[
-        { "node": "RSS 주제 조회", "type": "main", "index": 0 },
-        { "node": "Outlier 영상 조회", "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          {
+            "node": "RSS 주제 조회",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Outlier 영상 조회",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "RSS 주제 조회": {
-      "main": [[{ "node": "Gemini 프롬프트 구성", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gemini 프롬프트 구성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Outlier 영상 조회": {
-      "main": [[{ "node": "Gemini 프롬프트 구성", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gemini 프롬프트 구성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gemini 프롬프트 구성": {
-      "main": [[{ "node": "Gemini 스킵?", "type": "main", "index": 0 }]]
-    },
-    "Gemini 스킵?": {
       "main": [
-        [{ "node": "폴백 (키 없음)", "type": "main", "index": 0 }],
-        [{ "node": "Gemini: 주제 추천", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Gemini: 주제 추천",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Gemini: 주제 추천": {
-      "main": [[{ "node": "Gemini 결과 파싱", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gemini 결과 파싱",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "폴백 (키 없음)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gemini 결과 파싱": {
-      "main": [[{ "node": "Notion 기록", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notion 기록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "폴백 (키 없음)": {
-      "main": [[{ "node": "Notion 기록", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notion 기록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "staticData": null,
-  "tags": [{ "name": "AI 기획" }, { "name": "Gemini" }],
-  "pinData": {}
+  "tags": [
+    {
+      "name": "AI 기획"
+    },
+    {
+      "name": "Gemini"
+    }
+  ],
+  "pinData": {},
+  "id": "hxhvP2dPxXuFxxEt"
 }

@@ -77,7 +77,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rss = $input.first().json;\nconst geminiKey = ($env.GEMINI_API_KEY || '').trim();\n\n// 저장 스킵이거나 키 없으면 Gemini 건너뜀\nif (rss.skipSave || !rss.topics?.length || !geminiKey) {\n  return [{ json: { ...rss, geminiSkip: true, geminiReason: !geminiKey ? 'GEMINI_API_KEY 미설정' : '저장 스킵' } }];\n}\n\nconst topicList = rss.topics.slice(0, 15).map((t, i) => `${i+1}. ${t.title}`).join('\\n');\nconst prompt = `당신은 ${rss.targetAudience || '시니어'} 타겟 유튜브·블로그 콘텐츠 전문 기획자입니다.\\n아래 뉴스 기사 제목 목록에서 실제로 관심 가질 주제 ${rss.maxTopics || 5}개를 선별해 주세요.\\n\\n조건:\\n- 클릭하고 싶은 유튜브 영상 제목으로 재구성 (30자 이내)\\n- 선별 이유를 한 줄로 설명\\n- JSON 배열로만 응답 (앞뒤 다른 텍스트 없이)\\n\\n응답 형식:\\n[\\n  {\"rank\":1,\"original\":\"원본제목\",\"youtube_title\":\"유튜브 제목 제안\",\"reason\":\"선별 이유\"},\\n  ...\\n]\\n\\n뉴스 제목 목록:\\n${topicList}`;\n\nreturn [{ json: {\n  ...rss,\n  geminiSkip: false,\n  geminiKey,\n  geminiPrompt: prompt,\n} }];"
+        "jsCode": "const rss = $input.first().json;\n// 저장 스킵이거나 키 없으면 Gemini 건너뜀\nif (rss.skipSave || !rss.topics?.length) {\n  return [{ json: { ...rss, geminiSkip: true, geminiReason: ! ? 'GEMINI_API_KEY 미설정' : '저장 스킵' } }];\n}\n\nconst topicList = rss.topics.slice(0, 15).map((t, i) => `${i+1}. ${t.title}`).join('\\n');\nconst prompt = `당신은 ${rss.targetAudience || '시니어'} 타겟 유튜브·블로그 콘텐츠 전문 기획자입니다.\\n아래 뉴스 기사 제목 목록에서 실제로 관심 가질 주제 ${rss.maxTopics || 5}개를 선별해 주세요.\\n\\n조건:\\n- 클릭하고 싶은 유튜브 영상 제목으로 재구성 (30자 이내)\\n- 선별 이유를 한 줄로 설명\\n- JSON 배열로만 응답 (앞뒤 다른 텍스트 없이)\\n\\n응답 형식:\\n[\\n  {\"rank\":1,\"original\":\"원본제목\",\"youtube_title\":\"유튜브 제목 제안\",\"reason\":\"선별 이유\"},\\n  ...\\n]\\n\\n뉴스 제목 목록:\\n${topicList}`;\n\nreturn [{ json: {\n  ...rss,\n  geminiPrompt: prompt,\n} }];"
       },
       "id": "node-gemini-prep",
       "name": "Gemini 프롬프트 준비",
@@ -85,38 +85,6 @@
       "typeVersion": 2,
       "position": [
         760,
-        380
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "skip-gemini",
-              "leftValue": "={{ $json.geminiSkip }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "node-if-gemini-skip",
-      "name": "Gemini 스킵?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        980,
         380
       ]
     },
@@ -139,7 +107,9 @@
         "body": "={{ JSON.stringify({ contents: [{ parts: [{ text: $json.geminiPrompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } } }) }}",
         "options": {
           "timeout": 30000
-        }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "googlePalmApi"
       },
       "id": "node-gemini-call",
       "name": "Gemini: 주제 선별",
@@ -149,7 +119,13 @@
         1200,
         280
       ],
-      "continueOnFail": true
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "9e3a2158",
+          "name": "Google Gemini API"
+        }
+      }
     },
     {
       "parameters": {
@@ -358,24 +334,6 @@
       "main": [
         [
           {
-            "node": "Gemini 스킵?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Gemini 스킵?": {
-      "main": [
-        [
-          {
-            "node": "완료 (스킵)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
             "node": "Gemini: 주제 선별",
             "type": "main",
             "index": 0
@@ -388,6 +346,13 @@
         [
           {
             "node": "Gemini 결과 파싱",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "완료 (스킵)",
             "type": "main",
             "index": 0
           }
@@ -469,5 +434,6 @@
       "name": "Gemini"
     }
   ],
-  "pinData": {}
+  "pinData": {},
+  "id": "sRGxVtY3L7xFTmc6"
 }

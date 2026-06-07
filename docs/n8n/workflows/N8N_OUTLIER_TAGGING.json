@@ -235,6 +235,44 @@
         380
       ],
       "continueOnFail": true
+    },
+    {
+      "id": "node-longform-vs-avg",
+      "name": "Supabase: 롱폼 vs_avg 갱신",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1660,
+        280
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/update_longform_vs_avg",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "{}",
+        "options": {
+          "timeout": 30000
+        }
+      }
     }
   ],
   "connections": {
@@ -327,6 +365,11 @@
         [
           {
             "node": "Notion 기록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase: 롱폼 vs_avg 갱신",
             "type": "main",
             "index": 0
           }
