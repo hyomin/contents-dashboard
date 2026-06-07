@@ -1,6 +1,8 @@
-import type { Video } from '@/lib/dashboard/dashboard-types'
 import { supabase } from './supabase'
 import { getOutlierVideos } from './queries'
+import { tierForVsAvg, outlierTagToVideo, type OutlierTagRow } from '@/lib/dashboard/dashboard-helpers'
+
+export { outlierTagToVideo, type OutlierTagRow }
 
 /** 상위 Outlier 영상 제목에서 공통 성과 패턴을 Gemini로 분석 */
 async function analyzeOutlierPatterns(
@@ -43,19 +45,6 @@ ${list}
   }
 }
 
-export interface OutlierTagRow {
-  video_id: string
-  title: string
-  channel_id: string | null
-  channel_name: string | null
-  platform: string
-  vs_avg: number
-  min_vs_avg_threshold: number
-  tagged_at: string
-  source: string
-  updated_at: string
-}
-
 export interface OutlierTaggingResult {
   ok: boolean
   minVsAvg: number
@@ -67,36 +56,11 @@ export interface OutlierTaggingResult {
   aiInsight?: string | null
 }
 
-function tierForVsAvg(vsAvg: number): 'S' | 'A' | 'B' | 'C' {
-  if (vsAvg >= 5) return 'S'
-  if (vsAvg >= 3) return 'A'
-  if (vsAvg >= 1.5) return 'B'
-  return 'C'
-}
-
 const TIER_RANK: Record<string, number> = { C: 0, B: 1, A: 2, S: 3 }
 
 function shouldUpgradeTier(current: string | null | undefined, next: 'S' | 'A' | 'B' | 'C'): boolean {
   const cur = TIER_RANK[current ?? 'C'] ?? 0
   return TIER_RANK[next] > cur
-}
-
-export function outlierTagToVideo(row: OutlierTagRow, index = 0): Video {
-  const vsAvg = Number(row.vs_avg ?? 0)
-  const tier = tierForVsAvg(vsAvg)
-  return {
-    id: index,
-    videoId: row.video_id,
-    tier,
-    title: row.title,
-    channel: row.channel_name ?? '',
-    channelId: row.channel_id ?? undefined,
-    views: 0,
-    vsAvg,
-    platform: (row.platform ?? 'youtube') as Video['platform'],
-    publishedAt: row.tagged_at?.split('T')[0] ?? '',
-    keyword: 'outlier-tag',
-  }
 }
 
 export async function getTaggedOutlierVideos(limit = 50): Promise<OutlierTagRow[]> {

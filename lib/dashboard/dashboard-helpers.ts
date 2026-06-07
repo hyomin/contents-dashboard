@@ -61,3 +61,40 @@ export function dbVideoToVideo(v: DBVideo, index?: number): Video {
     thumbnailUrl: v.thumbnail_url ?? undefined,
   }
 }
+
+export interface OutlierTagRow {
+  video_id: string
+  title: string
+  channel_id: string | null
+  channel_name: string | null
+  platform: string
+  vs_avg: number
+  min_vs_avg_threshold: number
+  tagged_at: string
+  source: string
+  updated_at: string
+}
+
+export function tierForVsAvg(vsAvg: number): 'S' | 'A' | 'B' | 'C' {
+  if (vsAvg >= 5) return 'S'
+  if (vsAvg >= 3) return 'A'
+  if (vsAvg >= 1.5) return 'B'
+  return 'C'
+}
+
+export function outlierTagToVideo(row: OutlierTagRow, index = 0): Video {
+  const vsAvg = Number(row.vs_avg ?? 0)
+  return {
+    id: index,
+    videoId: row.video_id,
+    tier: tierForVsAvg(vsAvg),
+    title: row.title,
+    channel: row.channel_name ?? '',
+    channelId: row.channel_id ?? undefined,
+    views: 0,
+    vsAvg,
+    platform: (row.platform ?? 'youtube') as Video['platform'],
+    publishedAt: row.tagged_at?.split('T')[0] ?? '',
+    keyword: 'outlier-tag',
+  }
+}
