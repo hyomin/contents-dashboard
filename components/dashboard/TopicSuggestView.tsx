@@ -32,6 +32,12 @@ interface SuggestResult {
   analyzedAt: string
 }
 
+/** n8n 워크플로가 결과를 인라인이 아닌 Notion 페이지로 저장한 경우의 응답 형태 */
+interface NotionSuggestLink {
+  url: string
+  itemCount?: number
+}
+
 interface DBBenchmark {
   id: string
   url: string
@@ -178,6 +184,7 @@ export default function TopicSuggestView({
   const [loading, setLoading] = useState(false)
   const [autoLoading, setAutoLoading] = useState(false)
   const [result, setResult] = useState<SuggestResult | null>(null)
+  const [notionLink, setNotionLink] = useState<NotionSuggestLink | null>(null)
   const [mode, setMode] = useState<'gemini' | 'n8n' | 'error' | null>(null)
   const [trendingKeywords, setTrendingKeywords] = useState<string[]>([])
 
@@ -289,6 +296,7 @@ export default function TopicSuggestView({
   const handleSuggest = async () => {
     setLoading(true)
     setResult(null)
+    setNotionLink(null)
     try {
       const res = await fetch('/api/topic-suggest', {
         method: 'POST',
@@ -301,14 +309,33 @@ export default function TopicSuggestView({
           trendingKeywords,
         }),
       })
-      const data = (await res.json()) as SuggestResult & { mode?: string; error?: string }
+      const data = (await res.json()) as Partial<SuggestResult> & {
+        mode?: string
+        error?: string
+        subPageUrl?: string
+        itemCount?: number
+      }
       if (!res.ok || data.error) {
         addToast(data.error ?? 'AI 분석 실패. GEMINI_API_KEY를 확인해주세요', 'warning')
         setMode('error')
-      } else {
-        setResult({ ...data, analyzedAt: new Date().toLocaleTimeString('ko-KR') })
+      } else if (Array.isArray(data.suggestions)) {
+        // 인라인 추천 결과 (Gemini 직접 호출 또는 구버전 n8n 응답)
+        setResult({
+          category: data.category ?? selectedCat?.name ?? '',
+          platform: data.platform ?? platform,
+          suggestions: data.suggestions,
+          analyzedAt: new Date().toLocaleTimeString('ko-KR'),
+        })
         setMode((data.mode as 'gemini' | 'n8n') ?? 'gemini')
         addToast('주제 분석 완료! 추천 결과를 확인하세요 🎯', 'success')
+      } else if (data.subPageUrl) {
+        // n8n V2 워크플로: 결과를 인라인이 아닌 Notion 페이지로 저장
+        setNotionLink({ url: data.subPageUrl, itemCount: data.itemCount })
+        setMode((data.mode as 'gemini' | 'n8n') ?? 'n8n')
+        addToast('주제 추천 결과가 Notion 페이지에 저장됐습니다 📝', 'success')
+      } else {
+        addToast('AI 분석 결과를 가져오지 못했습니다. 다시 시도해주세요', 'warning')
+        setMode('error')
       }
     } catch {
       addToast('네트워크 오류가 발생했습니다', 'warning')
@@ -572,7 +599,7 @@ export default function TopicSuggestView({
 
         {/* ─ 결과 패널 ─ */}
         <div className="space-y-4">
-          {!result && !loading && (
+          {!result && !notionLink && !loading && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-10 flex flex-col items-center justify-center text-center min-h-64">
               <span className="text-5xl mb-4">🎯</span>
               <p className="text-base font-semibold text-gray-700 dark:text-gray-300">
@@ -601,6 +628,36 @@ export default function TopicSuggestView({
                 <p>✅ 트렌딩 키워드 컨텍스트 반영</p>
                 <p className="animate-pulse">⏳ Gemini가 주제·훅·구성안 생성 중…</p>
               </div>
+            </div>
+          )}
+
+          {notionLink && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-10 flex flex-col items-center justify-center text-center min-h-64 gap-3">
+              <span className="text-5xl">📝</span>
+              <p className="text-base font-semibold text-gray-700 dark:text-gray-300">
+                추천 결과가 Notion 페이지에 저장됐습니다
+                {notionLink.itemCount != null ? ` (주제 ${notionLink.itemCount}개)` : ''}
+              </p>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                이 n8n 워크플로(V2)는 추천 주제를 화면에 바로 보여주는 대신
+                <br />
+                Notion 페이지로 정리해 저장합니다
+              </p>
+              <a
+                href={notionLink.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 text-sm px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-semibold hover:opacity-80 transition"
+              >
+                Notion에서 결과 보기 ↗
+              </a>
+              <button
+                type="button"
+                onClick={() => setNotionLink(null)}
+                className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1 border border-gray-200 rounded-lg"
+              >
+                초기화
+              </button>
             </div>
           )}
 

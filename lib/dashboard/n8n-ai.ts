@@ -189,21 +189,23 @@ export async function invokeAiInsightsN8n(payload: Record<string, unknown>): Pro
   return parseN8nInsightSections(result.body)
 }
 
-export function geminiDirectDisabledResponse(feature: string): NextResponse {
+export function geminiDirectDisabledResponse(feature: string, reason: 'no-key' | 'flag-off'): NextResponse {
+  const error =
+    reason === 'no-key'
+      ? `${feature} 기능은 Gemini를 직접 호출합니다 (n8n 미경유). .env.local에 GEMINI_API_KEY와 DASHBOARD_GEMINI_DIRECT=1을 설정하면 사용할 수 있습니다. (AI Studio API 크레딧 별도 소모)`
+      : `${feature} 기능은 Gemini 직접 호출이 꺼져 있습니다. .env.local에 DASHBOARD_GEMINI_DIRECT=1을 추가하면 바로 사용할 수 있습니다 (GEMINI_API_KEY는 이미 설정됨). (AI Studio API 크레딧 별도 소모)`
+
   return NextResponse.json(
-    {
-      error: `${feature}은 n8n Webhook 경유로 동작합니다. .env.local에 해당 N8N_WEBHOOK_* URL을 설정하거나, 대시보드 직접 Gemini 호출이 필요하면 DASHBOARD_GEMINI_DIRECT=1 을 추가하세요. (AI Studio API 크레딧 별도)`,
-      mode: 'n8n-required',
-    },
+    { error, mode: 'gemini-direct-required' },
     { status: 503 },
   )
 }
 
 export function requireGeminiDirectOrRespond(feature: string): NextResponse | null {
   const apiKey = process.env.GEMINI_API_KEY?.trim()
-  if (!apiKey) return geminiDirectDisabledResponse(feature)
+  if (!apiKey) return geminiDirectDisabledResponse(feature, 'no-key')
   if (!isDashboardGeminiDirectEnabled()) {
-    return geminiDirectDisabledResponse(feature)
+    return geminiDirectDisabledResponse(feature, 'flag-off')
   }
   return null
 }
