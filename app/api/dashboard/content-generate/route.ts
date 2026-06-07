@@ -13,6 +13,7 @@
  *   서버에서 최신 Outlier 제목·트렌딩 키워드·RSS 주제를 자동으로 fetch해 merge한다.
 */
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { denyUnlessDashboardMutationAuth } from '@/lib/dashboard/api-auth'
 import { requireGeminiDirectOrRespond } from '@/lib/dashboard/n8n-ai'
 import {
@@ -250,38 +251,33 @@ interface AutoContext {
   rssTopics: string[]
 }
 
-let autoCtxCache: { data: AutoContext; cachedAt: number } | null = null
-const AUTO_CTX_TTL = 15 * 60 * 1000
+// unstable_cache: Next.js Data Cache를 사용해 서버리스 인스턴스 간 캐시 공유 (15분 TTL)
+const fetchAutoContext = unstable_cache(
+  async (): Promise<AutoContext> => {
+    try {
+      const { getOutlierVideos, getVideosForAnalytics } = await import('@/lib/data/queries')
+      const { getRssTopicCandidates } = await import('@/lib/data/rss-topic-collect')
+      const { extractTrendingKeywords } = await import('@/lib/data/analytics-from-videos')
 
-async function fetchAutoContext(): Promise<AutoContext> {
-  if (autoCtxCache && Date.now() - autoCtxCache.cachedAt < AUTO_CTX_TTL) {
-    return autoCtxCache.data
-  }
+      const [outliers, videos, rssTopics] = await Promise.all([
+        getOutlierVideos(1.5, 10),
+        getVideosForAnalytics(300),
+        getRssTopicCandidates(8),
+      ])
 
-  try {
-    const { getOutlierVideos, getVideosForAnalytics } = await import('@/lib/data/queries')
-    const { getRssTopicCandidates } = await import('@/lib/data/rss-topic-collect')
-    const { extractTrendingKeywords } = await import('@/lib/data/analytics-from-videos')
-
-    const [outliers, videos, rssTopics] = await Promise.all([
-      getOutlierVideos(1.5, 10),
-      getVideosForAnalytics(300),
-      getRssTopicCandidates(8),
-    ])
-
-    const data: AutoContext = {
-      outlierTitles: outliers.map((v) => v.title).filter(Boolean),
-      trendingKeywords: extractTrendingKeywords(videos, 10).map((k) => k.keyword),
-      rssTopics: rssTopics.map((t) => t.ai_title ?? t.title).filter(Boolean),
+      return {
+        outlierTitles: outliers.map((v) => v.title).filter(Boolean),
+        trendingKeywords: extractTrendingKeywords(videos, 10).map((k) => k.keyword),
+        rssTopics: rssTopics.map((t) => t.ai_title ?? t.title).filter(Boolean),
+      }
+    } catch (err) {
+      console.warn('[content-generate] auto-context fetch failed, skipping:', err)
+      return { outlierTitles: [], trendingKeywords: [], rssTopics: [] }
     }
-
-    autoCtxCache = { data, cachedAt: Date.now() }
-    return data
-  } catch (err) {
-    console.warn('[content-generate] auto-context fetch failed, skipping:', err)
-    return { outlierTitles: [], trendingKeywords: [], rssTopics: [] }
-  }
-}
+  },
+  ['content-generate-auto-ctx'],
+  { revalidate: 15 * 60 },
+)
 
 /** 클라이언트 context의 누락된 필드를 자동 fetch된 값으로 채워 merge */
 function mergeContext(
@@ -326,12 +322,14 @@ export async function POST(req: NextRequest) {
         !body.context.trendingKeywords?.length &&
         !body.context.rssTopics?.length))
 
-  if (needsAutoCtx) {
-    const auto = await fetchAutoContext()
-    body.context = mergeContext(body.context, auto)
-  }
+  // body 불변성 유지 — 새 객체로 context 병합
+  const resolvedContext = needsAutoCtx
+    ? mergeContext(body.context, await fetchAutoContext())
+    : body.context
 
-  const { prompt, maxOutputTokens } = promptFor(body)
+  const resolvedBody: ContentGenerateRequest = { ...body, context: resolvedContext }
+
+  const { prompt, maxOutputTokens } = promptFor(resolvedBody)
   const model = resolveGeminiModel(body.aiModel)
 
   try {
@@ -355,10 +353,32 @@ export async function POST(req: NextRequest) {
     if (!jsonMatch)
       return NextResponse.json({ error: 'AI 응답 파싱 실패. 다시 시도해주세요.' }, { status: 500 })
 
-    const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>
+    } catch {
+      return NextResponse.json({ error: 'AI 응답 JSON 파싱 실패. 다시 시도해주세요.' }, { status: 500 })
+    }
+
+    if (!isValidContentResult(parsed, body.targetFormat)) {
+      console.error('[content-generate] schema mismatch', body.targetFormat, Object.keys(parsed))
+      return NextResponse.json({ error: 'AI가 예상과 다른 형식으로 응답했습니다. 다시 시도해주세요.' }, { status: 500 })
+    }
+
     return NextResponse.json({ ...parsed, format: body.targetFormat } as ContentGenerateResult)
   } catch (err) {
     console.error('[content-generate] failed', err)
     return NextResponse.json({ error: '생성 중 오류가 발생했습니다.' }, { status: 500 })
+  }
+}
+
+function isValidContentResult(parsed: Record<string, unknown>, format: ContentFormat): boolean {
+  if (typeof parsed.title !== 'string' || !parsed.title) return false
+  switch (format) {
+    case 'longform':     return Array.isArray(parsed.chapters) && typeof parsed.hook === 'string'
+    case 'shortform':   return Array.isArray(parsed.keyPoints) && typeof parsed.hook === 'string'
+    case 'carousel':    return Array.isArray(parsed.slides)
+    case 'blog':        return Array.isArray(parsed.h2Sections)
+    case 'sns-caption': return typeof parsed.captions === 'object' && parsed.captions !== null
   }
 }

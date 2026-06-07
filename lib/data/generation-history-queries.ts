@@ -1,9 +1,11 @@
 import { supabaseAdmin } from '@/lib/data/supabase-admin'
 import type {
+  ChapterMarker,
   GenerationHistoryDraft,
   GenerationHistoryItem,
   GenerationHistoryPolished,
 } from '@/lib/dashboard/generation-history-types'
+import type { ContentFormat } from '@/app/api/dashboard/content-generate/route'
 
 const MAX_ITEMS = 30
 
@@ -15,6 +17,8 @@ interface HistoryRow {
   reference_titles: string[]
   draft: GenerationHistoryDraft
   polished: GenerationHistoryPolished | null
+  target_format: string | null
+  chapter_markers: ChapterMarker[] | null
   created_at: string
   updated_at: string
 }
@@ -33,6 +37,15 @@ function rowToItem(row: HistoryRow): GenerationHistoryItem {
           topic: row.publish_topic ?? '',
           generatedAt: row.created_at,
         }
+
+  // target_format 컬럼이 있으면 draft.targetFormat보다 우선 사용
+  if (row.target_format) {
+    draft.targetFormat = row.target_format as ContentFormat
+  }
+  // chapter_markers 컬럼이 있으면 draft에 병합
+  if (Array.isArray(row.chapter_markers) && row.chapter_markers.length > 0) {
+    draft.chapterMarkers = row.chapter_markers
+  }
 
   const polishedRaw = row.polished
   const polished =
@@ -62,6 +75,8 @@ function itemToRow(item: GenerationHistoryItem): Record<string, unknown> {
     reference_titles: item.referenceTitles,
     draft: item.draft,
     polished: item.polished ?? null,
+    target_format: item.draft.targetFormat ?? null,
+    chapter_markers: item.draft.chapterMarkers ?? null,
     created_at: item.createdAt,
     updated_at: item.updatedAt,
   }

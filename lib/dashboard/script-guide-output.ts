@@ -2,6 +2,12 @@ import type { ContentFormat, ContentGenerateResult } from '@/app/api/dashboard/c
 import type { GuideCategory } from '@/lib/dashboard/content-creation-guide'
 import type { AiScriptGuideReference } from '@/lib/dashboard/content-creation-guide'
 
+export interface ChapterMarker {
+  timestamp: string  // "00:00" 형식
+  title: string
+  durationSec?: number
+}
+
 export interface ScriptGuideOutput {
   mode: 'n8n' | 'dashboard' | 'gemini' | 'direct'
   category: GuideCategory
@@ -15,6 +21,7 @@ export interface ScriptGuideOutput {
   cta?: string
   seoKeywords?: string[]
   chapterSummary?: string[]
+  chapterMarkers?: ChapterMarker[]
   generatedAt: string
   message?: string
 }
@@ -25,8 +32,9 @@ export function categoryToTargetFormat(
 ): ContentFormat {
   if (category === 'writing') return 'blog'
   if (category === 'image') return 'carousel'
-  if (intent === 'shortform_video' || category === 'video') return 'shortform'
-  return 'longform'
+  if (intent === 'longform_video') return 'longform'
+  if (intent === 'shortform_video') return 'shortform'
+  return 'shortform'
 }
 
 export function deriveTopic(
@@ -159,6 +167,27 @@ export function normalizeN8nScriptBody(body: unknown): Partial<ScriptGuideOutput
     ? (script.chapters as { heading?: string }[]).map((c) => String(c.heading ?? '')).filter(Boolean)
     : undefined
 
+  // chapterMarkers: n8n이 직접 계산해서 내려줄 수도 있고, 없으면 chapters+durationSec에서 파생
+  let chapterMarkers: ChapterMarker[] | undefined
+  if (Array.isArray(script.chapterMarkers) && script.chapterMarkers.length > 0) {
+    chapterMarkers = (script.chapterMarkers as { timestamp?: string; title?: string; durationSec?: number }[])
+      .filter((m) => m.timestamp && m.title)
+      .map((m) => ({ timestamp: String(m.timestamp), title: String(m.title), durationSec: m.durationSec }))
+  } else if (Array.isArray(script.chapters) && script.chapters.length > 0) {
+    // chapters[]에 durationSec이 있으면 누적해서 타임스탬프 계산
+    let elapsed = 0
+    chapterMarkers = (script.chapters as { heading?: string; durationSec?: number }[])
+      .filter((c) => c.heading)
+      .map((c) => {
+        const totalSec = elapsed
+        const mm = String(Math.floor(totalSec / 60)).padStart(2, '0')
+        const ss = String(totalSec % 60).padStart(2, '0')
+        elapsed += c.durationSec ?? 90
+        return { timestamp: `${mm}:${ss}`, title: String(c.heading), durationSec: c.durationSec }
+      })
+    if (chapterMarkers.length === 0) chapterMarkers = undefined
+  }
+
   const modeRaw = String(b.mode ?? 'n8n')
   const mode: ScriptGuideOutput['mode'] =
     modeRaw === 'fallback' ? 'dashboard' : modeRaw === 'n8n' ? 'n8n' : 'dashboard'
@@ -172,6 +201,7 @@ export function normalizeN8nScriptBody(body: unknown): Partial<ScriptGuideOutput
     cta: script.cta ? String(script.cta) : undefined,
     seoKeywords: Array.isArray(script.seoKeywords) ? script.seoKeywords.map(String) : undefined,
     chapterSummary: chapters,
+    chapterMarkers,
     generatedAt: String(b.generatedAt ?? new Date().toISOString()),
     message: b.message ? String(b.message) : undefined,
   }
@@ -193,6 +223,7 @@ export function buildScriptGuideOutput(
     cta: partial.cta,
     seoKeywords: partial.seoKeywords,
     chapterSummary: partial.chapterSummary,
+    chapterMarkers: partial.chapterMarkers,
     generatedAt: partial.generatedAt ?? new Date().toISOString(),
     message: partial.message,
   }

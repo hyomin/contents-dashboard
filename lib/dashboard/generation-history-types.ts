@@ -1,7 +1,9 @@
 import type { ContentFormat } from '@/app/api/dashboard/content-generate/route'
 import type { GuideCategory } from '@/lib/dashboard/content-creation-guide'
-import type { ScriptGuideOutput } from '@/lib/dashboard/script-guide-output'
+import type { ScriptGuideOutput, ChapterMarker } from '@/lib/dashboard/script-guide-output'
 import type { ContentPolishResult } from '@/lib/dashboard/content-polish'
+
+export type { ChapterMarker }
 
 export interface GenerationHistoryDraft {
   title: string
@@ -9,6 +11,7 @@ export interface GenerationHistoryDraft {
   hook?: string
   cta?: string
   chapterSummary?: string[]
+  chapterMarkers?: ChapterMarker[]
   seoKeywords?: string[]
   mode: ScriptGuideOutput['mode']
   targetFormat: ContentFormat
@@ -44,6 +47,7 @@ export function scriptToDraft(result: ScriptGuideOutput): GenerationHistoryDraft
     hook: result.hook,
     cta: result.cta,
     chapterSummary: result.chapterSummary,
+    chapterMarkers: result.chapterMarkers,
     seoKeywords: result.seoKeywords,
     mode: result.mode,
     targetFormat: result.targetFormat,
@@ -67,10 +71,16 @@ export function draftToScriptOutput(
   draft: GenerationHistoryDraft,
   category: GuideCategory,
 ): ScriptGuideOutput {
+  const intent: ScriptGuideOutput['intent'] =
+    category === 'writing' ? 'blog'
+    : category === 'image' ? 'carousel'
+    : draft.targetFormat === 'longform' ? 'longform_video'
+    : 'shortform_video'
+
   return {
     mode: draft.mode,
     category,
-    intent: category === 'writing' ? 'blog' : category === 'image' ? 'carousel' : 'longform_video',
+    intent,
     targetFormat: draft.targetFormat,
     platform: draft.platform,
     topic: draft.topic,
@@ -80,6 +90,7 @@ export function draftToScriptOutput(
     cta: draft.cta,
     seoKeywords: draft.seoKeywords,
     chapterSummary: draft.chapterSummary,
+    chapterMarkers: draft.chapterMarkers,
     generatedAt: draft.generatedAt,
   }
 }
