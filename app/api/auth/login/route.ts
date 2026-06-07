@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   }
 
   const rateKey = buildLoginRateLimitKey(request, loginId)
-  const rate = checkLoginRateLimit(rateKey)
+  const rate = await checkLoginRateLimit(rateKey)
   if (!rate.allowed) {
     return NextResponse.json(
       {
@@ -55,11 +55,11 @@ export async function POST(request: NextRequest) {
 
   const verified = await verifyLoginCredentials(loginId, password)
   if (!verified.ok) {
-    recordLoginFailure(rateKey)
+    await recordLoginFailure(rateKey)
     return NextResponse.json({ error: verified.error }, { status: 401 })
   }
 
-  clearLoginAttempts(rateKey)
+  await clearLoginAttempts(rateKey)
 
   const payload = createSessionPayload(loginId)
   const token = await signSessionToken(payload, secret)

@@ -43,11 +43,21 @@ async function hmacBase64Url(message: string, secret: string): Promise<string> {
   return Buffer.from(sig).toString('base64url')
 }
 
-function safeEqualString(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
-  let diff = 0
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  return diff === 0
+// crypto.subtle.verify는 Web Crypto 표준 constant-time 비교를 사용함
+async function verifyHmac(message: string, secret: string, providedSig: string): Promise<boolean> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['verify'],
+  )
+  try {
+    const sigBytes = Buffer.from(providedSig, 'base64url')
+    return await crypto.subtle.verify('HMAC', key, sigBytes, encoder.encode(message))
+  } catch {
+    return false
+  }
 }
 
 export function getSessionSecret(): string | null {
@@ -77,9 +87,8 @@ export async function verifySessionToken(
 
   const body = token.slice(0, sep)
   const sig = token.slice(sep + 1)
-  const expected = await hmacBase64Url(body, secret)
 
-  if (!safeEqualString(sig, expected)) return null
+  if (!await verifyHmac(body, secret, sig)) return null
 
   const payload = decodePayload(body)
   if (!payload) return null

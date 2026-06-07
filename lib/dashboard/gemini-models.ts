@@ -45,12 +45,12 @@ export async function callGeminiGenerateContent(
   opts: { temperature?: number; maxOutputTokens?: number; timeoutMs?: number },
 ): Promise<{ ok: true; text: string } | { ok: false; status: number; error: string }> {
   const resolved = resolveGeminiModel(model)
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${resolved}:generateContent?key=${apiKey}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${resolved}:generateContent`
 
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: buildGeminiGenerationConfig(resolved, opts),

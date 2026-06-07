@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
     formatParam === 'short' || formatParam === 'long' || formatParam === 'unknown'
       ? formatParam
       : undefined
-  const limit = Number(searchParams.get('limit') ?? 50)
+  const MAX_LIMIT = 500
+  const limit = Math.min(Math.max(1, Number(searchParams.get('limit') ?? 50)), MAX_LIMIT)
   const tier = searchParams.get('tier') ?? undefined
 
   const channelParam = searchParams.get('channels') ?? ''

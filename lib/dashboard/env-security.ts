@@ -330,11 +330,11 @@ export async function probeGeminiApiKey(apiKey: string): Promise<GeminiKeyProbeR
     return { ok: false, message: 'GEMINI_API_KEY가 비어 있습니다.' }
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
         contents: [{ parts: [{ text: 'ping' }] }],
         generationConfig: { maxOutputTokens: 8, thinkingConfig: { thinkingBudget: 0 } },

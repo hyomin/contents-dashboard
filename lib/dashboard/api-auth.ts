@@ -3,14 +3,19 @@ import { NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth/session'
 import { isWeakDashboardSecret } from '@/lib/dashboard/env-security'
 
-// Edge Runtime 호환 타이밍-세이프 문자열 비교 (Web Crypto API 기반)
+// 상수-시간 문자열 비교 — 길이 차이도 timing oracle이 되지 않도록 max(len) 기준으로 루프
 function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
   const enc = new TextEncoder()
   const aBytes = enc.encode(a)
   const bBytes = enc.encode(b)
-  let diff = 0
-  for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ bBytes[i]
+  const len = Math.max(aBytes.length, bBytes.length)
+  const aPadded = new Uint8Array(len)
+  const bPadded = new Uint8Array(len)
+  aPadded.set(aBytes)
+  bPadded.set(bBytes)
+  // 길이가 다르면 diff가 0이 아님을 반드시 보장
+  let diff = aBytes.length === bBytes.length ? 0 : 1
+  for (let i = 0; i < len; i++) diff |= aPadded[i] ^ bPadded[i]
   return diff === 0
 }
 
