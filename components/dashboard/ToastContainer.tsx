@@ -37,9 +37,9 @@ function ToastItem({
   return (
     <div
       className={`flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white
-        ${toast.type === 'success' ? 'bg-green-600' : toast.type === 'warning' ? 'bg-yellow-500' : 'bg-blue-600'}`}
+        ${toast.type === 'success' ? 'bg-green-600' : toast.type === 'warning' ? 'bg-yellow-500' : toast.type === 'error' ? 'bg-red-600' : 'bg-blue-600'}`}
     >
-      <span>{toast.type === 'success' ? '✅' : toast.type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+      <span>{toast.type === 'success' ? '✅' : toast.type === 'warning' ? '⚠️' : toast.type === 'error' ? '❌' : 'ℹ️'}</span>
       <span className="flex-1">{toast.message}</span>
       <button
         type="button"

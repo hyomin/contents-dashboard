@@ -6,6 +6,7 @@ export const getPlatformName = (p: string) =>
     youtube: 'YouTube',
     tiktok: 'TikTok',
     instagram: 'Instagram',
+    blogger: 'Google Blogger',
     'naver-blog': '네이버',
     tistory: '티스토리',
   }[p] ?? p)
@@ -15,6 +16,7 @@ export const getPlatformIcon = (p: string) =>
     youtube: '🔴',
     tiktok: '🎵',
     instagram: '💗',
+    blogger: '🌐',
     'naver-blog': '🟢',
     tistory: '🟠',
   }[p] ?? '🔗')
@@ -24,6 +26,7 @@ export const getPlatformColor = (p: string) =>
     youtube: 'bg-red-100 text-red-700',
     tiktok: 'bg-gray-900 text-white',
     instagram: 'bg-pink-100 text-pink-700',
+    blogger: 'bg-sky-100 text-sky-800',
     'naver-blog': 'bg-green-100 text-green-700',
     tistory: 'bg-orange-100 text-orange-700',
   }[p] ?? 'bg-gray-100 text-gray-700')

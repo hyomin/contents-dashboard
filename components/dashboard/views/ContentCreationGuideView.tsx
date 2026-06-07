@@ -115,15 +115,25 @@ function FeedBadge({ name, categoryMap }: { name: string; categoryMap: Map<strin
 }
 
 const CATEGORIES: { id: GuideCategory; label: string; icon: string }[] = [
-  { id: 'video', label: '숏폼', icon: '🎬' },
+  { id: 'video', label: '영상', icon: '🎬' },
   { id: 'writing', label: '글쓰기', icon: '📝' },
-  { id: 'image', label: '이미지', icon: '🖼️' },
+  { id: 'image', label: '캐러셀', icon: '🖼️' },
 ]
 
-function mapCategoryToIntent(c: GuideCategory): AiScriptGuideRequestContext['intent'] {
+type VideoMode = 'shortform' | 'longform'
+
+const VIDEO_MODE_TABS: { id: VideoMode; label: string; icon: string; desc: string }[] = [
+  { id: 'shortform', label: '숏폼', icon: '⚡', desc: '60초 이내 · YouTube Shorts / Reels' },
+  { id: 'longform',  label: '롱폼', icon: '🎞️', desc: '8~12분 · YouTube 본영상' },
+]
+
+function mapCategoryToIntent(
+  c: GuideCategory,
+  videoMode: VideoMode,
+): AiScriptGuideRequestContext['intent'] {
   if (c === 'writing') return 'blog'
   if (c === 'image') return 'carousel'
-  return 'shortform_video'
+  return videoMode === 'longform' ? 'longform_video' : 'shortform_video'
 }
 
 export default function ContentCreationGuideView({ addToast }: { addToast: AddToast }) {
@@ -131,6 +141,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [category, setCategory] = useState<GuideCategory>('video')
+  const [videoMode, setVideoMode] = useState<VideoMode>('shortform')
   const [shortformCategoryId, setShortformCategoryId] = useState(
     () => BUILTIN_SHORTFORM_CATEGORIES[0].id,
   )
@@ -445,11 +456,17 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     const polishHint =
       category === 'writing'
         ? '\n · 발행용 블로그 + 이미지·표 가이드'
-        : category === 'video'
+        : category === 'video' && videoMode === 'shortform'
           ? '\n · [0~N초] 장면별 대본 + 화면(한글) + Google Flow 프롬프트'
-          : ''
+          : category === 'video' && videoMode === 'longform'
+            ? '\n · 챕터별 완성 대본 + YouTube 설명란 타임스탬프'
+            : ''
+    const videoLabel =
+      category === 'video'
+        ? VIDEO_MODE_TABS.find((t) => t.id === videoMode)?.label ?? videoMode
+        : CATEGORIES.find((c) => c.id === category)?.label ?? category
     const ok = window.confirm(
-      `발행용 콘텐츠를 생성할까요?\n\n발행 주제: ${topicPreview}\nAI 모델: ${modelLabel}\n${refLine}\n포맷: ${CATEGORIES.find((c) => c.id === category)?.label ?? category}${category === 'video' ? `\n숏폼 카테고리: ${findShortformCategory(shortformCategoryId)?.label ?? shortformCategoryId}` : ''}${polishHint}\n\n(n8n Gemini 1회 호출 · 가이드 초안 단계 없음)`,
+      `발행용 콘텐츠를 생성할까요?\n\n발행 주제: ${topicPreview}\nAI 모델: ${modelLabel}\n${refLine}\n포맷: ${videoLabel}${category === 'video' && videoMode === 'shortform' ? `\n숏폼 카테고리: ${findShortformCategory(shortformCategoryId)?.label ?? shortformCategoryId}` : ''}${polishHint}\n\n(n8n Gemini 1회 호출 · 가이드 초안 단계 없음)`,
     )
     if (!ok) return
 
@@ -483,13 +500,16 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           setActiveHistoryId(historyId)
           if (polished) await attachPolished(historyId, polished)
         }
+        const modeLabel =
+          category === 'writing' ? '블로그'
+          : category === 'video' && videoMode === 'longform' ? '롱폼'
+          : category === 'video' ? '숏폼'
+          : '캐러셀'
         addToast(
           historyId
             ? category === 'writing' && polished
               ? `발행용 콘텐츠 생성 · 저장 완료 · 이미지 가이드 ${polished.imageGuideCount}개 ✨`
-              : category === 'video'
-                ? '숏폼 발행용 스크립트 생성 · 저장 완료 ✨'
-                : '발행용 콘텐츠 생성 · 저장 완료 ✨'
+              : `${modeLabel} 발행용 스크립트 생성 · 저장 완료 ✨`
             : '발행용 콘텐츠 생성 완료 (히스토리 저장 실패)',
           historyId ? 'success' : 'warning',
         )
@@ -604,15 +624,15 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const guideContext = useMemo(
     (): AiScriptGuideRequestContext => ({
       category,
-      shortformCategoryId: category === 'video' ? shortformCategoryId : undefined,
+      shortformCategoryId: category === 'video' && videoMode === 'shortform' ? shortformCategoryId : undefined,
       userTopic: publishTopic.trim(),
       keywords: parsePublishKeywords(publishTopic),
       referenceTitles: references.map((r) => r.title),
       references: references.map(guideRefToAi),
-      intent: mapCategoryToIntent(category),
+      intent: mapCategoryToIntent(category, videoMode),
       aiModel: scriptGuideModel,
     }),
-    [category, shortformCategoryId, publishTopic, references, scriptGuideModel],
+    [category, videoMode, shortformCategoryId, publishTopic, references, scriptGuideModel],
   )
 
   const canGenerate = publishTopic.trim().length >= 2
@@ -650,11 +670,40 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           </div>
         </div>
         {category === 'video' && (
-          <div className="mt-4 pt-4 border-t border-violet-100 dark:border-violet-900/50">
-            <ShortformCategorySelect
-              value={shortformCategoryId}
-              onChange={handleShortformCategoryChange}
-            />
+          <div className="mt-4 pt-4 border-t border-violet-100 dark:border-violet-900/50 space-y-4">
+            {/* 숏폼 / 롱폼 서브 토글 */}
+            <div className="flex flex-wrap gap-2">
+              {VIDEO_MODE_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setVideoMode(tab.id)}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition
+                    ${
+                      videoMode === tab.id
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-indigo-100 dark:hover:bg-indigo-900/30'
+                    }`}
+                >
+                  <span>{tab.icon}</span>
+                  {tab.label}
+                  <span className={`text-[10px] font-normal ${videoMode === tab.id ? 'text-indigo-200' : 'text-gray-400 dark:text-gray-500'}`}>
+                    {tab.desc}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {videoMode === 'shortform' && (
+              <ShortformCategorySelect
+                value={shortformCategoryId}
+                onChange={handleShortformCategoryChange}
+              />
+            )}
+            {videoMode === 'longform' && (
+              <p className="text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg px-3 py-2">
+                🎞️ <strong>롱폼 모드:</strong> 8~12분 분량 · 챕터별 대본 + YouTube 설명란용 타임스탬프 자동 생성
+              </p>
+            )}
           </div>
         )}
       </section>
@@ -1415,14 +1464,37 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
                 <span className="text-xs font-semibold text-indigo-800 dark:text-indigo-300">
                   {category === 'writing'
                     ? '발행용 본문'
-                    : category === 'video'
-                      ? '발행용 숏폼 스크립트 (상단 Flow 블록 고정)'
-                      : '발행용 본문'}
+                    : category === 'video' && videoMode === 'longform'
+                      ? '롱폼 발행용 대본 (챕터별)'
+                      : category === 'video'
+                        ? '발행용 숏폼 스크립트 (상단 Flow 블록 고정)'
+                        : category === 'image'
+                          ? '캐러셀 슬라이드 카피'
+                          : '발행용 본문'}
                   {polishedResult && polishedResult.imageGuideCount > 0
                     ? ` · 📷 가이드 ${polishedResult.imageGuideCount}`
                     : ''}
                 </span>
                 <div className="flex flex-wrap gap-2 items-center">
+                  {/* 롱폼: YouTube 설명란 챕터 복사 버튼 */}
+                  {category === 'video' && videoMode === 'longform' && scriptResult.chapterSummary && scriptResult.chapterSummary.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const lines = scriptResult.chapterSummary!.map((title, i) => {
+                          const minutes = Math.floor((i * 90) / 60)
+                          const seconds = (i * 90) % 60
+                          const ts = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+                          return `${ts} ${title}`
+                        })
+                        void navigator.clipboard.writeText(lines.join('\n'))
+                        addToast('YouTube 챕터 타임스탬프 복사됨', 'success')
+                      }}
+                      className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/60"
+                    >
+                      ⏱ 챕터 복사
+                    </button>
+                  )}
                   {category === 'video' &&
                     listFlowScenePastes(polishedResult?.fullContent ?? scriptResult.fullScript).map(
                       (scene) => (
@@ -1494,9 +1566,9 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
               </p>
             )}
 
-            {polishedResult && category === 'video' && (
+            {polishedResult && category === 'video' && videoMode === 'shortform' && (
               <p className="text-xs text-gray-500 dark:text-gray-400 bg-violet-50/50 dark:bg-violet-950/20 rounded-lg px-3 py-2">
-                📋 **씬N** 버튼으로 해당 씬 블록 전체를 복사한 뒤 Google Flow에 붙여넣으세요. Flow 영문은 상단에만 있고 발행 스크립트와 중복되지 않습니다. 플랫폼 스펙:{' '}
+                📋 <strong>씬N</strong> 버튼으로 해당 씬 블록 전체를 복사한 뒤 Google Flow에 붙여넣으세요. Flow 영문은 상단에만 있고 발행 스크립트와 중복되지 않습니다. 플랫폼 스펙:{' '}
                 <a
                   href="https://branderkey.notion.site/33c835c9591a8008b0cef37fcf50043f"
                   target="_blank"
@@ -1506,6 +1578,16 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
                   Branderkey 가이드
                 </a>
                 기준입니다.
+              </p>
+            )}
+            {polishedResult && category === 'video' && videoMode === 'longform' && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 bg-orange-50/50 dark:bg-orange-950/20 rounded-lg px-3 py-2">
+                🎞️ <strong>⏱ 챕터 복사</strong> 버튼으로 YouTube 설명란에 바로 붙여넣을 타임스탬프 블록을 복사하세요. 챕터 순서대로 90초 간격으로 자동 계산됩니다.
+              </p>
+            )}
+            {category === 'image' && scriptResult && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 bg-pink-50/50 dark:bg-pink-950/20 rounded-lg px-3 py-2">
+                🖼️ 슬라이드별 카피를 복사해 <strong>Canva</strong>에 붙여넣으세요. 각 슬라이드는 <code>## 슬라이드 N</code> 형식으로 구분됩니다.
               </p>
             )}
 

@@ -7,10 +7,9 @@ import { fetchChannelFlags } from '@/lib/dashboard/dashboard-storage'
 import { dbVideoToVideo } from '@/lib/dashboard/dashboard-helpers'
 import ContentTable from '@/components/dashboard/ContentTable'
 import type { DBVideo } from '@/lib/data/supabase'
-import { isPlatformComingSoon, isPlatformDummyPreview } from '@/lib/dashboard/platforms'
-import { DUMMY_TIKTOK_CHANNELS, DUMMY_TIKTOK_VIDEOS } from '@/lib/dashboard/tiktok-dummy-data'
-import { getPlatformIcon, getPlatformName } from '@/lib/dashboard/dashboard-helpers'
-import { TitleWithHint } from '@/components/dashboard/info-hint'
+import { isPlatformPublishExpansion } from '@/lib/dashboard/platforms'
+import { PublishExpansionPanel } from '@/components/dashboard/PublishExpansionPanel'
+import { getPlatformName } from '@/lib/dashboard/dashboard-helpers'
 import { SavedShortsPanel, type SavedShortItem } from '@/components/dashboard/SavedShortsPanel'
 import type { ViewVideoFormat } from '@/lib/dashboard/dashboard-nav'
 import { SHORTS_MAX_DURATION_SEC } from '@/lib/data/video-format'
@@ -92,12 +91,7 @@ export default function PlatformView({
   }, [isShortsView])
 
   const loadVideos = useCallback(async () => {
-    if (isPlatformDummyPreview(filter)) {
-      setBaseVideos(DUMMY_TIKTOK_VIDEOS)
-      setLoading(false)
-      return
-    }
-    if (isPlatformComingSoon(filter)) {
+    if (isPlatformPublishExpansion(filter)) {
       setBaseVideos([])
       setLoading(false)
       return
@@ -109,15 +103,15 @@ export default function PlatformView({
       const res = await fetch(`/api/dashboard/videos?${params}`)
       const data = (await res.json()) as DBVideo[]
       setBaseVideos(data.map((v, i) => dbVideoToVideo(v, i)))
-    } catch {
-      console.error()
+    } catch (err) {
+      console.error('[PlatformView] loadVideos failed:', err)
     } finally {
       setLoading(false)
     }
   }, [filter, videoFormat])
 
   const loadChannelMeta = useCallback(async () => {
-    if (filter !== 'youtube' || isPlatformComingSoon(filter)) return
+    if (filter !== 'youtube' || isPlatformPublishExpansion(filter)) return
     try {
       await fetch('/api/dashboard/channels/sync-categories', { method: 'POST' })
 
@@ -146,8 +140,8 @@ export default function PlatformView({
       }
       setTopicCategories(Array.isArray(cats) ? cats : [])
       setChannelMeta(mapped)
-    } catch {
-      console.error()
+    } catch (err) {
+      console.error('[PlatformView] loadChannelMeta failed:', err)
     }
   }, [filter, mineOnly])
 
@@ -249,30 +243,12 @@ export default function PlatformView({
     }
   }, [syncingViews, addToast, handleRefreshed])
 
-  if (isPlatformComingSoon(filter)) {
+  if (isPlatformPublishExpansion(filter)) {
     return (
-      <div className="space-y-4">
-        <PlatformContentRefreshBar
-          platform={filter}
-          mineOnly={mineOnly}
-          addToast={addToast}
-          onRefreshed={handleRefreshed}
-        />
-        <div className="rounded-2xl border border-pink-200 bg-pink-50 dark:bg-pink-950/20 dark:border-pink-900 p-8 text-center">
-          <span className="text-4xl">{getPlatformIcon(filter)}</span>
-          <TitleWithHint
-            as="h3"
-            className="text-lg font-bold text-gray-900 dark:text-white mt-3 justify-center"
-            hint="네이버 블로그·YouTube는 수집 API가 연결되어 있습니다. Instagram·티스토리는 추후 연동 예정입니다."
-          >
-            {getPlatformName(filter)} 수집 준비 중
-          </TitleWithHint>
-        </div>
-      </div>
+      <PublishExpansionPanel platform={filter} videoFormat={videoFormat} mineOnly={mineOnly} />
     )
   }
 
-  const isTiktokDummy = filter === 'tiktok'
   const isNaverBlog = filter === 'naver-blog'
   const isTistory = filter === 'tistory'
   const hasViewMetrics = videos.some((v) => (v.views ?? 0) > 0)
@@ -362,45 +338,6 @@ export default function PlatformView({
             운영 허브에서 채널 지정 →
           </Link>
         </div>
-      )}
-
-      {isTiktokDummy && (
-        <>
-        <N8nLv1ServicesSection viewId="tiktok" addToast={addToast} title="🔗 2단계 Apify 수집 (n8n 시나리오)" />
-        <div className="rounded-2xl border border-gray-800 bg-gray-950 text-gray-100 p-5 space-y-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <TitleWithHint
-                as="h3"
-                className="text-sm font-bold text-white"
-                hintVariant="light"
-                hint="2단계 로드맵 «Apify 유튜브·인스타 크롤링»에 TikTok Actor를 추가하면 Supabase videos(platform=tiktok)로 적재할 예정입니다."
-              >
-                🎵 TikTok · Apify 수집 (더미 미리보기)
-              </TitleWithHint>
-              <p className="text-xs text-gray-400 mt-1">
-                아래 목록은 UI 검증용 샘플입니다. YouTube Shorts와 같은 숏폼 레퍼런스로 멀티플랫폼 확장을 가정했습니다.
-              </p>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-500/20 text-amber-300">
-              DUMMY
-            </span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {DUMMY_TIKTOK_CHANNELS.map((ch) => (
-              <div
-                key={ch.channel_id}
-                className="rounded-xl bg-gray-900/80 border border-gray-800 px-3 py-2 text-xs"
-              >
-                <p className="font-semibold text-white">{ch.channel_name}</p>
-                <p className="text-gray-500 mt-0.5">
-                  팔로워 {(ch.followers / 1000).toFixed(0)}K · avg {(ch.avg_views / 1000).toFixed(1)}K
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-        </>
       )}
 
       {formatBadge && (

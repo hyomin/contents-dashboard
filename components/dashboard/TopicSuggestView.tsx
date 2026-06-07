@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getCategoryStyle } from '@/lib/dashboard/categories'
 import type { Category } from '@/lib/dashboard/categories'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import { Spinner } from '@/components/dashboard/ui/loading'
 import { usePlanningQueue } from '@/lib/hooks/use-planning-queue'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
@@ -165,7 +166,7 @@ function SuggestionCard({
 export default function TopicSuggestView({
   addToast,
 }: {
-  addToast: (m: string, t?: 'success' | 'info' | 'warning') => void
+  addToast: AddToast
 }) {
   const [categories, setCategories] = useState<Category[]>([])
   const [categoryId, setCategoryId] = useState('')

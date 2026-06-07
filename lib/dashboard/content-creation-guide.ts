@@ -77,6 +77,16 @@ export const GUIDE_BY_CATEGORY: Record<GuideCategory, CategoryGuide> = {
         ],
       },
       {
+        heading: 'Google Blogger (발행 확장)',
+        bullets: [
+          '네이버 발행본 또는 가이드 초안 → Blogger에 미러 (H2·FAQ 구조 동일)',
+          '메타 설명 140~160자 · 라벨 3~5개 · 대표 이미지 alt에 키워드',
+          '제목·첫 단락만 Google SERP에 맞게 살짝 조정 (본문은 공유 가능)',
+          'AdSense: 1,000자+ · 광고 과밀·클릭 유도 문구 금지',
+          '(선택) 글 하단 영문 제목·요약 2문장 — 글로벌 검색 실험',
+        ],
+      },
+      {
         heading: '본문 구조 템플릿',
         bullets: [
           '도입(10%): 문제 제기 + «이 글에서 얻는 것» 1문장',

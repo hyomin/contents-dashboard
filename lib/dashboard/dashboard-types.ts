@@ -9,7 +9,7 @@ export interface Video {
   channelId?: string
   views: number
   vsAvg: number
-  platform: 'youtube' | 'tiktok' | 'instagram' | 'naver-blog' | 'tistory'
+  platform: 'youtube' | 'tiktok' | 'instagram' | 'blogger' | 'naver-blog' | 'tistory'
   publishedAt: string
   keyword: string
   duration?: number
@@ -20,7 +20,7 @@ export interface Video {
 export interface Toast {
   id: number
   message: string
-  type: 'success' | 'info' | 'warning'
+  type: 'success' | 'info' | 'warning' | 'error'
 }
 
 export type ToastKind = 'collect' | 'ai' | 'error' | 'general'

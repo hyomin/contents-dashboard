@@ -50,11 +50,11 @@ export function saveNotificationSettings(settings: NotificationSettings): void {
 
 export function shouldShowToast(
   settings: NotificationSettings,
-  type: 'success' | 'info' | 'warning',
+  type: 'success' | 'info' | 'warning' | 'error',
   kind: ToastKind = 'general',
 ): boolean {
   if (kind === 'collect' && !settings.collectDone) return false
   if (kind === 'ai' && !settings.aiDone) return false
-  if ((kind === 'error' || type === 'warning') && !settings.errorAlert) return false
+  if ((kind === 'error' || type === 'warning' || type === 'error') && !settings.errorAlert) return false
   return true
 }

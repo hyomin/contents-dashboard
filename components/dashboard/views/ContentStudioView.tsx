@@ -35,6 +35,7 @@ const PLATFORMS = [
   { value: 'youtube',      label: 'YouTube',         icon: '🔴' },
   { value: 'instagram',    label: 'Instagram',       icon: '💗' },
   { value: 'naver-blog',   label: '네이버 블로그',    icon: '🟢' },
+  { value: 'blogger',      label: 'Google Blogger',  icon: '🌐' },
   { value: 'tistory',      label: '티스토리',         icon: '🟠' },
   { value: 'shorts-reels', label: 'Shorts/Reels',    icon: '⚡' },
   { value: 'thread',       label: 'Thread',          icon: '🧵' },

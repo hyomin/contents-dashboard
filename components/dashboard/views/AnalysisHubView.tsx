@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react'
 import type { Video, AddToast } from '@/lib/dashboard/dashboard-types'
 import { getPlatformIcon, getPlatformName } from '@/lib/dashboard/dashboard-helpers'
-import { isCollectionEnabled, isPlatformComingSoon, isPlatformDummyPreview } from '@/lib/dashboard/platforms'
 import PlatformView from '@/components/dashboard/views/PlatformView'
 import type { ViewVideoFormat } from '@/lib/dashboard/dashboard-nav'
 
@@ -37,36 +36,15 @@ const PLATFORMS: Platform[] = [
     label: '티스토리',
     icon: '🟠',
   },
-  {
-    id: 'tiktok',
-    label: 'TikTok',
-    icon: '🎵',
-    badge: '더미',
-    badgeColor: 'bg-gray-800 text-gray-100',
-  },
-  {
-    id: 'instagram',
-    label: 'Instagram',
-    icon: '💗',
-    badge: '준비중',
-    badgeColor: 'bg-pink-100 text-pink-700',
-    subFormats: [
-      { value: null, label: '전체' },
-      { value: 'short', label: 'Reels' },
-    ],
-  },
 ]
 
-const PLATFORM_STATUS = {
+type PlatformStatusKey = 'ready'
+
+const PLATFORM_STATUS: Record<PlatformStatusKey, { label: string; color: string }> = {
   ready: { label: '수집됨', color: 'text-emerald-600 dark:text-emerald-400' },
-  dummy: { label: '더미', color: 'text-amber-600 dark:text-amber-400' },
-  soon: { label: '준비중', color: 'text-gray-400' },
 }
 
-function getPlatformStatus(id: string) {
-  if (isCollectionEnabled(id)) return 'ready'
-  if (isPlatformDummyPreview(id)) return 'dummy'
-  if (isPlatformComingSoon(id)) return 'soon'
+function getPlatformStatus(): PlatformStatusKey {
   return 'ready'
 }
 
@@ -113,7 +91,7 @@ export function AnalysisHubView({ onSelect, addToast }: AnalysisHubViewProps) {
         <div className="hidden sm:flex overflow-x-auto scrollbar-none">
           {PLATFORMS.map(p => {
             const isActive = p.id === activePlatform
-            const status = getPlatformStatus(p.id)
+            const status = getPlatformStatus()
             const statusMeta = PLATFORM_STATUS[status]
             return (
               <button

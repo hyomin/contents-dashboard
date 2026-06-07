@@ -38,7 +38,14 @@ function mineViewMeta(base: ViewMeta & { filter: string }): ViewMeta {
 /** URL `?view=` 값 → 헤더 메타. 그룹 전용 id(analysis 등)도 헤더 혼동을 줄이기 위해 포함 */
 export const VIEW_META: Record<string, ViewMeta> = {
   overview: { title: '전체 개요', desc: '모든 플랫폼의 콘텐츠 분석 현황' },
-  analysis: { title: '콘텐츠 분석', desc: '플랫폼 탭을 선택해 YouTube·네이버 블로그·티스토리·TikTok·Instagram 콘텐츠를 한 화면에서 비교합니다.' },
+  analysis: {
+    title: '콘텐츠 분석',
+    desc: 'YouTube·네이버 블로그·티스토리 레퍼런스를 한 화면에서 비교합니다. 숏폼 참고·vs.Avg는 YouTube Shorts를 사용하세요.',
+  },
+  'publish-expand': {
+    title: '발행 확장',
+    desc: '완성 콘텐츠를 TikTok·Instagram·Google Blogger 등 다른 채널로 보낼 때 포맷·SEO·발행 체크리스트를 참고합니다.',
+  },
   youtube: {
     title: 'YouTube',
     desc: '등록한 채널의 카테고리(육아·경제 등)로 필터해 콘텐츠를 볼 수 있습니다. 카테고리는 «채널·콘텐츠 등록»에서 지정합니다.',
@@ -57,14 +64,32 @@ export const VIEW_META: Record<string, ViewMeta> = {
     videoFormat: 'long',
   },
   tiktok: {
-    title: 'TikTok',
-    desc: '숏폼 레퍼런스·트렌드 (Apify 수집 연동 예정). YouTube Shorts와 함께 멀티플랫폼 숏폼 기획에 활용합니다.',
+    title: 'TikTok 발행 확장',
+    desc: 'YouTube Shorts 완성본을 TikTok 업로드용으로 변환·발행할 때 참고합니다. 레퍼런스·vs.Avg 분석은 YouTube Shorts를 사용하세요.',
     filter: 'tiktok',
     videoFormat: 'short',
   },
-  instagram: { title: 'Instagram', desc: 'Instagram 콘텐츠 분석', filter: 'instagram' },
-  'instagram-reels': { title: 'Instagram Reels', desc: 'Reels 분석', filter: 'instagram' },
-  'instagram-carousel': { title: '캐러셀 포스트', desc: '캐러셀 분석', filter: 'instagram' },
+  instagram: {
+    title: 'Instagram 발행 확장',
+    desc: 'Reels·캐러셀 발행 포맷·스펙 안내. 레퍼런스 분석은 YouTube Shorts 기준입니다.',
+    filter: 'instagram',
+  },
+  'instagram-reels': {
+    title: 'Instagram Reels',
+    desc: 'Shorts 완성본을 Reels로 발행할 때의 포맷·캡션·안전 영역 가이드입니다.',
+    filter: 'instagram',
+    videoFormat: 'short',
+  },
+  'instagram-carousel': {
+    title: '캐러셀 포스트',
+    desc: '카드뉴스·인포그래픽 캐러셀 발행 흐름·장수·CTA 설계 가이드입니다.',
+    filter: 'instagram',
+  },
+  blogger: {
+    title: 'Google Blogger 발행 확장',
+    desc: '네이버 블로그·콘텐츠 가이드 초안을 Blogger(blogspot)에 발행할 때의 Google SEO·메타·AdSense 체크리스트입니다.',
+    filter: 'blogger',
+  },
   'naver-blog': { title: '네이버 블로그', desc: '네이버 블로그 분석', filter: 'naver-blog' },
   tistory: { title: '티스토리', desc: '티스토리 분석', filter: 'tistory' },
   insights: { title: '기획 / 인사이트', desc: '트렌드·Outlier·AI 기획 등 인사이트 메뉴입니다.' },
@@ -105,15 +130,31 @@ export const VIEW_META: Record<string, ViewMeta> = {
     filter: 'youtube',
     videoFormat: 'long',
   }),
-  'my-tiktok': mineViewMeta({
-    title: 'TikTok',
-    desc: '',
-    filter: 'tiktok',
-    videoFormat: 'short',
-  }),
-  'my-instagram': mineViewMeta({ title: 'Instagram', desc: '', filter: 'instagram' }),
-  'my-instagram-reels': mineViewMeta({ title: 'Instagram Reels', desc: '', filter: 'instagram' }),
-  'my-instagram-carousel': mineViewMeta({ title: '캐러셀 포스트', desc: '', filter: 'instagram' }),
+  'my-tiktok': {
+    ...mineViewMeta({ title: 'TikTok', desc: '', filter: 'tiktok', videoFormat: 'short' }),
+    title: '내 TikTok',
+    desc: '내 TikTok 발행 일정·업로드는 캘린더·발행 편집에서 관리하세요. 레퍼런스 분석은 YouTube Shorts를 사용합니다.',
+  },
+  'my-instagram': {
+    ...mineViewMeta({ title: 'Instagram', desc: '', filter: 'instagram' }),
+    title: '내 Instagram',
+    desc: 'Reels·캐러셀 발행 포맷 가이드. 레퍼런스 분석은 YouTube Shorts를 사용합니다.',
+  },
+  'my-instagram-reels': {
+    ...mineViewMeta({ title: 'Instagram Reels', desc: '', filter: 'instagram', videoFormat: 'short' }),
+    title: '내 Instagram Reels',
+    desc: 'Shorts 완성본 → Reels 발행 시 참고. 업로드 일정은 캘린더에서 관리하세요.',
+  },
+  'my-instagram-carousel': {
+    ...mineViewMeta({ title: '캐러셀 포스트', desc: '', filter: 'instagram' }),
+    title: '내 캐러셀',
+    desc: '카드뉴스·캐러셀 발행 흐름 가이드. 분석·수집은 제공하지 않습니다.',
+  },
+  'my-blogger': {
+    ...mineViewMeta({ title: 'Google Blogger', desc: '', filter: 'blogger' }),
+    title: '내 Google Blogger',
+    desc: '네이버 발행 글의 Google 검색·AdSense 미러 채널. 업로드 일정은 캘린더에서 관리하세요.',
+  },
   'my-naver-blog': mineViewMeta({ title: '네이버 블로그', desc: '', filter: 'naver-blog' }),
   'my-tistory': mineViewMeta({ title: '티스토리', desc: '', filter: 'tistory' }),
   pipeline: { title: '파이프라인', desc: '콘텐츠 생산 자동화 현황' },
@@ -158,6 +199,7 @@ export const NAV_EXPAND_ONLY_IDS = new Set([
   'n8n',
   'create',
   'pipeline',
+  'publish-expand',
 ])
 
 export function isNavExpandOnly(id: string): boolean {
@@ -177,13 +219,7 @@ export function resolveViewMeta(view: string): ViewMeta {
 export const NAV_DUMMY_ONLY_VIEW_IDS = new Set<string>([])
 
 /** API + localStorage 혼합 등 — (일부 더미) */
-export const NAV_PARTIAL_DUMMY_VIEW_IDS = new Set<string>([
-  'automation',
-  'content-guide',
-  'n8n-lv1',
-  'tiktok',
-  'my-tiktok',
-])
+export const NAV_PARTIAL_DUMMY_VIEW_IDS = new Set<string>(['automation', 'content-guide', 'n8n-lv1'])
 
 export type NavDataBadge = 'none' | 'dummy' | 'partial'
 
@@ -246,24 +282,6 @@ export const NAV_TREE: DashboardNavItem[] = [
           { id: 'youtube-longform', label: '롱폼', icon: '🎬' },
         ],
       },
-      {
-        id: 'tiktok',
-        label: 'TikTok',
-        icon: '🎵',
-        badge: '더미',
-        badgeColor: 'bg-gray-900 text-gray-100',
-      },
-      {
-        id: 'instagram',
-        label: 'Instagram',
-        icon: '💗',
-        badge: '준비중',
-        badgeColor: 'bg-pink-100 text-pink-700',
-        children: [
-          { id: 'instagram-reels', label: 'Reels', icon: '🎵' },
-          { id: 'instagram-carousel', label: '캐러셀', icon: '🖼️' },
-        ],
-      },
       { id: 'naver-blog', label: '네이버 블로그', icon: '🟢', badge: 1 },
       { id: 'tistory', label: '티스토리', icon: '🟠', badge: 1 },
     ],
@@ -313,22 +331,63 @@ export const NAV_TREE: DashboardNavItem[] = [
         id: 'my-tiktok',
         label: 'TikTok',
         icon: '🎵',
-        badge: '더미',
-        badgeColor: 'bg-gray-900 text-gray-100',
+        badge: '발행',
+        badgeColor: 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-200',
       },
       {
         id: 'my-instagram',
         label: 'Instagram',
         icon: '💗',
-        badge: '준비중',
-        badgeColor: 'bg-pink-100 text-pink-700',
+        badge: '발행',
+        badgeColor: 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-200',
         children: [
           { id: 'my-instagram-reels', label: 'Reels', icon: '🎵' },
           { id: 'my-instagram-carousel', label: '캐러셀', icon: '🖼️' },
         ],
       },
       { id: 'my-naver-blog', label: '네이버 블로그', icon: '🟢' },
+      {
+        id: 'my-blogger',
+        label: 'Google Blogger',
+        icon: '🌐',
+        badge: '발행',
+        badgeColor: 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-200',
+      },
       { id: 'my-tistory', label: '티스토리', icon: '🟠' },
+    ],
+  },
+  {
+    id: 'publish-expand',
+    label: '발행 확장',
+    icon: '📤',
+    badge: '멀티',
+    badgeColor: 'bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200',
+    children: [
+      {
+        id: 'tiktok',
+        label: 'TikTok',
+        icon: '🎵',
+        badge: '발행',
+        badgeColor: 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-200',
+      },
+      {
+        id: 'instagram',
+        label: 'Instagram',
+        icon: '💗',
+        badge: '발행',
+        badgeColor: 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-200',
+        children: [
+          { id: 'instagram-reels', label: 'Reels', icon: '🎵' },
+          { id: 'instagram-carousel', label: '캐러셀', icon: '🖼️' },
+        ],
+      },
+      {
+        id: 'blogger',
+        label: 'Google Blogger',
+        icon: '🌐',
+        badge: '발행',
+        badgeColor: 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-200',
+      },
     ],
   },
   {
