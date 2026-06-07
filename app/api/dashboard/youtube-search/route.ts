@@ -11,6 +11,8 @@ export interface YoutubeSearchItem {
   likeCount: number | null
   duration: string
   url: string
+  /** 채널 평균 조회수 대비 배율 (channels.list statistics 기반, 채널 정보 없으면 null) */
+  vsAvg: number | null
 }
 
 export interface YoutubeSearchResult {
@@ -102,6 +104,7 @@ export async function GET(request: NextRequest) {
         snippet: {
           title: string
           channelTitle: string
+          channelId: string
           publishedAt: string
           description: string
           thumbnails: { medium?: { url: string }; default?: { url: string } }
@@ -143,8 +146,39 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Step 3: Channels API (채널 평균 조회수 — vsAvg 계산용)
+    // statistics.viewCount(채널 누적 조회수) ÷ statistics.videoCount(업로드 영상 수) ≈ 채널 평균 조회수
+    const channelIds = [...new Set(rawItems.map(it => it.snippet.channelId).filter(Boolean))]
+    const channelAvgMap = new Map<string, number>()
+
+    if (channelIds.length > 0) {
+      const channelsUrl = new URL('https://www.googleapis.com/youtube/v3/channels')
+      channelsUrl.searchParams.set('key', apiKey)
+      channelsUrl.searchParams.set('id', channelIds.join(','))
+      channelsUrl.searchParams.set('part', 'statistics')
+
+      const channelsRes = await fetch(channelsUrl.toString(), { next: { revalidate: 0 } })
+      if (channelsRes.ok) {
+        const channelsData = (await channelsRes.json()) as {
+          items?: { id: string; statistics?: { viewCount?: string; videoCount?: string } }[]
+        }
+        for (const c of channelsData.items ?? []) {
+          const totalViews = c.statistics?.viewCount != null ? parseInt(c.statistics.viewCount) : 0
+          const videoCount = c.statistics?.videoCount != null ? parseInt(c.statistics.videoCount) : 0
+          if (totalViews > 0 && videoCount > 0) {
+            channelAvgMap.set(c.id, totalViews / videoCount)
+          }
+        }
+      }
+    }
+
     const items: YoutubeSearchItem[] = rawItems.map(it => {
       const stats = statsMap.get(it.id.videoId)
+      const channelAvg = channelAvgMap.get(it.snippet.channelId)
+      const vsAvg =
+        stats?.viewCount != null && channelAvg
+          ? Number((stats.viewCount / channelAvg).toFixed(1))
+          : null
       return {
         videoId: it.id.videoId,
         title: it.snippet.title,
@@ -156,6 +190,7 @@ export async function GET(request: NextRequest) {
         likeCount: stats?.likeCount ?? null,
         duration: stats?.duration ?? '',
         url: `https://www.youtube.com/shorts/${it.id.videoId}`,
+        vsAvg,
       }
     })
 

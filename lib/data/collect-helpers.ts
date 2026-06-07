@@ -21,5 +21,12 @@ export async function collectChannelByPlatform(
   if (platform === 'tistory') {
     return collectTistoryChannelData({ channel_id: row.channel_id, channel_name: row.channel_name })
   }
+  if (platform === 'tiktok' || platform === 'instagram') {
+    return {
+      ok: false,
+      channel_id: row.channel_id,
+      error: `${platform === 'tiktok' ? 'TikTok' : 'Instagram'} 채널 수집은 아직 지원되지 않습니다 (Apify 연동 예정 — 로드맵 "Apify 유튜브·인스타 크롤링" 참고)`,
+    }
+  }
   return collectYoutubeChannelData({ channel_id: row.channel_id, channel_name: row.channel_name ?? undefined })
 }

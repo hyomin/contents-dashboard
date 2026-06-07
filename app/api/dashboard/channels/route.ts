@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { channel_id, channel_name, platform, category_id } = body
+  const { channel_id, channel_name, platform, category_id, content_style } = body
   if (!channel_id || !channel_name) {
     return NextResponse.json({ error: 'channel_id, channel_name required' }, { status: 400 })
   }
@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       channel_name,
       platform: platform ?? 'youtube',
       category_id: category_id ?? null,
+      content_style: content_style ?? null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'channel_id' })
     .select()
@@ -44,13 +45,14 @@ export async function DELETE(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const body = await request.json()
-  const { channel_id, category_id, channel_name, platform } = body
+  const { channel_id, category_id, channel_name, platform, content_style } = body
   if (!channel_id) {
     return NextResponse.json({ error: 'channel_id required' }, { status: 400 })
   }
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (category_id !== undefined) patch.category_id = category_id || null
+  if (content_style !== undefined) patch.content_style = content_style || null
   if (channel_name !== undefined) {
     const trimmed = String(channel_name).trim()
     if (!trimmed) {

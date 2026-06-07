@@ -28,12 +28,15 @@ interface DBBenchmark {
   benchmark_categories?: DBCategory | null
 }
 
+type ContentStyle = 'longform' | 'shortform' | 'text' | 'mixed'
+
 interface DBChannel {
   id: number
   channel_id: string
   channel_name: string
   platform: string
   category_id: string | null
+  content_style: ContentStyle | null
   subscribers: number | null
   avg_views: number | null
   video_count: number | null
@@ -72,6 +75,68 @@ const PLATFORMS = [
 
 function getPlatformIcon(p: string) {
   return PLATFORMS.find(pl => pl.value === p)?.icon ?? '🔗'
+}
+
+const CONTENT_STYLES: { value: ContentStyle; label: string; icon: string }[] = [
+  { value: 'longform',  label: '롱폼',   icon: '🎬' },
+  { value: 'shortform', label: '숏폼',   icon: '⚡' },
+  { value: 'text',      label: '글',     icon: '✍️' },
+  { value: 'mixed',     label: '혼합',   icon: '🔀' },
+]
+
+function getContentStyleInfo(style: ContentStyle | null | undefined) {
+  return CONTENT_STYLES.find(s => s.value === style) ?? { value: null, label: '미지정', icon: '❔' }
+}
+
+// 스타일별 그룹핑용 — '미지정' 버킷 포함
+const STYLE_GROUPS: { value: string; label: string; icon: string }[] = [
+  ...CONTENT_STYLES,
+  { value: 'unset', label: '미지정', icon: '❔' },
+]
+
+/** 플랫폼 특성상 콘텐츠 스타일이 거의 고정인 경우 자동 추천값 */
+function suggestContentStyle(platform: string): ContentStyle | null {
+  if (platform === 'naver-blog' || platform === 'tistory') return 'text'
+  if (platform === 'tiktok' || platform === 'instagram') return 'shortform'
+  return null
+}
+
+function ContentStylePicker({
+  value,
+  onChange,
+}: {
+  value: ContentStyle | null
+  onChange: (v: ContentStyle | null) => void
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      <button
+        type="button"
+        onClick={() => onChange(null)}
+        className={`px-3 py-1.5 text-xs rounded-lg border transition ${
+          value === null
+            ? 'bg-gray-800 text-white border-gray-800 dark:bg-gray-200 dark:text-gray-900'
+            : 'bg-white dark:bg-gray-700 text-gray-500 border-gray-200 dark:border-gray-600 hover:border-gray-300'
+        }`}
+      >
+        ❔ 미지정
+      </button>
+      {CONTENT_STYLES.map((s) => (
+        <button
+          key={s.value}
+          type="button"
+          onClick={() => onChange(s.value)}
+          className={`px-3 py-1.5 text-xs rounded-lg border transition ${
+            value === s.value
+              ? 'bg-blue-600 text-white border-blue-600'
+              : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-blue-300'
+          }`}
+        >
+          {s.icon} {s.label}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 const MODAL_BACKDROP =
@@ -633,6 +698,7 @@ function AddChannelModal({
   const [channelName, setChannelName] = useState('')
   const [platform, setPlatform] = useState('youtube')
   const [categoryId, setCategoryId] = useState('')
+  const [contentStyle, setContentStyle] = useState<ContentStyle | null>(suggestContentStyle('youtube'))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -661,6 +727,7 @@ function AddChannelModal({
     setVerifyError('')
     setChannelId('')
     setChannelName('')
+    setContentStyle(suggestContentStyle(v))
   }
 
   // 채널 검증 API 호출
@@ -726,6 +793,7 @@ function AddChannelModal({
         channel_name: name,
         platform,
         category_id: categoryId || null,
+        content_style: contentStyle,
       }),
     })
     setSaving(false)
@@ -879,6 +947,13 @@ function AddChannelModal({
             onNotify={onNotify}
           />
 
+          <div>
+            <label className="text-xs font-semibold text-gray-500 mb-2 block">
+              콘텐츠 스타일 <span className="font-normal text-gray-400">(이 채널의 주력 포맷 — «스타일별 보기» 그룹핑에 사용)</span>
+            </label>
+            <ContentStylePicker value={contentStyle} onChange={setContentStyle} />
+          </div>
+
           {error && <p className="text-xs text-red-500">{error}</p>}
 
           {/* 안내 박스 */}
@@ -933,6 +1008,7 @@ function EditChannelModal({
   const [channelName, setChannelName] = useState(channel.channel_name)
   const [platform, setPlatform] = useState(channel.platform)
   const [categoryId, setCategoryId] = useState(channel.category_id ?? '')
+  const [contentStyle, setContentStyle] = useState<ContentStyle | null>(channel.content_style ?? null)
   const [isTracked, setIsTracked] = useState(initialFlags.is_tracked)
   const [isMine, setIsMine] = useState(initialFlags.is_mine)
   const [saving, setSaving] = useState(false)
@@ -965,6 +1041,7 @@ function EditChannelModal({
           channel_name: name,
           platform,
           category_id: categoryId || null,
+          content_style: contentStyle,
         }),
       })
       if (!chRes.ok) {
@@ -1052,6 +1129,13 @@ function EditChannelModal({
             onNotify={onNotify}
           />
 
+          <div>
+            <label className="text-xs font-semibold text-gray-500 mb-2 block">
+              콘텐츠 스타일 <span className="font-normal text-gray-400">(이 채널의 주력 포맷 — «스타일별 보기» 그룹핑에 사용)</span>
+            </label>
+            <ContentStylePicker value={contentStyle} onChange={setContentStyle} />
+          </div>
+
           <div className="rounded-xl border border-gray-200 dark:border-gray-600 p-4 space-y-3">
             <p className="text-xs font-semibold text-gray-500">채널 관리 옵션</p>
             <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
@@ -1137,20 +1221,19 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
   const [collectAllLoading, setCollectAllLoading] = useState(false)
   const [collectPendingLoading, setCollectPendingLoading] = useState(false)
   const [collectFilter, setCollectFilter] = useState<CollectFilter>('all')
-  // 아코디언: youtube 기본 열림, 나머지 접힘
-  const [openPlatforms, setOpenPlatforms] = useState<Set<string>>(new Set(['youtube']))
+  // 그룹핑 기준: 플랫폼별 ↔ 콘텐츠 스타일별
+  const [groupBy, setGroupBy] = useState<'platform' | 'style'>('platform')
+  // 아코디언: youtube/롱폼 기본 열림, 나머지 접힘
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['youtube']))
 
-  const togglePlatform = (platformId: string) => {
-    setOpenPlatforms(prev => {
+  const toggleGroup = (groupId: string) => {
+    setOpenGroups(prev => {
       const next = new Set(prev)
-      if (next.has(platformId)) next.delete(platformId)
-      else next.add(platformId)
+      if (next.has(groupId)) next.delete(groupId)
+      else next.add(groupId)
       return next
     })
   }
-
-  const expandAll = () => setOpenPlatforms(new Set(PLATFORMS.map(p => p.value)))
-  const collapseAll = () => setOpenPlatforms(new Set())
 
   const loadChannels = useCallback(() => {
     setIsLoading(true)
@@ -1321,7 +1404,72 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
     channels: channels.filter(c => c.platform === p.value && matchesCollectFilter(c)),
   })).filter(p => p.channels.length > 0)
 
+  const byStyle = STYLE_GROUPS.map(s => ({
+    ...s,
+    channels: channels.filter(c => (c.content_style ?? 'unset') === s.value && matchesCollectFilter(c)),
+  })).filter(s => s.channels.length > 0)
+
+  const groups = groupBy === 'style' ? byStyle : byPlatform
+
+  const expandAll = () => setOpenGroups(new Set(groups.map(g => g.value)))
+  const collapseAll = () => setOpenGroups(new Set())
+
   const isCollectBusy = collectAllLoading || collectPendingLoading
+  const collectProgressPct = collectSummary.total
+    ? Math.round((collectSummary.collected / collectSummary.total) * 100)
+    : 0
+
+  const COLLECT_FILTER_CARDS: {
+    key: CollectFilter
+    label: string
+    count: number
+    hint: string
+    activeRing: string
+    countClass: string
+    labelClass: string
+    bgClass: string
+  }[] = [
+    {
+      key: 'all',
+      label: '전체',
+      count: collectSummary.total,
+      hint: '등록된 YouTube 채널',
+      activeRing: 'ring-gray-400 dark:ring-gray-500',
+      countClass: 'text-gray-900 dark:text-white',
+      labelClass: 'text-gray-500 dark:text-gray-400',
+      bgClass: 'bg-gray-50 dark:bg-gray-900/40 border-gray-200 dark:border-gray-700',
+    },
+    {
+      key: 'pending',
+      label: '수집 대기',
+      count: collectSummary.pending,
+      hint: '아직 한 번도 수집 안 됨',
+      activeRing: 'ring-amber-400',
+      countClass: 'text-amber-600 dark:text-amber-400',
+      labelClass: 'text-amber-700/80 dark:text-amber-300/80',
+      bgClass: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50',
+    },
+    {
+      key: 'stale',
+      label: '갱신 필요',
+      count: collectSummary.stale,
+      hint: '7일 이상 미갱신',
+      activeRing: 'ring-orange-400',
+      countClass: 'text-orange-600 dark:text-orange-400',
+      labelClass: 'text-orange-700/80 dark:text-orange-300/80',
+      bgClass: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800/50',
+    },
+    {
+      key: 'collected',
+      label: '수집 완료',
+      count: collectSummary.collected,
+      hint: '최근 수집 완료',
+      activeRing: 'ring-emerald-400',
+      countClass: 'text-emerald-600 dark:text-emerald-400',
+      labelClass: 'text-emerald-700/80 dark:text-emerald-300/80',
+      bgClass: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/50',
+    },
+  ]
 
   return (
     <>
@@ -1357,65 +1505,117 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
 
       <div className="space-y-4">
         {/* 수집 상태 보드 */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 sm:p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">📊 수집 상태 보드</h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                YouTube {collectSummary.total}개 · 미수집 {collectSummary.pending} · 갱신 필요 {collectSummary.stale} · 완료 {collectSummary.collected}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setShowBulkImportModal(true)}
-                className="px-3 py-2 text-sm bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition font-medium"
-              >
-                📥 검증 채널 일괄 등록
-              </button>
-              <button
-                type="button"
-                onClick={handleCollectPending}
-                disabled={collectSummary.pending === 0 || isCollectBusy}
-                className="px-3 py-2 text-sm bg-amber-600 text-white rounded-xl hover:bg-amber-700 disabled:opacity-40 transition font-medium"
-              >
-                {collectPendingLoading ? '미수집 수집 중…' : `▶ 미수집 ${collectSummary.pending}개 수집`}
-              </button>
-              <button
-                type="button"
-                onClick={handleCollectAllYoutube}
-                disabled={youtubeChannels.length === 0 || isCollectBusy}
-                className="px-3 py-2 text-sm bg-violet-600 text-white rounded-xl hover:bg-violet-700 disabled:opacity-40 transition font-medium"
-              >
-                {collectAllLoading ? '전체 수집 중…' : `▶ YouTube 전체 (${youtubeChannels.length})`}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(true)}
-                className="px-3 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
-              >
-                + 채널 등록
-              </button>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
+          <div className="bg-gradient-to-r from-red-600 to-rose-700 px-4 sm:px-5 py-4">
+            <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-bold text-white tracking-tight">YouTube 수집 상태</h3>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/15 text-white/90 border border-white/20">
+                    YouTube 전용
+                  </span>
+                </div>
+                <p className="text-xs text-white/75 mt-1.5">
+                  {collectSummary.collected}/{collectSummary.total} 채널 수집 완료
+                  {collectSummary.pending > 0 && ` · 미수집 ${collectSummary.pending}개`}
+                  {collectSummary.stale > 0 && ` · 갱신 필요 ${collectSummary.stale}개`}
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-white/20 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-white transition-all duration-500"
+                      style={{ width: `${collectProgressPct}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-semibold text-white/90 tabular-nums shrink-0">{collectProgressPct}%</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-white/50 px-1">등록</span>
+                  <div className="inline-flex rounded-xl overflow-hidden border border-white/20 bg-white/10 backdrop-blur-sm">
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkImportModal(true)}
+                      className="px-3 py-2 text-xs sm:text-sm text-white hover:bg-white/15 transition font-medium border-r border-white/15"
+                    >
+                      검증 채널 일괄 등록
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddModal(true)}
+                      className="px-3 py-2 text-xs sm:text-sm text-white hover:bg-white/15 transition font-medium"
+                    >
+                      + 채널 등록
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-white/50 px-1">수집</span>
+                  <div className="inline-flex rounded-xl overflow-hidden border border-white/20">
+                    <button
+                      type="button"
+                      onClick={handleCollectPending}
+                      disabled={collectSummary.pending === 0 || isCollectBusy}
+                      className="px-3 py-2 text-xs sm:text-sm bg-white/90 text-rose-700 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition font-medium border-r border-rose-100"
+                    >
+                      {collectPendingLoading ? '수집 중…' : `미수집 ${collectSummary.pending}개`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCollectAllYoutube}
+                      disabled={youtubeChannels.length === 0 || isCollectBusy}
+                      className="px-3 py-2 text-xs sm:text-sm bg-white text-rose-700 hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-semibold"
+                    >
+                      {collectAllLoading ? '전체 수집 중…' : `전체 ${youtubeChannels.length}개`}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {([
-              ['all', '전체', collectSummary.total, 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'],
-              ['pending', '수집 대기', collectSummary.pending, 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'],
-              ['stale', '갱신 필요', collectSummary.stale, 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'],
-              ['collected', '수집 완료', collectSummary.collected, 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'],
-            ] as const).map(([key, label, count, cls]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setCollectFilter(key)}
-                className={`rounded-xl p-3 text-left transition ring-2 ${collectFilter === key ? 'ring-teal-500' : 'ring-transparent'} ${cls}`}
-              >
-                <p className="text-lg font-bold">{count}</p>
-                <p className="text-[11px] opacity-80">{label}</p>
-              </button>
-            ))}
+          <details className="group border-b border-gray-100 dark:border-gray-700">
+            <summary className="px-4 sm:px-5 py-2.5 text-[11px] text-gray-400 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 transition list-none flex items-center gap-1.5">
+              <span className="group-open:rotate-90 transition-transform inline-block text-[10px]">▶</span>
+              다른 플랫폼 수집 안내
+            </summary>
+            <p className="px-4 sm:px-5 pb-3 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
+              네이버 블로그·티스토리는 n8n으로 자동 수집됩니다. «플랫폼별 콘텐츠» 화면에서 수동 새로고침할 수 있으며, 틱톡·인스타그램은 아직 지원하지 않습니다.
+            </p>
+          </details>
+
+          <div className="p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">상태별 필터</p>
+              {collectFilter !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setCollectFilter('all')}
+                  className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  필터 해제
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {COLLECT_FILTER_CARDS.map(({ key, label, count, hint, activeRing, countClass, labelClass, bgClass }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setCollectFilter(key)}
+                  aria-pressed={collectFilter === key}
+                  className={`rounded-xl border p-3.5 text-left transition shadow-sm hover:shadow-md ${bgClass} ring-2 ${
+                    collectFilter === key ? activeRing : 'ring-transparent'
+                  }`}
+                >
+                  <p className={`text-2xl font-black tabular-nums leading-none ${countClass}`}>{count}</p>
+                  <p className={`text-xs font-semibold mt-2 ${labelClass}`}>{label}</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{hint}</p>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -1423,7 +1623,7 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
           <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
             <span className="animate-spin mr-2">⏳</span> 데이터 로딩 중...
           </div>
-        ) : byPlatform.length === 0 ? (
+        ) : groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-gray-400 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100">
             <p className="text-3xl mb-3">📭</p>
             <p className="text-sm font-medium">
@@ -1446,33 +1646,54 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
           </div>
         ) : (
           <div className="space-y-2">
-            {/* 전체 펼치기/접기 */}
-            <div className="flex items-center justify-end gap-2 px-1">
-              <button
-                type="button"
-                onClick={expandAll}
-                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
-              >
-                모두 펼치기
-              </button>
-              <span className="text-gray-300 text-xs">|</span>
-              <button
-                type="button"
-                onClick={collapseAll}
-                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
-              >
-                모두 접기
-              </button>
+            {/* 그룹핑 기준 토글 + 전체 펼치기/접기 */}
+            <div className="flex items-center justify-between gap-2 px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-gray-400">그룹 기준</span>
+                <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => { setGroupBy('platform'); setOpenGroups(new Set(['youtube'])) }}
+                    className={`px-2.5 py-1 text-xs font-medium transition ${groupBy === 'platform' ? 'bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900' : 'bg-white dark:bg-gray-800 text-gray-500 hover:text-gray-700'}`}
+                  >
+                    플랫폼별
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setGroupBy('style'); setOpenGroups(new Set(['longform', 'shortform'])) }}
+                    className={`px-2.5 py-1 text-xs font-medium transition border-l border-gray-200 dark:border-gray-600 ${groupBy === 'style' ? 'bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900' : 'bg-white dark:bg-gray-800 text-gray-500 hover:text-gray-700'}`}
+                  >
+                    콘텐츠 스타일별
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={expandAll}
+                  className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+                >
+                  모두 펼치기
+                </button>
+                <span className="text-gray-300 text-xs">|</span>
+                <button
+                  type="button"
+                  onClick={collapseAll}
+                  className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+                >
+                  모두 접기
+                </button>
+              </div>
             </div>
 
-            {byPlatform.map(({ value, label, icon, channels: chList }) => {
-              const isOpen = openPlatforms.has(value)
+            {groups.map(({ value, label, icon, channels: chList }) => {
+              const isOpen = openGroups.has(value)
               return (
                 <div key={value} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                   {/* 아코디언 헤더 */}
                   <button
                     type="button"
-                    onClick={() => togglePlatform(value)}
+                    onClick={() => toggleGroup(value)}
                     className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition text-left"
                   >
                     <span className="text-lg leading-none">{icon}</span>
@@ -1480,8 +1701,8 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
                     <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full font-medium">
                       {chList.length}개
                     </span>
-                    {/* 수집 상태 미니 뱃지 (YouTube만) */}
-                    {value === 'youtube' && (() => {
+                    {/* 수집 상태 미니 뱃지 (YouTube 그룹에서만 — 플랫폼별 보기 한정) */}
+                    {groupBy === 'platform' && value === 'youtube' && (() => {
                       const pendingCount = chList.filter(ch => getChannelCollectStatus(ch) === 'pending').length
                       const staleCount = chList.filter(ch => getChannelCollectStatus(ch) === 'stale').length
                       return (
@@ -1520,7 +1741,7 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{ch.channel_name}</p>
                                 {(() => {
-                                  const pageUrl = getChannelPageUrl(value, ch.channel_id)
+                                  const pageUrl = getChannelPageUrl(ch.platform, ch.channel_id)
                                   if (!pageUrl) return null
                                   return (
                                     <a
@@ -1536,7 +1757,12 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
                                     </a>
                                   )
                                 })()}
-                                {value === 'youtube' && (
+                                {groupBy === 'style' && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                                    {getPlatformIcon(ch.platform)} {ch.platform}
+                                  </span>
+                                )}
+                                {ch.platform === 'youtube' && (
                                   <>
                                     {ch.tracking_status && (
                                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${trackingStatusBadgeClass(ch.tracking_status)}`}>
@@ -1550,7 +1776,7 @@ function ChannelStatusTab({ addToast }: { addToast: (m: string, t?: 'success' | 
                                 )}
                               </div>
                               <p className="text-xs text-gray-400 mt-0.5 font-mono">{ch.channel_id}</p>
-                              {value === 'youtube' && ch.last_upload_at && (
+                              {ch.platform === 'youtube' && ch.last_upload_at && (
                                 <p className="text-[10px] text-gray-400 mt-0.5">
                                   최근 업로드: {new Date(ch.last_upload_at).toLocaleDateString('ko-KR')}
                                 </p>
@@ -2051,7 +2277,11 @@ interface YoutubeItem {
   likeCount: number | null
   duration: string
   url: string
+  /** 채널 평균 조회수 대비 배율 (정보 없으면 null) */
+  vsAvg: number | null
 }
+
+type YoutubeSortMode = 'viewCount' | 'date' | 'vsAvgRecent'
 
 interface YtCategorySearchState {
   status: 'idle' | 'loading' | 'done' | 'error'
@@ -2075,7 +2305,7 @@ function YoutubeSearchTab({ addToast }: { addToast: (m: string, t?: 'success' | 
   // 검색 상태
   const [inputKeyword, setInputKeyword] = useState('')
   const [activeKeyword, setActiveKeyword] = useState('') // 비어있으면 일반모드
-  const [sort, setSort] = useState<'viewCount' | 'date'>('viewCount')
+  const [sort, setSort] = useState<YoutubeSortMode>('viewCount')
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [results, setResults] = useState<YoutubeItem[]>([])
   const [searchError, setSearchError] = useState('')
@@ -2096,14 +2326,16 @@ function YoutubeSearchTab({ addToast }: { addToast: (m: string, t?: 'success' | 
       .finally(() => setIsCatsLoading(false))
   }, [])
 
-  const doSearch = async (q: string, sortOrder: 'viewCount' | 'date') => {
+  const doSearch = async (q: string, sortMode: YoutubeSortMode) => {
     if (!q.trim()) return
     setStatus('loading')
     setSearchError('')
     setResults([])
     try {
+      // '최신 중 vs avg 높은 순'은 «최신 영상들 중에서» 골라야 하므로 검색 자체는 최신순으로 받아온다
+      const apiOrder = sortMode === 'viewCount' ? 'viewCount' : 'date'
       const res = await fetch(
-        `/api/dashboard/youtube-search?keyword=${encodeURIComponent(q)}&type=shorts&display=10&order=${sortOrder}`
+        `/api/dashboard/youtube-search?keyword=${encodeURIComponent(q)}&type=shorts&display=10&order=${apiOrder}`
       )
       const data = await res.json()
       if (!res.ok) {
@@ -2111,7 +2343,13 @@ function YoutubeSearchTab({ addToast }: { addToast: (m: string, t?: 'success' | 
         setSearchError(data.error ?? '검색 중 오류가 발생했습니다')
         return
       }
-      setResults(data.items ?? [])
+      const items: YoutubeItem[] = data.items ?? []
+      // 받아온 최신 영상들을 vsAvg(채널 평균 대비 배율) 높은 순으로 재정렬
+      setResults(
+        sortMode === 'vsAvgRecent'
+          ? [...items].sort((a, b) => (b.vsAvg ?? 0) - (a.vsAvg ?? 0))
+          : items
+      )
       setStatus('done')
     } catch {
       setStatus('error')
@@ -2125,7 +2363,7 @@ function YoutubeSearchTab({ addToast }: { addToast: (m: string, t?: 'success' | 
     void doSearch(q.trim(), sort)
   }
 
-  const handleSortChange = (newSort: 'viewCount' | 'date') => {
+  const handleSortChange = (newSort: YoutubeSortMode) => {
     setSort(newSort)
     if (isSearchMode) void doSearch(activeKeyword, newSort)
   }
@@ -2186,6 +2424,14 @@ function YoutubeSearchTab({ addToast }: { addToast: (m: string, t?: 'success' | 
               className={`px-3 py-1 text-xs rounded-md font-medium transition ${sort === 'date' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
             >
               🕐 최신순
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSortChange('vsAvgRecent')}
+              title="최근 등록된 영상들 중 채널 평균 조회수 대비 배율(vs.Avg)이 높은 순"
+              className={`px-3 py-1 text-xs rounded-md font-medium transition ${sort === 'vsAvgRecent' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              🚀 최신·vs.Avg순
             </button>
           </div>
         </div>
@@ -2258,7 +2504,7 @@ function YoutubeSearchTab({ addToast }: { addToast: (m: string, t?: 'success' | 
                 「{activeKeyword}」 Shorts
               </span>
               <span className="text-xs text-gray-400 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-600">
-                {sort === 'viewCount' ? '👁 조회수순' : '🕐 최신순'}
+                {sort === 'viewCount' ? '👁 조회수순' : sort === 'date' ? '🕐 최신순' : '🚀 최신·vs.Avg순'}
               </span>
               {status === 'done' && results.length > 0 && (
                 <span className="text-xs text-gray-400">{results.length}개</span>
@@ -2345,6 +2591,9 @@ function YoutubeSearchTab({ addToast }: { addToast: (m: string, t?: 'success' | 
                     <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-gray-400">
                       <span className="font-medium text-red-700 dark:text-red-400">🔴 {item.channelTitle}</span>
                       <span>👁 {fmtViews(item.viewCount)}</span>
+                      {item.vsAvg != null && (
+                        <span className="font-bold text-green-600 dark:text-green-400">🚀 {item.vsAvg}x</span>
+                      )}
                       {item.likeCount != null && <span>👍 {fmtViews(item.likeCount)}</span>}
                       <span>{item.publishedAt}</span>
                       <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
@@ -2364,7 +2613,7 @@ function YoutubeSearchTab({ addToast }: { addToast: (m: string, t?: 'success' | 
                 </div>
               ))}
               <div className="px-5 py-2 bg-gray-50 dark:bg-gray-700/40 text-[11px] text-gray-400 text-right">
-                YouTube Shorts · {sort === 'viewCount' ? '조회수 높은 순' : '최신 등록 순'} · 상위 10개
+                YouTube Shorts · {sort === 'viewCount' ? '조회수 높은 순' : sort === 'date' ? '최신 등록 순' : '최신 영상 중 vs.Avg 높은 순'} · 상위 10개
               </div>
             </div>
           )}
@@ -2751,13 +3000,13 @@ export default function BenchmarkView({ addToast }: { addToast: (m: string, t?: 
               onClick={() => setActiveTab('blog-search')}
               className={`px-4 py-1.5 text-sm rounded-lg font-medium transition ${activeTab === 'blog-search' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}
             >
-              🔍 블로그
+              🟢 네이버 블로그
             </button>
             <button
               onClick={() => setActiveTab('youtube-search')}
               className={`px-4 py-1.5 text-sm rounded-lg font-medium transition ${activeTab === 'youtube-search' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}
             >
-              📺 Shorts
+              🔴 유튜브 Shorts
             </button>
             <button
               onClick={() => setActiveTab('tistory-search')}
