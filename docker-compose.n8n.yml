@@ -1,9 +1,14 @@
 # n8n 자동화 서버 (대시보드와 별도 실행)
-# 사용: unset GEMINI_API_KEY 2>/dev/null; docker compose -f docker-compose.n8n.yml --env-file .env.local up -d
+# 사용: unset GEMINI_API_KEY 2>/dev/null; docker compose -f docker-compose.n8n.yml --env-file .env.local up -d --build
 # 주의: 터미널에 export 된 GEMINI_API_KEY 가 .env.local 보다 우선해 구 키가 컨테이너에 들어갈 수 있음
+# 주의: image 대신 build(Dockerfile.n8n) 사용 — [W11] BGM 정밀 식별 워크플로가 컨테이너 내부에서
+#       yt-dlp+ffmpeg로 오디오 클립을 추출해야 하므로, 표준 n8n 이미지에 두 도구를 추가한 커스텀 이미지를 빌드한다.
+#       (최초 실행·Dockerfile.n8n 변경 시에는 반드시 --build 를 붙여야 반영됨)
 services:
   n8n:
-    image: docker.n8n.io/n8nio/n8n
+    build:
+      context: .
+      dockerfile: Dockerfile.n8n
     container_name: n8n
     restart: unless-stopped
     ports:
@@ -22,6 +27,8 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - DASHBOARD_API_URL=${DASHBOARD_API_URL:-http://host.docker.internal:3000}
       - DASHBOARD_API_SECRET=${DASHBOARD_API_SECRET:-}
+      # [W11] BGM 정밀 식별 — AudD(https://dashboard.audd.io) 가입 후 발급받은 API 토큰
+      - AUDD_API_TOKEN=${AUDD_API_TOKEN:-}
 
 volumes:
   n8n_data:

@@ -7,6 +7,7 @@ import {
   type TopicKeywordGuideResult,
 } from '@/lib/dashboard/topic-keyword-guide'
 import type { GuideCategory } from '@/lib/dashboard/content-creation-guide'
+import type { EmotionToneId } from '@/lib/dashboard/emotion-tones'
 import {
   callGeminiGenerateContent,
   formatGeminiApiError,
@@ -19,6 +20,8 @@ interface TopicKeywordGuideRequest {
   seedKeyword?: string
   category?: GuideCategory
   shortformCategoryId?: string
+  videoMode?: 'shortform' | 'longform'
+  emotionTone?: EmotionToneId
   aiModel?: string
 }
 
@@ -42,6 +45,8 @@ export async function POST(req: NextRequest) {
     seedKeyword,
     body.category,
     body.shortformCategoryId,
+    body.videoMode,
+    body.emotionTone,
   )
 
   try {

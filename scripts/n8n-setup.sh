@@ -94,6 +94,7 @@ import_one "$N8N_DOCS/N8N_TISTORY_COLLECT.json"
 import_one "$N8N_DOCS/N8N_LONGFORM_SCRIPT.json"      # W08: 롱폼 스크립트 (Gemini)
 import_one "$N8N_DOCS/N8N_TOPIC_SUGGEST_V2.json"     # W09: 주제 추천 AI (Gemini + RSS/Outlier)
 import_one "$N8N_DOCS/N8N_AI_INSIGHTS.json"          # W10: AI 인사이트 (Gemini + 대시보드 데이터)
+import_one "$N8N_DOCS/N8N_BGM_IDENTIFY.json"         # W11: BGM 정밀 식별 (yt-dlp 추출 + AudD 음향 지문 매칭)
 
 echo "▶ n8n 재시작 (웹훅 등록 반영)"
 docker restart n8n >/dev/null
@@ -104,7 +105,7 @@ echo "▶ 활성 워크플로"
 docker exec n8n n8n list:workflow --active=true 2>/dev/null || docker exec n8n n8n list:workflow
 
 echo "▶ Webhook 프로브"
-for path in youtube-collect outlier-tagging rss-topic-collect naver-blog-collect naver-blog-views tistory-collect longform-script topic-suggest ai-insights; do
+for path in youtube-collect outlier-tagging rss-topic-collect naver-blog-collect naver-blog-views tistory-collect longform-script topic-suggest ai-insights bgm-identify; do
   code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:5678/webhook/$path" \
     -H "Content-Type: application/json" -d '{}' || true)
   if [[ "$code" == "404" ]]; then
@@ -125,6 +126,8 @@ echo "N8N_WEBHOOK_TISTORY_COLLECT=http://localhost:5678/webhook/tistory-collect"
 echo "N8N_WEBHOOK_LONGFORM_SCRIPT=http://localhost:5678/webhook/longform-script  # Phase A 신규"
 echo "N8N_WEBHOOK_TOPIC_SUGGEST=http://localhost:5678/webhook/topic-suggest       # Phase A 신규"
 echo "N8N_WEBHOOK_AI_INSIGHTS=http://localhost:5678/webhook/ai-insights           # W10 AI 인사이트"
+echo "N8N_WEBHOOK_BGM_IDENTIFY=http://localhost:5678/webhook/bgm-identify         # W11 BGM 정밀 식별"
 echo "DASHBOARD_API_URL=http://host.docker.internal:3000"
 echo "GEMINI_API_KEY=<발급키>  # Gemini 워크플로에 필수"
+echo "AUDD_API_TOKEN=<dashboard.audd.io 발급 토큰>  # W11 BGM 정밀 식별에 필수 (.env.local → docker-compose.n8n.yml로 전달)"
 echo "완료."

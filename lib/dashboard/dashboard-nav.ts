@@ -173,6 +173,10 @@ export const VIEW_META: Record<string, ViewMeta> = {
     title: '콘텐츠 가이드',
     desc: '발행 주제·레퍼런스·가이드라인(MD) 기반으로 발행용 스크립트·본문을 한 번에 생성합니다. 숏폼은 Flow 씬별 붙여넣기 블록까지 포함합니다.',
   },
+  'content-analyzer': {
+    title: '콘텐츠 분석기',
+    desc: '마음에 드는 YouTube·Instagram·TikTok 콘텐츠의 URL을 입력하면 추구하는 감정·BGM(식별·확보 가이드 포함)·스토리·제작 가이드를 AI가 분석합니다.',
+  },
   'content-studio': {
     title: '발행 편집·변환',
     desc: '가이드에서 만든 본문을 최종 수정·메모하고, 블로그↔숏폼 등 포맷 변환 초안을 만듭니다. (localStorage)',
@@ -180,6 +184,10 @@ export const VIEW_META: Record<string, ViewMeta> = {
   'generation-history': {
     title: '히스토리 관리',
     desc: '콘텐츠 가이드에서 생성·저장한 발행용 결과를 Supabase에서 검색·복사·재활용합니다.',
+  },
+  'production-tracker': {
+    title: '제작 진행 보드',
+    desc: '영상 제작 6단계(기획·대본 → 비주얼·클립 → 나레이션 → BGM → 편집·합성 → 자막)의 진행 상태를 콘텐츠별로 시각화하고, 단계 중간에 메모와 함께 저장해 여러 작업을 동시에 추적·기록 관리합니다. (localStorage)',
   },
   n8n: {
     title: 'n8n',
@@ -247,6 +255,8 @@ export const NAV_TREE: DashboardNavItem[] = [
     icon: '✨',
     children: [
       { id: 'content-guide', label: '콘텐츠 가이드', icon: '📋' },
+      { id: 'content-analyzer', label: '콘텐츠 분석기', icon: '🔍', badge: 'NEW', badgeColor: 'bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-200' },
+      { id: 'production-tracker', label: '제작 진행 보드', icon: '🗂️', badge: 'NEW', badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200' },
       { id: 'content-studio', label: '발행 편집·변환', icon: '✍️' },
       { id: 'generation-history', label: '히스토리 관리', icon: '📚' },
     ],

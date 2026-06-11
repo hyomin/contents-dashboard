@@ -12,10 +12,10 @@ interface ContentGenerationHistorySectionProps {
   activeId: string | null
   isLoading?: boolean
   addToast: AddToast
-  onLoad: (item: GenerationHistoryItem, view: 'draft' | 'polished') => void
+  onLoad: (item: GenerationHistoryItem) => void
   onRemove: (id: string) => void | Promise<void>
   onClearAll: () => void | Promise<void>
-  onGoToStudio: (item: GenerationHistoryItem, usePolished: boolean) => void
+  onGoToStudio: (item: GenerationHistoryItem) => void
 }
 
 export function ContentGenerationHistorySection({

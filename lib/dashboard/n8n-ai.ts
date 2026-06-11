@@ -21,6 +21,7 @@ export const N8N_AI_WEBHOOK_ENV_KEYS = [
   'N8N_WEBHOOK_AI_INSIGHTS',
   'N8N_WEBHOOK_URL',
   'N8N_WEBHOOK_TOPIC_SUGGEST',
+  'N8N_WEBHOOK_BGM_IDENTIFY',
 ] as const
 
 /** true면 대시보드가 GEMINI_API_KEY로 직접 호출 (기본: n8n 경유만) */
@@ -43,6 +44,14 @@ export function getAiInsightsWebhookUrl(): string {
   return resolveN8nWebhookUrl('N8N_WEBHOOK_AI_INSIGHTS', 'ai-insights')
 }
 
+export function getBgmIdentifyWebhookUrl(): string {
+  return resolveN8nWebhookUrl('N8N_WEBHOOK_BGM_IDENTIFY', 'bgm-identify')
+}
+
+export function isBgmIdentifyN8nConfigured(): boolean {
+  return Boolean(process.env.N8N_WEBHOOK_BGM_IDENTIFY?.trim())
+}
+
 export function isLongformScriptN8nConfigured(): boolean {
   return Boolean(process.env.N8N_WEBHOOK_LONGFORM_SCRIPT?.trim())
 }
@@ -59,7 +68,6 @@ export function buildLongformScriptN8nPayload(ctx: AiScriptGuideRequestContext) 
     category: ctx.category,
     intent: ctx.intent ?? intent,
     platform: PLATFORM_BY_CATEGORY[ctx.category],
-    targetAudience: '시니어',
     durationMinutes: targetFormat === 'longform' ? 8 : targetFormat === 'shortform' ? 1 : 0,
     keywords: ctx.keywords ?? [],
     references: (ctx.references ?? []).map((r) => ({
@@ -70,6 +78,7 @@ export function buildLongformScriptN8nPayload(ctx: AiScriptGuideRequestContext) 
       referenceMode: r.referenceMode,
     })),
     shortformCategoryId: ctx.shortformCategoryId,
+    emotionTone: ctx.emotionTone && ctx.emotionTone !== 'none' ? ctx.emotionTone : undefined,
     aiModel: ctx.aiModel,
     source: 'dashboard-content-guide',
     requestedAt: new Date().toISOString(),
@@ -187,6 +196,63 @@ export async function invokeAiInsightsN8n(payload: Record<string, unknown>): Pro
     return null
   }
   return parseN8nInsightSections(result.body)
+}
+
+export interface BgmIdentifyN8nTrack {
+  title: string
+  artist?: string
+  album?: string
+  releaseDate?: string
+  label?: string
+  links?: { spotify?: string; appleMusic?: string }
+}
+
+export interface BgmIdentifyN8nResult {
+  track: BgmIdentifyN8nTrack | null
+  message: string
+}
+
+/**
+ * [W11] n8n이 영상에서 짧은 오디오 클립을 추출(yt-dlp+ffmpeg)해 AudD 음향 지문 매칭 API로
+ * 실제 곡을 식별하는 워크플로를 호출한다. Gemini의 "추정"이 아닌 실제 매칭 결과를 반환한다.
+ * 워크플로 미설정·실패 시 null (호출부는 Gemini의 identifiedTrack만으로 폴백).
+ */
+export async function invokeBgmIdentifyN8n(url: string): Promise<BgmIdentifyN8nResult | null> {
+  const webhookUrl = getBgmIdentifyWebhookUrl()
+  const result = await invokeN8nWebhook(webhookUrl, { url, source: 'dashboard-content-analyzer' }, 90_000)
+  if (!result.ok) {
+    console.error('[n8n-ai] bgm-identify HTTP', result.status, result.body)
+    return null
+  }
+
+  const body = unwrapN8nResponseBody(result.body)
+  if (!body || typeof body !== 'object') return null
+  const b = body as Record<string, unknown>
+
+  const message = typeof b.message === 'string' ? b.message : ''
+  const rawTrack = b.track
+  let track: BgmIdentifyN8nTrack | null = null
+  if (rawTrack && typeof rawTrack === 'object') {
+    const t = rawTrack as Record<string, unknown>
+    const title = typeof t.title === 'string' ? t.title.trim() : ''
+    if (title) {
+      const links = (t.links && typeof t.links === 'object' ? t.links : {}) as Record<string, unknown>
+      track = {
+        title,
+        artist: typeof t.artist === 'string' && t.artist.trim() ? t.artist.trim() : undefined,
+        album: typeof t.album === 'string' && t.album.trim() ? t.album.trim() : undefined,
+        releaseDate: typeof t.releaseDate === 'string' && t.releaseDate.trim() ? t.releaseDate.trim() : undefined,
+        label: typeof t.label === 'string' && t.label.trim() ? t.label.trim() : undefined,
+        links: {
+          spotify: typeof links.spotify === 'string' && links.spotify.trim() ? links.spotify.trim() : undefined,
+          appleMusic: typeof links.appleMusic === 'string' && links.appleMusic.trim() ? links.appleMusic.trim() : undefined,
+        },
+      }
+    }
+  }
+
+  if (!track && !message) return null
+  return { track, message: message || (track ? `'${track.title}' 식별 완료` : 'BGM을 식별하지 못했습니다.') }
 }
 
 export function geminiDirectDisabledResponse(feature: string, reason: 'no-key' | 'flag-off'): NextResponse {

@@ -17,7 +17,7 @@ import {
   invokeLongformScriptN8n,
   isDashboardGeminiDirectEnabled,
 } from '@/lib/dashboard/n8n-ai'
-import { type ScriptGuideOutput } from '@/lib/dashboard/script-guide-output'
+import { isStubScript, type ScriptGuideOutput } from '@/lib/dashboard/script-guide-output'
 
 export type { ScriptGuideOutput }
 
@@ -40,7 +40,7 @@ async function generateDirectPublish(
   const { topic, targetFormat } = resolveDirectPublishContext(ctx)
   const model = resolveGeminiModel(ctx.aiModel)
   const { prompt, maxOutputTokens, imageGuideCount } = buildDirectPublishPrompt(ctx, topic, targetFormat)
-  const shortform = targetFormat === 'shortform' || ctx.category === 'video'
+  const shortform = targetFormat === 'shortform'
 
   const result = await callGeminiGenerateContent(apiKey, model, prompt, {
     temperature: 0.55,
@@ -55,8 +55,22 @@ async function generateDirectPublish(
     }
   }
 
+  if (result.blockReason) {
+    return {
+      output: null,
+      error:
+        'AI가 안전 정책상 이 주제의 표현을 거부했습니다 (예: 다툼·체벌·자극적 묘사 등). 주제 문장에서 해당 표현을 순화해 다시 시도해 주세요.',
+    }
+  }
+
   const parsed = parseDirectPublishResponse(result.text, ctx, topic, targetFormat, imageGuideCount)
   if (!parsed) {
+    if (result.truncated) {
+      return {
+        output: null,
+        error: 'AI 응답이 토큰 한도에 걸려 중간에 잘렸습니다 (출력이 길어지는 주제일 때 발생할 수 있어요). 주제를 조금 더 구체적·짧게 입력하거나 다시 시도해 주세요.',
+      }
+    }
     return { output: null, error: 'AI 응답 파싱에 실패했습니다. 다시 시도해 주세요.' }
   }
 
@@ -94,13 +108,20 @@ export async function POST(req: NextRequest) {
   }
 
   // 1순위: n8n longform-script (Gemini는 n8n Docker 환경에서 호출)
+  let n8nReturnedStub = false
   try {
     const n8nResult = await invokeLongformScriptN8n(ctx)
     if (n8nResult) {
-      return NextResponse.json({
-        ...n8nResult.script,
-        polished: n8nResult.polished,
-      })
+      if (isStubScript(n8nResult.script.fullScript)) {
+        // n8n Docker 환경에 GEMINI_API_KEY가 없어 자리표시자 대본만 돌아온 경우 — 그대로 보여주지 않고 2순위로 폴백
+        n8nReturnedStub = true
+        console.error('[script-guide] n8n returned a stub script (n8n GEMINI_API_KEY likely missing) — falling back')
+      } else {
+        return NextResponse.json({
+          ...n8nResult.script,
+          polished: n8nResult.polished,
+        })
+      }
     }
   } catch (err) {
     console.error('[script-guide] n8n longform-script failed', err)
@@ -128,6 +149,18 @@ export async function POST(req: NextRequest) {
         mode: 'gemini-direct',
       },
       { status: 500 },
+    )
+  }
+
+  if (n8nReturnedStub) {
+    return NextResponse.json(
+      {
+        error:
+          'n8n Webhook은 연결되었지만, n8n Docker 환경에 GEMINI_API_KEY가 설정되어 있지 않아 빈 자리표시자 대본만 돌아왔습니다. n8n의 환경변수에 GEMINI_API_KEY를 등록하거나, .env.local에 DASHBOARD_GEMINI_DIRECT=1을 설정해 대시보드가 직접 생성하도록 해주세요.',
+        mode: 'n8n-stub',
+        webhookHint: getLongformScriptWebhookUrl(),
+      },
+      { status: 503 },
     )
   }
 

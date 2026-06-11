@@ -7,6 +7,7 @@ import {
   getBlogImageAgentBlock,
 } from '@/lib/dashboard/contents-guideline'
 import { prependGeminiFlowPasteBlock } from '@/lib/dashboard/gemini-flow-paste'
+import { sanitizeGeminiJsonText } from '@/lib/dashboard/gemini-models'
 
 export interface ContentPolishReference {
   title: string
@@ -55,11 +56,16 @@ export function suggestImageGuideCount(paragraphCount: number): number {
 }
 
 function isShortformPolish(req: ContentPolishRequest): boolean {
-  return req.targetFormat === 'shortform' || req.category === 'video'
+  return req.targetFormat === 'shortform'
+}
+
+function isLongformPolish(req: ContentPolishRequest): boolean {
+  return req.targetFormat === 'longform'
 }
 
 export function buildContentPolishPrompt(req: ContentPolishRequest): string {
   const shortform = isShortformPolish(req)
+  const longform = isLongformPolish(req)
   const paraCount = estimateParagraphCount(req.fullScript)
   const imageCount = !shortform && (req.category === 'writing' || req.targetFormat === 'blog')
     ? suggestImageGuideCount(paraCount)
@@ -108,8 +114,14 @@ ${guidelineBlock || '(가이드라인 로드 실패 — 정재 원칙만 적용)
 {
   "title": "발행용 제목",
   "flowPasteBlock": ${shortform ? '"씬별 ### 씬N · 시간 · 제목 + Flow용 영문 한 덩어리 (유일한 Flow 위치, 중복 문장 금지)"' : 'null'},
-  "fullContent": "${shortform ? '장면별 [0~N초]·화면(한글)·자막·제작 메모 (Google Flow 줄 없음)' : '마크다운 전체 본문 (이미지·표 가이드 블록 포함)'}",
-  "summary": "정재 시 변경한 점 2~3문장${shortform ? ' (장면 수·Flow 씬 요약 포함)' : ''}",
+  "fullContent": "${
+    shortform
+      ? '장면별 [0~N초]·화면(한글)·자막·제작 메모 (Google Flow 줄 없음)'
+      : longform
+        ? '챕터별 내레이션 전체 대본 (마크다운 ## 챕터 제목 + 실제로 읽는 문장체 본문, Flow·씬 표기 없음)'
+        : '마크다운 전체 본문 (이미지·표 가이드 블록 포함)'
+  }",
+  "summary": "정재 시 변경한 점 2~3문장${shortform ? ' (장면 수·Flow 씬 요약 포함)' : longform ? ' (챕터 구성 요약)' : ''}",
   "imageGuideCount": ${imageCount}
 }
 
@@ -130,18 +142,32 @@ export function parseContentPolishResponse(
 ): ContentPolishResult | null {
   if (!text.trim()) return null
   try {
+    // 1차: 원문 그대로 시도 → 실패 시 흔한 LLM JSON 깨짐(이스케이프 누락 등)을 보정해 재시도
+    const sanitized = sanitizeGeminiJsonText(text)
     const fence = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
     const cleaned = fence ? fence[1].trim() : text
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return null
-    const fixed = jsonMatch[0].replace(/,\s*([}\]])/g, '$1')
-    const parsed = JSON.parse(fixed) as {
+    if (!jsonMatch && !sanitized) return null
+    const raw = jsonMatch ? jsonMatch[0].replace(/,\s*([}\]])/g, '$1') : null
+
+    let parsed: {
       title?: string
       fullContent?: string
       flowPasteBlock?: string
       summary?: string
       imageGuideCount?: number
+    } | null = null
+    for (const candidate of [raw, sanitized]) {
+      if (!candidate) continue
+      try {
+        parsed = JSON.parse(candidate)
+        break
+      } catch {
+        // 다음 후보로
+      }
     }
+    if (!parsed) return null
+
     let fullContent = String(parsed.fullContent ?? '').trim()
     if (!fullContent) return null
     const flowPasteBlock = String(parsed.flowPasteBlock ?? '').trim() || undefined

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   const prompt = buildContentPolishPrompt(body)
 
   try {
-    const shortform = body.targetFormat === 'shortform' || body.category === 'video'
+    const shortform = body.targetFormat === 'shortform'
     const result = await callGeminiGenerateContent(apiKey, model, prompt, {
       temperature: 0.5,
       maxOutputTokens: shortform ? 10_240 : 8192,

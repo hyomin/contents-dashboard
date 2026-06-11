@@ -10,11 +10,14 @@ export type GuideCategory = 'writing' | 'image' | 'video'
 
 export type { AiScriptGuideReference, GuideReferenceMode } from '@/lib/dashboard/guide-reference-modes'
 import type { AiScriptGuideReference } from '@/lib/dashboard/guide-reference-modes'
+import type { EmotionToneId } from '@/lib/dashboard/emotion-tones'
 
 export interface AiScriptGuideRequestContext {
   category: GuideCategory
   /** 숏폼 제작 카테고리 (영상·숏폼 생성 시) */
   shortformCategoryId?: string
+  /** 추구하는 감정 톤 — 카테고리와 별개로 영상(숏폼·롱폼)에서 지정 (예: 동물 숏츠 + 감동) */
+  emotionTone?: EmotionToneId
   /** 사용자가 직접 입력한 발행 주제 (최우선) */
   userTopic?: string
   /** 발행 주제에서 파싱한 키워드 */

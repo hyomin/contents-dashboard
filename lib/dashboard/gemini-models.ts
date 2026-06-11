@@ -42,17 +42,25 @@ export async function callGeminiGenerateContent(
   apiKey: string,
   model: string,
   prompt: string,
-  opts: { temperature?: number; maxOutputTokens?: number; timeoutMs?: number },
-): Promise<{ ok: true; text: string } | { ok: false; status: number; error: string }> {
+  opts: { temperature?: number; maxOutputTokens?: number; timeoutMs?: number; fileUri?: string },
+): Promise<
+  | { ok: true; text: string; finishReason?: string; truncated: boolean; blockReason?: string }
+  | { ok: false; status: number; error: string }
+> {
   const resolved = resolveGeminiModel(model)
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${resolved}:generateContent`
+
+  /** YouTube 등 공개 영상 URL을 fileData로 함께 전달하면 Gemini가 영상을 직접 시청·분석합니다. */
+  const requestParts: Record<string, unknown>[] = opts.fileUri
+    ? [{ fileData: { fileUri: opts.fileUri } }, { text: prompt }]
+    : [{ text: prompt }]
 
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts: requestParts }],
         generationConfig: buildGeminiGenerationConfig(resolved, opts),
       }),
       signal: AbortSignal.timeout(opts.timeoutMs ?? 90_000),
@@ -64,7 +72,8 @@ export async function callGeminiGenerateContent(
     }
 
     const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[]
+      candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string }[]
+      promptFeedback?: { blockReason?: string }
     }
     const parts = data.candidates?.[0]?.content?.parts ?? []
     const text =
@@ -73,7 +82,20 @@ export async function callGeminiGenerateContent(
         .map((p) => p.text ?? '')
         .join('') || parts.map((p) => p.text ?? '').join('')
 
-    return { ok: true, text }
+    const finishReason = data.candidates?.[0]?.finishReason
+    const truncated = finishReason === 'MAX_TOKENS'
+    if (truncated) {
+      console.warn(`[gemini] response truncated by MAX_TOKENS (model=${resolved}, textLength=${text.length})`)
+    }
+
+    // 프롬프트 자체가 안전 정책에 막히면 candidates가 비고 promptFeedback.blockReason만 채워진다
+    // (생성 전 차단이라 finishReason도 없음 — truncated와는 별개로 다뤄야 함)
+    const blockReason = !text && !data.candidates?.length ? data.promptFeedback?.blockReason : undefined
+    if (blockReason) {
+      console.warn(`[gemini] prompt blocked (model=${resolved}, blockReason=${blockReason})`)
+    }
+
+    return { ok: true, text, finishReason, truncated, blockReason }
   } catch (err) {
     return {
       ok: false,
@@ -103,6 +125,49 @@ export function formatGeminiApiError(status: number, rawError: string): string {
     // rawError is not JSON
   }
   return `Gemini API 오류 (${status})`
+}
+
+/**
+ * Gemini가 "JSON만 응답"하라는 지시에도 가끔 코드펜스·잡담을 섞거나,
+ * 멀티라인 문자열 값 안의 줄바꿈·탭을 이스케이프(\n·\t) 없이 그대로 출력해
+ * JSON.parse가 실패하는 경우가 있다. 이를 보정해 파싱 가능한 JSON 문자열을 돌려준다.
+ * (그래도 실패하면 null — 호출 측에서 원본 텍스트로 한 번 더 시도하거나 포기)
+ */
+export function sanitizeGeminiJsonText(text: string): string | null {
+  const fence = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
+  const cleaned = fence ? fence[1].trim() : text
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) return null
+
+  let inString = false
+  let escaped = false
+  let out = ''
+  for (const ch of jsonMatch[0]) {
+    if (escaped) {
+      out += ch
+      escaped = false
+      continue
+    }
+    if (ch === '\\' && inString) {
+      out += ch
+      escaped = true
+      continue
+    }
+    if (ch === '"') {
+      inString = !inString
+      out += ch
+      continue
+    }
+    if (inString) {
+      if (ch === '\n') { out += '\\n'; continue }
+      if (ch === '\r') { continue }
+      if (ch === '\t') { out += '\\t'; continue }
+    }
+    out += ch
+  }
+
+  // 후행 쉼표 제거 (}, ] 앞)
+  return out.replace(/,\s*([}\]])/g, '$1')
 }
 
 export function extractGeminiTextParts(data: {

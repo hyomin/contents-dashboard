@@ -72,6 +72,13 @@ import {
   loadSelectedShortformCategoryId,
   saveSelectedShortformCategoryId,
 } from '@/lib/dashboard/shortform-categories'
+import {
+  EMOTION_TONES,
+  findEmotionTone,
+  loadSelectedEmotionToneId,
+  saveSelectedEmotionToneId,
+  type EmotionToneId,
+} from '@/lib/dashboard/emotion-tones'
 
 /** 체널 카테고리 = RSS 카테고리와 동일 */
 const CATEGORY_TABS = [
@@ -114,6 +121,93 @@ function FeedBadge({ name, categoryMap }: { name: string; categoryMap: Map<strin
   )
 }
 
+/** 주제 제안 카드 클릭 시 전체 내용을 보여주는 미리보기 팝업 (카드 안에서 잘리는 텍스트 보완용) */
+function TopicSuggestionPreviewModal({
+  suggestion,
+  isSelected,
+  categoryLabel,
+  onSelect,
+  onClose,
+}: {
+  suggestion: TopicKeywordGuideSuggestion
+  isSelected: boolean
+  categoryLabel?: string
+  onSelect: () => void
+  onClose: () => void
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col border border-gray-100 dark:border-gray-700"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 shrink-0 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">주제 제안 미리보기</h3>
+            {categoryLabel && (
+              <p className="text-xs text-violet-600 dark:text-violet-300 mt-0.5">📂 {categoryLabel} 기준 제안</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none shrink-0"
+          >
+            ×
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 min-h-0">
+          <div>
+            <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">제목</p>
+            <p className="text-base font-bold text-gray-900 dark:text-white whitespace-pre-wrap leading-relaxed">
+              {suggestion.title}
+            </p>
+          </div>
+          {suggestion.hook && (
+            <div>
+              <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 mb-1">훅</p>
+              <p className="text-sm text-amber-900 dark:text-amber-200 whitespace-pre-wrap leading-relaxed">
+                {suggestion.hook}
+              </p>
+            </div>
+          )}
+          {suggestion.angle && (
+            <div>
+              <p className="text-[11px] font-semibold text-violet-700 dark:text-violet-300 mb-1">이 카테고리로 풀기</p>
+              <p className="text-sm text-violet-900 dark:text-violet-100 whitespace-pre-wrap leading-relaxed bg-violet-50/80 dark:bg-violet-950/30 rounded-xl px-3 py-2.5">
+                {suggestion.angle}
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-700 shrink-0 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+          >
+            닫기
+          </button>
+          <button
+            type="button"
+            onClick={onSelect}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition ${
+              isSelected
+                ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            }`}
+          >
+            {isSelected ? '✓ 발행 주제로 설정됨' : '주제로 선정하기'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const CATEGORIES: { id: GuideCategory; label: string; icon: string }[] = [
   { id: 'video', label: '영상', icon: '🎬' },
   { id: 'writing', label: '글쓰기', icon: '📝' },
@@ -145,6 +239,8 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const [shortformCategoryId, setShortformCategoryId] = useState(
     () => BUILTIN_SHORTFORM_CATEGORIES[0].id,
   )
+  // 추구하는 감정 톤 — «콘텐츠 카테고리»와는 별개 축 (예: 동물 숏츠 + 감동 vs 동물 숏츠 + 개그)
+  const [emotionTone, setEmotionTone] = useState<EmotionToneId>('none')
   const [publishTopic, setPublishTopic] = useState('')
   const [publishTopicLoaded, setPublishTopicLoaded] = useState(false)
   const [references, setReferences] = useState<GuideReference[]>([])
@@ -185,7 +281,10 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const [seedKeyword, setSeedKeyword] = useState('')
   const [topicGuideSuggestions, setTopicGuideSuggestions] = useState<TopicKeywordGuideSuggestion[]>([])
   const [topicGuideLoading, setTopicGuideLoading] = useState(false)
+  // AI 생성(1회) → 기록 저장(백그라운드, AI 호출 아님) 두 단계를 명확히 구분해 보여주기 위한 상태
+  const [topicGuideStage, setTopicGuideStage] = useState<'idle' | 'generating' | 'saving' | 'done'>('idle')
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
+  const [previewGuideSuggestion, setPreviewGuideSuggestion] = useState<TopicKeywordGuideSuggestion | null>(null)
   const [activeTopicGuideHistoryId, setActiveTopicGuideHistoryId] = useState<string | null>(null)
   const {
     items: topicGuideHistoryItems,
@@ -240,6 +339,12 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
 
   useEffect(() => {
     setShortformCategoryId(loadSelectedShortformCategoryId())
+    setEmotionTone(loadSelectedEmotionToneId())
+  }, [])
+
+  const handleEmotionToneChange = useCallback((id: EmotionToneId) => {
+    setEmotionTone(id)
+    saveSelectedEmotionToneId(id)
   }, [])
 
   const persistReferences = useCallback((next: GuideReference[]) => {
@@ -373,14 +478,28 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
       return
     }
     const modelLabel = getGeminiModelLabel(topicGuideModel)
-    const sfLabel =
-      category === 'video' ? findShortformCategory(shortformCategoryId)?.label : undefined
+    const isShortformVideo = category === 'video' && videoMode === 'shortform'
+    const isLongformVideo = category === 'video' && videoMode === 'longform'
+    const sfLabel = isShortformVideo ? findShortformCategory(shortformCategoryId)?.label : undefined
+    const emotionLabel =
+      category === 'video' && emotionTone !== 'none' ? findEmotionTone(emotionTone)?.label : undefined
+    const formatLine =
+      (isLongformVideo
+        ? '\n포맷: 롱폼 영상 (8~12분 · 챕터 구성)'
+        : sfLabel
+          ? `\n숏폼 카테고리: ${sfLabel}`
+          : '') + (emotionLabel ? `\n추구하는 감정 톤: ${emotionLabel}` : '')
+    const angleHint = isLongformVideo
+      ? '제안마다 «angle»에 8~12분 롱폼으로 풀어낼 챕터 전개 방향이 반영됩니다.'
+      : '제안마다 «angle»에 위 카테고리 장르(스토리 전개·톤)가 반영됩니다.'
+    const toneHint = emotionLabel ? ` 선택한 «${emotionLabel}» 톤에 맞는 전개·결말로만 제안됩니다.` : ''
     const ok = window.confirm(
-      `주제 가이드를 생성할까요?\n\n키워드: ${seedKeyword.trim()}${sfLabel ? `\n숏폼 카테고리: ${sfLabel}` : ''}\nAI 모델: ${modelLabel}\n\n제안마다 «angle»에 위 카테고리 장르(스토리 전개·톤)가 반영됩니다.\nGemini API가 호출됩니다 (약 10~30초).`,
+      `주제 가이드를 생성할까요?\n\n키워드: ${seedKeyword.trim()}${formatLine}\nAI 모델: ${modelLabel}\n\n${angleHint}${toneHint}\nGemini API가 호출됩니다 (약 10~30초).`,
     )
     if (!ok) return
 
     setTopicGuideLoading(true)
+    setTopicGuideStage('generating')
     setTopicGuideSuggestions([])
     setSelectedGuideId(null)
     setActiveTopicGuideHistoryId(null)
@@ -391,7 +510,9 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
         body: JSON.stringify({
           seedKeyword: seedKeyword.trim(),
           category,
-          shortformCategoryId: category === 'video' ? shortformCategoryId : undefined,
+          shortformCategoryId: isShortformVideo ? shortformCategoryId : undefined,
+          videoMode: category === 'video' ? videoMode : undefined,
+          emotionTone: category === 'video' && emotionTone !== 'none' ? emotionTone : undefined,
           aiModel: topicGuideModel,
         }),
       })
@@ -406,22 +527,27 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
         setTopicGuideForCategoryId(shortformCategoryId)
       }
       if (suggestions.length === 0) {
+        setTopicGuideStage('done')
         addToast('제안을 생성하지 못했습니다. 키워드를 바꿔 다시 시도해 주세요.', 'warning')
       } else {
+        // ↓ 여기는 AI를 다시 호출하지 않습니다. 방금 받은 결과를 기록 목록에 저장만 하는 단계입니다.
+        setTopicGuideStage('saving')
         const historyId = await addFromGuide({
           seedKeyword: seedKeyword.trim(),
           category,
           suggestions,
           guideGeneratedAt: data.generatedAt,
         })
+        setTopicGuideStage('done')
         if (historyId) {
           setActiveTopicGuideHistoryId(historyId)
-          addToast(`주제 가이드 ${suggestions.length}개 · 기록 저장 ✨`, 'success')
+          addToast(`✨ 주제 가이드 ${suggestions.length}개 생성 완료 (AI 호출 1회 · 기록도 함께 저장됨)`, 'success')
         } else {
-          addToast(`주제 가이드 ${suggestions.length}개 (기록 저장 실패)`, 'warning')
+          addToast(`✨ 주제 가이드 ${suggestions.length}개 생성 완료 (AI 호출 1회 · 기록 저장만 실패)`, 'warning')
         }
       }
     } catch {
+      setTopicGuideStage('idle')
       addToast('네트워크 오류가 발생했습니다', 'warning')
     } finally {
       setTopicGuideLoading(false)
@@ -465,8 +591,12 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
       category === 'video'
         ? VIDEO_MODE_TABS.find((t) => t.id === videoMode)?.label ?? videoMode
         : CATEGORIES.find((c) => c.id === category)?.label ?? category
+    const emotionLine =
+      category === 'video' && emotionTone !== 'none'
+        ? `\n추구하는 감정 톤: ${findEmotionTone(emotionTone)?.icon ?? ''} ${findEmotionTone(emotionTone)?.label ?? ''}`
+        : ''
     const ok = window.confirm(
-      `발행용 콘텐츠를 생성할까요?\n\n발행 주제: ${topicPreview}\nAI 모델: ${modelLabel}\n${refLine}\n포맷: ${videoLabel}${category === 'video' && videoMode === 'shortform' ? `\n숏폼 카테고리: ${findShortformCategory(shortformCategoryId)?.label ?? shortformCategoryId}` : ''}${polishHint}\n\n(n8n Gemini 1회 호출 · 가이드 초안 단계 없음)`,
+      `발행용 콘텐츠를 생성할까요?\n\n발행 주제: ${topicPreview}\nAI 모델: ${modelLabel}\n${refLine}\n포맷: ${videoLabel}${category === 'video' && videoMode === 'shortform' ? `\n숏폼 카테고리: ${findShortformCategory(shortformCategoryId)?.label ?? shortformCategoryId}` : ''}${emotionLine}${polishHint}\n\n(n8n Gemini 1회 호출 · 가이드 초안 단계 없음)`,
     )
     if (!ok) return
 
@@ -521,7 +651,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     }
   }
 
-  const goToContentStudioFromHistory = (item: GenerationHistoryItem, usePolished: boolean) => {
+  const goToContentStudioFromHistory = (item: GenerationHistoryItem) => {
     const draft = item.draft
     const polished = item.polished
     const platform =
@@ -532,12 +662,12 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     saveContentStudioImport({
       platform,
       format,
-      title: usePolished && polished ? polished.title : draft.title,
-      body: usePolished && polished ? polished.fullContent : draft.fullScript,
+      title: polished?.title ?? draft.title,
+      body: polished?.fullContent ?? draft.fullScript,
       notes: [
-        usePolished && polished ? '히스토리 · 내 콘텐츠화' : `히스토리 · ${draft.mode === 'n8n' ? 'n8n Gemini' : '대시보드 AI'}`,
+        `히스토리 · ${draft.mode === 'n8n' ? 'n8n Gemini' : '대시보드 AI'}`,
         item.publishTopic ? `주제: ${item.publishTopic}` : draft.topic ? `주제: ${draft.topic}` : '',
-        usePolished && polished?.summary ? polished.summary : '',
+        polished?.summary ? polished.summary : '',
         draft.seoKeywords?.length ? `키워드: ${draft.seoKeywords.join(', ')}` : '',
       ]
         .filter(Boolean)
@@ -549,7 +679,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     addToast('발행 편집 화면으로 이동합니다 (선택)', 'success')
   }
 
-  const loadFromHistory = (item: GenerationHistoryItem, view: 'draft' | 'polished', silent = false) => {
+  const loadFromHistory = (item: GenerationHistoryItem, silent = false) => {
     setCategory(item.category)
     persistPublishTopic(item.publishTopic)
     setScriptResult(draftToScriptOutput(item.draft, item.category))
@@ -572,14 +702,11 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     const item = historyItems.find((x) => x.id === historyId)
     if (!item) return
     loadedHistoryFromUrl.current = historyId
-    const view =
-      searchParams.get('historyView') === 'polished' && item.polished ? 'polished' : 'draft'
-    loadFromHistory(item, view, true)
+    loadFromHistory(item, true)
   }, [searchParams, historyItems, historyLoading])
 
   const goToContentStudio = () => {
     if (!scriptResult) return
-    const usePolished = !!polishedResult
     const platform =
       references.find((r) => r.platform && r.platform !== 'topic' && r.platform !== 'insight')?.platform ??
       scriptResult.platform ??
@@ -588,12 +715,12 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     saveContentStudioImport({
       platform,
       format,
-      title: usePolished ? polishedResult!.title : scriptResult.title,
-      body: usePolished ? polishedResult!.fullContent : scriptResult.fullScript,
+      title: polishedResult?.title ?? scriptResult.title,
+      body: polishedResult?.fullContent ?? scriptResult.fullScript,
       notes: [
         '발행용 콘텐츠 · Gemini',
         scriptResult.topic ? `주제: ${scriptResult.topic}` : '',
-        usePolished && polishedResult!.summary ? polishedResult!.summary : '',
+        polishedResult?.summary ? polishedResult.summary : '',
         scriptResult.seoKeywords?.length ? `키워드: ${scriptResult.seoKeywords.join(', ')}` : '',
       ]
         .filter(Boolean)
@@ -625,6 +752,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     (): AiScriptGuideRequestContext => ({
       category,
       shortformCategoryId: category === 'video' && videoMode === 'shortform' ? shortformCategoryId : undefined,
+      emotionTone: category === 'video' ? emotionTone : undefined,
       userTopic: publishTopic.trim(),
       keywords: parsePublishKeywords(publishTopic),
       referenceTitles: references.map((r) => r.title),
@@ -632,7 +760,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
       intent: mapCategoryToIntent(category, videoMode),
       aiModel: scriptGuideModel,
     }),
-    [category, videoMode, shortformCategoryId, publishTopic, references, scriptGuideModel],
+    [category, videoMode, shortformCategoryId, emotionTone, publishTopic, references, scriptGuideModel],
   )
 
   const canGenerate = publishTopic.trim().length >= 2
@@ -704,6 +832,41 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
                 🎞️ <strong>롱폼 모드:</strong> 8~12분 분량 · 챕터별 대본 + YouTube 설명란용 타임스탬프 자동 생성
               </p>
             )}
+
+            {/* 추구하는 감정 톤 — 콘텐츠 카테고리와 별개 축. 같은 «동물 숏츠»라도 감동/개그/분노는 톤이 전혀 다르므로 별도 지정 */}
+            <div className="space-y-1.5">
+              <TitleWithHint
+                as="p"
+                className="text-xs font-bold text-indigo-800 dark:text-indigo-200"
+                hint="콘텐츠 카테고리(예: 동물 숏츠)와는 별개 축입니다. 같은 카테고리라도 «감동»을 원하는데 결과가 개그·분노 톤으로 나오는 걸 막기 위해, 추구하는 감정을 직접 지정하면 주제 제안·대본 모두 그 톤에 맞춰 생성됩니다."
+              >
+                💗 추구하는 감정 톤
+                <span className="ml-1.5 font-normal text-indigo-600/70 dark:text-indigo-300/70">(선택)</span>
+              </TitleWithHint>
+              <div className="flex flex-wrap gap-1.5">
+                {EMOTION_TONES.map((tone) => (
+                  <button
+                    key={tone.id}
+                    type="button"
+                    onClick={() => handleEmotionToneChange(tone.id)}
+                    title={tone.description}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      emotionTone === tone.id
+                        ? 'bg-pink-600 text-white shadow-sm'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-pink-100 dark:hover:bg-pink-900/30'
+                    }`}
+                  >
+                    <span>{tone.icon}</span>
+                    {tone.label}
+                  </button>
+                ))}
+              </div>
+              {emotionTone !== 'none' && (
+                <p className="text-[11px] text-pink-700/80 dark:text-pink-300/80">
+                  «{findShortformCategory(shortformCategoryId)?.label ?? '선택한 카테고리'}»여도, 이 톤({findEmotionTone(emotionTone)?.label})에 맞는 전개·결말로만 주제·대본이 생성됩니다.
+                </p>
+              )}
+            </div>
           </div>
         )}
       </section>
@@ -718,13 +881,19 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           💡 주제 키워드 가이드
           <span className="ml-2 text-xs font-normal text-amber-600 dark:text-amber-400">선택 · 1단계</span>
         </TitleWithHint>
-        {category === 'video' && (
+        {category === 'video' && videoMode === 'shortform' && (
           <p className="text-xs text-amber-800/90 dark:text-amber-200/90 leading-relaxed">
             상단 <strong>숏폼 카테고리</strong>에 맞춰 각 카드의 <strong>angle</strong>에 스토리 전개가 달라집니다.
             (예: 썰 숏츠 → 감동·헌신·꿀팁 / 개그 숏츠 → 해프닝·반전 웃음)
           </p>
         )}
+        {category === 'video' && videoMode === 'longform' && (
+          <p className="text-xs text-amber-800/90 dark:text-amber-200/90 leading-relaxed">
+            <strong>롱폼(8~12분)</strong> 기준으로 각 카드의 <strong>angle</strong>에 챕터 전개 방향이 반영됩니다.
+          </p>
+        )}
         {category === 'video' &&
+          videoMode === 'shortform' &&
           topicGuideSuggestions.length > 0 &&
           topicGuideForCategoryId &&
           topicGuideForCategoryId !== shortformCategoryId && (
@@ -759,6 +928,29 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
             )}
           </button>
         </div>
+        {topicGuideStage !== 'idle' && (
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] rounded-lg bg-amber-100/60 dark:bg-amber-900/20 px-3 py-2">
+            <span
+              className={`inline-flex items-center gap-1 font-semibold ${
+                topicGuideStage === 'generating' ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-400'
+              }`}
+            >
+              {topicGuideStage === 'generating' ? <Spinner size="sm" /> : '✅'} ① AI 주제 생성 (Gemini 호출 1회)
+            </span>
+            <span className="text-amber-400">→</span>
+            <span
+              className={`inline-flex items-center gap-1 font-semibold ${
+                topicGuideStage === 'generating'
+                  ? 'text-gray-400 dark:text-gray-500'
+                  : topicGuideStage === 'saving'
+                    ? 'text-amber-700 dark:text-amber-300'
+                    : 'text-emerald-600 dark:text-emerald-400'
+              }`}
+            >
+              {topicGuideStage === 'saving' ? <Spinner size="sm" /> : topicGuideStage === 'generating' ? '⏳' : '✅'} ② 결과 기록 저장 (AI 재호출 아님 · 단순 저장)
+            </span>
+          </div>
+        )}
         <GuideAiModelSelect
           id="topic-guide-ai-model"
           label="🤖 AI 모델"
@@ -783,7 +975,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
                   <li key={s.id}>
                     <button
                       type="button"
-                      onClick={() => applyGuideSuggestion(s)}
+                      onClick={() => setPreviewGuideSuggestion(s)}
                       className={`w-full text-left rounded-xl border px-4 py-3 transition ${
                         isSelected
                           ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 ring-2 ring-indigo-300 dark:ring-indigo-700'
@@ -804,7 +996,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
                         </p>
                       )}
                       <p className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-2 font-medium">
-                        {isSelected ? '✓ 발행 주제로 설정됨' : '클릭 → 발행 주제 + angle 확인'}
+                        {isSelected ? '✓ 발행 주제로 설정됨' : '클릭 → 전체 보기 · 선정'}
                       </p>
                     </button>
                   </li>
@@ -1391,7 +1583,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
         <TitleWithHint
           as="h3"
           className="text-lg font-bold text-indigo-900 dark:text-indigo-200"
-          hint="«내 콘텐츠 생성» 한 번으로 발행용 본문이 나옵니다. 숏폼은 장면별 대본·화면(한글)·Google Flow(Veo) 영문 프롬프트가 포함됩니다. 블로그는 이미지·표 가이드 블록이 포함됩니다."
+          hint="«내 콘텐츠 생성» 한 번으로 발행용 본문이 나옵니다. 숏폼은 장면별 대본·화면(한글)·Google Flow(Veo) 영문 프롬프트가, 롱폼은 챕터별 내레이션 전체 대본·설명란 타임스탬프가 포함됩니다. 블로그는 이미지·표 가이드 블록이 포함됩니다."
         >
           생성 결과
         </TitleWithHint>
@@ -1406,8 +1598,11 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           <div className="py-12 flex flex-col items-center gap-3 text-sm text-indigo-600 dark:text-indigo-400">
             <Spinner size="md" />
             {getGeminiModelLabel(scriptGuideModel)}로 발행용 콘텐츠 작성 중…
-            {category === 'video' && (
+            {category === 'video' && videoMode === 'shortform' && (
               <p className="text-xs text-gray-500">장면별 대본 + Google Flow 프롬프트 포함</p>
+            )}
+            {category === 'video' && videoMode === 'longform' && (
+              <p className="text-xs text-gray-500">챕터별 내레이션 전체 대본 + 설명란 타임스탬프 포함</p>
             )}
           </div>
         )}
@@ -1495,7 +1690,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
                       ⏱ 챕터 복사
                     </button>
                   )}
-                  {category === 'video' &&
+                  {category === 'video' && videoMode === 'shortform' &&
                     listFlowScenePastes(polishedResult?.fullContent ?? scriptResult.fullScript).map(
                       (scene) => (
                         <button
@@ -1518,7 +1713,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
                         </button>
                       ),
                     )}
-                  {category === 'video' && (
+                  {category === 'video' && videoMode === 'shortform' && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1628,6 +1823,18 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
       onSelect={addReference}
       addToast={addToast}
     />
+    {previewGuideSuggestion && (
+      <TopicSuggestionPreviewModal
+        suggestion={previewGuideSuggestion}
+        isSelected={selectedGuideId === previewGuideSuggestion.id}
+        categoryLabel={category === 'video' ? findShortformCategory(shortformCategoryId)?.label : undefined}
+        onSelect={() => {
+          applyGuideSuggestion(previewGuideSuggestion)
+          setPreviewGuideSuggestion(null)
+        }}
+        onClose={() => setPreviewGuideSuggestion(null)}
+      />
+    )}
     </PageLoadingOverlay>
   )
 }

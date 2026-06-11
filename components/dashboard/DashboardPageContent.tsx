@@ -86,6 +86,14 @@ const ContentCreationGuideView = dynamic(
   () => import('@/components/dashboard/views/ContentCreationGuideView'),
   { loading: ViewFallback },
 )
+const ContentAnalyzerView = dynamic(
+  () => import('@/components/dashboard/views/ContentAnalyzerView'),
+  { loading: ViewFallback },
+)
+const ProductionTrackerView = dynamic(
+  () => import('@/components/dashboard/views/ProductionTrackerView'),
+  { loading: ViewFallback },
+)
 const ContentStudioView = dynamic(
   () => import('@/components/dashboard/views/ContentStudioView'),
   { loading: ViewFallback },
@@ -180,6 +188,8 @@ export function DashboardPageContent() {
       case 'n8n-lv1':              return <Lv1AutomationHubView addToast={addToast} />
       case 'revenue':              return <RevenueView addToast={addToast} />
       case 'content-guide':        return <ContentCreationGuideView addToast={addToast} />
+      case 'content-analyzer':     return <ContentAnalyzerView addToast={addToast} />
+      case 'production-tracker':   return <ProductionTrackerView addToast={addToast} />
       case 'content-studio':       return <ContentStudioView addToast={addToast} />
       case 'generation-history':   return <GenerationHistoryView addToast={addToast} />
       case 'settings':             return <SettingsView addToast={addToast} />

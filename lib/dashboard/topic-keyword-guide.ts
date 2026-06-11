@@ -3,6 +3,7 @@ import {
   buildTopicGuideAngleRules,
   findShortformCategory,
 } from '@/lib/dashboard/shortform-categories'
+import { buildEmotionToneAngleBlock, type EmotionToneId } from '@/lib/dashboard/emotion-tones'
 
 export interface TopicKeywordGuideSuggestion {
   id: string
@@ -24,11 +25,21 @@ export function buildTopicKeywordGuidePrompt(
   seedKeyword: string,
   category?: string,
   shortformCategoryId?: string,
+  videoMode?: 'shortform' | 'longform',
+  emotionTone?: EmotionToneId,
 ): string {
+  const isLongformVideo = category === 'video' && videoMode === 'longform'
+  const isShortformVideo = category === 'video' && videoMode !== 'longform'
+  const isVideo = isLongformVideo || isShortformVideo
+  const emotionBlock = isVideo ? buildEmotionToneAngleBlock(emotionTone) : ''
+  const hasEmotionTone = emotionBlock.length > 0
+
   let categoryHint = ''
   if (category === 'writing') categoryHint = '\n선택 포맷 힌트: 블로그·글쓰기'
   else if (category === 'image') categoryHint = '\n선택 포맷 힌트: 인스타 캐러셀·이미지'
-  else if (category === 'video') {
+  else if (isLongformVideo) {
+    categoryHint = '\n선택 포맷 힌트: YouTube 롱폼 영상 (8~12분, 챕터 구성 내레이션)'
+  } else if (isShortformVideo) {
     const cat = findShortformCategory(shortformCategoryId)
     categoryHint = '\n선택 포맷 힌트: YouTube Shorts·Reels·TikTok 숏폼 (60초 이내)'
     categoryHint += buildShortformCategoryPromptBlock(shortformCategoryId)
@@ -38,13 +49,25 @@ export function buildTopicKeywordGuidePrompt(
         '\n⚠️ 숏폼 카테고리가 없으면 angle을 일반 숏폼으로만 작성.'
     }
   }
+  categoryHint += emotionBlock
 
-  const angleRule =
-    category === 'video'
-      ? '5. **angle (필수)**: 위 «숏폼 카테고리» 장르에 맞는 **스토리 전개·톤·엔딩**만 80~150자. 다른 장르(예: 썰↔개그) 톤 혼용 금지.'
+  const toneSuffix = hasEmotionTone
+    ? ' 그리고 위 «추구하는 감정 톤»에 맞는 전개·결말만 — 카테고리 장르와 감정 톤을 모두 만족해야 함 (둘 중 하나라도 어긋나면 안 됨).'
+    : ''
+
+  const angleRule = isShortformVideo
+    ? `5. **angle (필수)**: 위 «숏폼 카테고리» 장르에 맞는 **스토리 전개·톤·엔딩**만 80~150자. 다른 장르(예: 썰↔개그) 톤 혼용 금지.${toneSuffix}`
+    : isLongformVideo
+      ? `5. **angle (필수)**: 8~12분 롱폼 영상으로 풀어낼 **챕터 구성·전개 방향**만 80~150자 (장면·Flow·숏폼 톤 언급 금지).${toneSuffix}`
       : '5. angle은 다룰 핵심 정보·스토리 포인트 (선택, 60자 내외).'
 
-  return `당신은 숏폼·콘텐츠 기획 에디터입니다. 사용자가 «주제 가이드 키워드»를 입력했습니다. 이 키워드와 관련된 **발행 주제 후보**를 제안하세요. 제안마다 **선택된 숏폼 카테고리 장르**에 맞게 angle을 반드시 다르게 쓰세요.
+  const roleIntro = isShortformVideo
+    ? '당신은 숏폼·콘텐츠 기획 에디터입니다. 사용자가 «주제 가이드 키워드»를 입력했습니다. 이 키워드와 관련된 **발행 주제 후보**를 제안하세요. 제안마다 **선택된 숏폼 카테고리 장르**에 맞게 angle을 반드시 다르게 쓰세요.'
+    : isLongformVideo
+      ? '당신은 YouTube 롱폼 콘텐츠 기획 에디터입니다. 사용자가 «주제 가이드 키워드»를 입력했습니다. 이 키워드와 관련된 **8~12분 롱폼 영상 발행 주제 후보**를 제안하세요. 제안마다 angle은 챕터 전개·관점이 서로 다르게 작성하세요.'
+      : '당신은 콘텐츠 기획 에디터입니다. 사용자가 «주제 가이드 키워드»를 입력했습니다. 이 키워드와 관련된 **발행 주제 후보**를 제안하세요.'
+
+  return `${roleIntro}
 ${categoryHint}
 
 ## 입력 키워드
@@ -64,7 +87,13 @@ ${angleRule}
       "id": "1",
       "title": "발행 주제로 쓸 구체적 제목·키워드",
       "hook": "흥미 포인트 한 줄",
-      "angle": "이 숏폼 카테고리로 풀 스토리 전개·톤·엔딩 (80~150자)"
+      "angle": "${
+        isShortformVideo
+          ? '이 숏폼 카테고리로 풀 스토리 전개·톤·엔딩 (80~150자)'
+          : isLongformVideo
+            ? '8~12분 롱폼으로 풀 챕터 구성·전개 방향 (80~150자)'
+            : '다룰 핵심 정보·스토리 포인트 (선택, 60자 내외)'
+      }"
     }
   ]
 }`
