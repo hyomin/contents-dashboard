@@ -1,75 +1,63 @@
 # 콘텐츠 제작 — A-Z 액션 체크리스트
 
-> 작성일: 2026-06-07
-> 목적: "한 편을 만들 때 실제로 어떤 순서로 화면을 거치고 무엇을 확인하면 되는지"를
-> 따라 하기 좋은 체크리스트로 정리한다. 화면별 상세 설명·현황 점검은
-> [CONTENT_CREATION_WORKFLOW.md](./CONTENT_CREATION_WORKFLOW.md) 참고.
+> **갱신:** 2026-06-12  
+> 상세 설명: [CONTENT_CREATION_WORKFLOW.md](./CONTENT_CREATION_WORKFLOW.md)
 
 ---
 
 ## A. 소재 정하기
-- [ ] 이미 발행하고 싶은 주제가 있다 → **C로 건너뛰기**
-- [ ] 없다 → `trending`(트렌드) · `outlier`(아웃라이어 분석) · `ai-insight`(AI 트렌드 요약) · `topic-suggest`(AI 주제 추천) 중에서 탐색
-- [ ] 마음에 드는 소재는 **기획 큐**(`planning-queue-v1`)에 저장 → 가이드 화면에서 바로 이어받기
+- [ ] 이미 주제가 있다 → **C로 건너뛰기**
+- [ ] 없다 → `trending` · `outlier` · `ai-insight` · `topic-suggest` 탐색
+- [ ] 기획 큐에 저장 → 가이드에서 이어받기
 
-## B. (옵션) 레퍼런스 모으기
-- [ ] YouTube·블로그·웹 페이지 레퍼런스를 추가할지 결정
-- [ ] 레퍼런스마다 "구조·톤만 참고" / "내용까지 반영" 모드를 다르게 지정
+## B. (옵션) 레퍼런스 URL 분석
+- [ ] 마음에 드는 영상·포스트 URL이 있다 → `content-analyzer`에서 분석
+- [ ] BGM·감정·스토리 구조를 가이드 레퍼런스에 반영할지 결정
+- [ ] `GEMINI_API_KEY` + `DASHBOARD_GEMINI_DIRECT=1` 설정 확인
 
-## C. 콘텐츠 가이드에서 생성 (`content-guide`)
-1. [ ] 카테고리·포맷 선택 — 블로그(blog) / 이미지(carousel) / 영상(shortform·longform)
-2. [ ] (선택) AI 추천 주제 카드 클릭 또는 직접 핵심 키워드 입력 *(필수 — AI가 최우선 반영)*
-3. [ ] (선택) B에서 모은 레퍼런스 추가
-4. [ ] AI 모델 선택 — 기본 `Gemini 2.5 Flash`(빠름) / `Gemini 2.5 Pro`(고품질·느림)
-5. [ ] 생성 실행 → 응답의 `mode` 확인: **`ai-enhanced`**(정상) vs `fallback`(템플릿 — n8n·Gemini 키 점검 필요)
+## C. (옵션) 레퍼런스 모으기
+- [ ] YouTube·블로그·웹 레퍼런스 추가 여부 결정
+- [ ] "구조·톤만" / "내용까지" 모드 지정
 
-## D. 숏폼·영상이라면 — 제목·썸네일부터 점검 ⭐ (신규 반영)
-스크립트 자체보다 **제목·썸네일 설계가 클릭률을 좌우**합니다. 생성 결과에서 아래를 확인하세요.
-- [ ] 썸네일 텍스트와 제목이 서로 겹치지 않고 **질문(썸네일) ↔ 해답(제목)** 구조인가?
-- [ ] 썸네일 텍스트가 **5~7자** 이내로 미니멀한가? (색상 치트키: 노랑+검정 / 빨강+흰색)
-- [ ] 제목에 FOMO·호기심 갭·홀수 법칙·타겟팅 중 1~2개가 결합되어 있는가?
-- [ ] 영상 시작 **0~3초 안**에 썸네일이 던진 떡밥을 회수하는 구조인가?
-- [ ] `fullContent` 맨 아래에 **CTR 체크리스트 4항목**이 포함되어 있는가?
+## D. 콘텐츠 가이드에서 생성 (`content-guide`)
+1. [ ] 카테고리·포맷 — blog / carousel / shortform / longform
+2. [ ] (선택) AI 주제 카드 또는 **발행 주제 직접 입력** *(필수)*
+3. [ ] (선택) 감정 톤·레퍼런스
+4. [ ] AI 모델 — Flash(빠름) / Pro(고품질)
+5. [ ] 생성 → `mode: ai-enhanced` 확인
 
-> 이 규칙들은 `guidelines/contents_guideline.md`의 **"바이럴 제목·썸네일 설계"** 섹션에 등록되어 있어
-> 다음 생성부터 자동 반영됩니다. 결과에 안 보이면 가이드라인 파일을 다시 확인하세요(서버 재시작 불필요).
+## E. 숏폼·영상 — 제목·썸네일 점검
+- [ ] 썸네일·제목 질문↔해답 구조
+- [ ] 썸네일 5~7자, 0~3초 훅 회수
+- [ ] `guidelines/contents_guideline.md` 바이럴 제목·썸네일 섹션 반영 확인
 
-## E. 정제 (Polish)
-- [ ] 가이드라인(`guidelines/contents_guideline.md`)의 형식·톤·이미지 가이드 수가 자동 반영됐는지 확인
-- [ ] 가이드라인 자체를 바꾸고 싶다면 그 파일만 편집·저장 (즉시 반영)
+## F. (영상) 제작 진행 보드 (`production-tracker`)
+- [ ] 6단계(기획→비주얼→나레이션→BGM→편집→자막) 상태·메모 기록
 
-## F. 히스토리 저장 확인 (`generation-history`)
-- [ ] draft + polished 결과가 Supabase `content_generation_history`에 자동 저장됐는지 확인
-- [ ] 나중에 재활용할 항목은 여기서 검색·재호출
+## G. 정제 (Polish)
+- [ ] 가이드라인 형식·톤·이미지 가이드 수 확인
+- [ ] 가이드라인 수정 시 `guidelines/contents_guideline.md`만 편집
 
-## G. 편집·포맷 변환 — 필요할 때만 (`content-studio`)
-- [ ] 발행용 본문 불러와 최종 다듬기 / 촬영 메모 추가 / `.txt` 내보내기
-- [ ] 다른 포맷으로 변환 필요 시 여기서 (예: 블로그 → 숏폼 스크립트)
-- [ ] 이 화면의 편집은 브라우저 localStorage에만 저장됨 — 원본은 히스토리에 별도 보관됨을 기억
+## H. 히스토리 확인 (`generation-history`)
+- [ ] draft·polished Supabase 저장 확인
+- [ ] 필요 시 복사·재활용
 
-## H. 멀티 플랫폼 미러 발행 — 필요할 때만 (`publish-expand`)
-- [ ] TikTok / Instagram(Reels·캐러셀) / Google Blogger 중 미러링할 채널 선택
-- [ ] 패널의 변환·캡션·체크리스트 가이드를 따라 준비 (실제 업로드는 각 플랫폼에서 수동)
+## I. 발행 편집·변환 (`content-studio`)
+- [ ] 최종 문장·메모·포맷 변환
+- [ ] localStorage 저장 (원본은 히스토리에 보관)
 
-## I. 일정 등록 & 배포
-- [ ] `calendar`에서 발행 일정 등록
-- [ ] `deploy`에서 n8n 기반 배포 진행 (로컬 n8n 실행 중이어야 동작)
+## J. (숏폼) Google Flow 제작
+- [ ] `flowPasteBlock` / 씬별 블록을 **Google Flow**에 붙여넣기 (Higgsfield 아님)
+- [ ] 완성 영상 다운로드·편집 툴로 마감
 
-## J. 발행 후 — 추적 & 재가공
-- [ ] `outlier`에서 시간 경과에 따른 vs.Avg·조회수 변화 확인
-- [ ] 반응이 좋으면 `repurpose`에서 다른 포맷·플랫폼으로 재가공
+## K. 발행 확장 (`publish-expand`)
+- [ ] TikTok · Instagram · Blogger 가이드 확인
+- [ ] 각 플랫폼에서 **수동 업로드**
 
----
+## L. 일정·배포
+- [ ] `calendar` 일정 등록
+- [ ] (선택) `deploy` — n8n 로컬 의존
 
-## 한눈에 보기
-
-```
-A 소재 정하기 → B 레퍼런스(옵션) → C 콘텐츠 가이드에서 생성
-   → D 제목·썸네일 점검(영상) → E 정제 → F 히스토리 확인
-   → G 편집·변환(옵션) → H 멀티플랫폼 미러(옵션)
-   → I 일정·배포 → J 추적·재가공
-```
-
-## 관련 문서
-- [CONTENT_CREATION_WORKFLOW.md](./CONTENT_CREATION_WORKFLOW.md) — 화면별 상세 설명 + 현재 부족한 점
-- [`guidelines/contents_guideline.md`](../../guidelines/contents_guideline.md) — Agent 프롬프트·바이럴 제목/썸네일 규칙 원본 (직접 수정 가능)
+## M. 성과·재가공
+- [ ] `outlier`에서 vs.Avg 추이 확인
+- [ ] `repurpose`로 재가공 검토

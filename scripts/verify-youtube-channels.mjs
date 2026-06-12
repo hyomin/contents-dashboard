@@ -1,6 +1,6 @@
 /**
  * YouTube 채널 ID 검증 스크립트
- * YOUTUBE_CHANNELS_20260525.md의 모든 핸들을 YouTube Data API로 실제 조회
+ * YOUTUBE_BENCHMARK_CHANNELS.md의 핸들을 YouTube Data API로 실제 조회
  * 실행: node scripts/verify-youtube-channels.mjs
  */
 
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const API_KEY = 'AIzaSyDjX2r_nCfM3LSMhBX623G-MJ4ZsAU3W_w';
-const MD_PATH = join(__dirname, '../docs/YOUTUBE_CHANNELS_20260525.md');
+const MD_PATH = join(__dirname, '../docs/guides/YOUTUBE_BENCHMARK_CHANNELS.md');
 
 // 채널 목록 (핸들 → 기존 ID)
 const CHANNELS = [

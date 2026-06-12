@@ -1,5 +1,5 @@
 /**
- * YOUTUBE_CHANNELS_20260525.md의 모든 채널을 YouTube API로 재검증하고
+ * YOUTUBE_BENCHMARK_CHANNELS.md의 채널을 YouTube API로 재검증하고
  * 유효한 채널 / 유효하지 않은 채널을 분리한 새 MD 파일을 생성합니다.
  *
  * 실행: node scripts/build-verified-channels-md.mjs
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const API_KEY = 'AIzaSyDjX2r_nCfM3LSMhBX623G-MJ4ZsAU3W_w'
-const MD_PATH = join(__dirname, '../docs/YOUTUBE_CHANNELS_20260525.md')
+const MD_PATH = join(__dirname, '../docs/guides/YOUTUBE_BENCHMARK_CHANNELS.md')
 const OUT_PATH = join(__dirname, '../docs/YOUTUBE_CHANNELS_VERIFIED_20260525.md')
 
 // ────────────────────────────────────────────────────────────────────────────

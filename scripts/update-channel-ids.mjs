@@ -1,5 +1,5 @@
 /**
- * channel-verify-result.json을 기반으로 YOUTUBE_CHANNELS_20260525.md의
+ * channel-verify-result.json을 기반으로 YOUTUBE_BENCHMARK_CHANNELS.md의
  * Channel ID와 구독자 수를 현행화하는 스크립트
  * 실행: node scripts/update-channel-ids.mjs
  */
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const JSON_PATH = join(__dirname, '../docs/channel-verify-result.json');
-const MD_PATH = join(__dirname, '../docs/YOUTUBE_CHANNELS_20260525.md');
+const MD_PATH = join(__dirname, '../docs/guides/YOUTUBE_BENCHMARK_CHANNELS.md');
 
 const data = JSON.parse(readFileSync(JSON_PATH, 'utf8'));
 

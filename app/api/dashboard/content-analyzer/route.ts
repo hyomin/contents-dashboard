@@ -8,6 +8,7 @@ import {
 import {
   buildContentAnalyzerPrompt,
   detectContentPlatform,
+  normalizeYoutubeUrlForGemini,
   parseContentAnalyzerResponse,
   supportsDirectVideoAnalysis,
   type ContentAnalyzerResult,
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
         temperature: 0.6,
         maxOutputTokens: 6144,
         timeoutMs: 90_000,
-        fileUri: canWatchDirectly ? url : undefined,
+        fileUri: canWatchDirectly ? normalizeYoutubeUrlForGemini(url) : undefined,
       }),
       bgmIdentifyConfigured
         ? invokeBgmIdentifyN8n(url).catch((err) => {

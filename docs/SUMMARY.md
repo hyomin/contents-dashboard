@@ -1,24 +1,26 @@
-# Contents Dashboard — 진행 사항 요약
+# Contents Dashboard — 현황 요약
 
-**최종 갱신:** 2026-05-31  
+**최종 갱신:** 2026-06-12  
 **프로젝트 루트:** `dashboard-app/`  
 **접속:** `http://localhost:3000/dashboard?view=<화면ID>`
 
-> **상세 현황(사이드바 전체·화면별·API·DB 맵):** [guides/DASHBOARD_OVERVIEW_20260530.md](./guides/DASHBOARD_OVERVIEW_20260530.md)  
-> **콘텐츠 생성 파이프라인 복구:** [guides/CONTENT_CREATION_PIPELINE_RECOVERY.md](./guides/CONTENT_CREATION_PIPELINE_RECOVERY.md)
+> 상세 맵(화면·API·DB·n8n): [guides/DASHBOARD_OVERVIEW.md](./guides/DASHBOARD_OVERVIEW.md)  
+> 일상 사용법: [guides/DASHBOARD_USAGE.md](./guides/DASHBOARD_USAGE.md)  
+> 콘텐츠 만들기: [guides/CONTENT_CREATION_WORKFLOW.md](./guides/CONTENT_CREATION_WORKFLOW.md)
 
 ---
 
 ## 한 줄 정의
 
-**AI·데이터 기반 멀티플랫폼 콘텐츠 워크벤치** — 레퍼런스 수집·**vs.Avg**·Outlier 분석 → 기획·인사이트 → **콘텐츠 가이드 → AI 생성 → 히스토리 → 제작**
+**AI·데이터 기반 멀티플랫폼 콘텐츠 워크벤치** — 레퍼런스 수집·vs.Avg·Outlier → 기획·인사이트 → 가이드·분석기 → AI 생성 → 히스토리 → 제작·발행
 
 | 구분 | 기술 |
 |------|------|
 | Frontend | Next.js 16 App Router, React 19, TypeScript, Tailwind 4 |
 | DB | Supabase (PostgreSQL) |
 | 자동화 | n8n (Docker, `localhost:5678`) |
-| AI | Google Gemini (`GEMINI_API_KEY`) |
+| AI | Google Gemini — n8n 경유(기본) 또는 `DASHBOARD_GEMINI_DIRECT=1` 직접 호출 |
+| 숏폼 영상 | **Google Flow (Veo)** — `flowPasteBlock` 수동 붙여넣기 (Higgsfield 아님) |
 | 인증 | `dashboard_app_users` + 세션 쿠키 + `DASHBOARD_API_SECRET` (프로덕션) |
 
 ---
@@ -28,67 +30,101 @@
 ### YouTube 분석 (핵심 MVP)
 
 - Supabase `channels` / `videos`, vs.Avg, S/A/B/C Tier, Shorts·롱폼(`format`)
-- 채널 카테고리, 벌크 import, «내 채널»(`is_mine`) 필터
+- 롱폼 vs.Avg 분리 UI 토글 (`youtube-longform` / `my-youtube-longform`)
+- 채널 카테고리·콘텐츠 스타일, 벌크 import, «내 채널» 필터
 - Outlier 태깅 — `outlier_tags`, n8n W02 + API 폴백
 - 수집 API: `collect`, `collect-all`, `collect-platform`
 
-### 콘텐츠 만들기 파이프라인
+### 콘텐츠 만들기
 
-- **콘텐츠 가이드** (`content-guide`) — 발행 주제, 레퍼런스, 스크립트 생성, 내 콘텐츠화
-- **히스토리 관리** (`generation-history`) — Supabase `content_generation_history` (draft + polished)
-- **콘텐츠 제작** (`content-studio`) — localStorage 편집
-- 생성: n8n `longform-script` 1순위 → `/api/dashboard/content-generate` 폴백
+| 화면 | view | 저장 |
+|------|------|------|
+| 콘텐츠 가이드 | `content-guide` | Supabase 히스토리 + localStorage |
+| **콘텐츠 분석기** | `content-analyzer` | localStorage (분석 히스토리) |
+| **제작 진행 보드** | `production-tracker` | localStorage |
+| 발행 편집·변환 | `content-studio` | localStorage |
+| 히스토리 관리 | `generation-history` | Supabase `content_generation_history` |
+
+- 생성: n8n W08 `longform-script` 1순위 → `/api/dashboard/content-generate` 폴백
+- 감정 톤(`emotionTone`)·숏폼 카테고리·Flow 씬별 붙여넣기 블록 지원
+- 콘텐츠 분석기: Gemini 직접 시청(YouTube) + BGM 정밀 식별(n8n W11, 설정 시)
 
 ### 기획·인사이트
 
-- 트렌딩, Outlier, AI 인사이트(Gemini), 주제 선별 AI(`/api/topic-suggest`)
+- 트렌딩, Outlier, AI 인사이트(n8n W10), 주제 선별 AI(n8n W09)
 - 기획 큐 → 가이드·레퍼런스 연동 (`planning-queue-v1`)
-- 개요(홈) = 로고 클릭, `?view=overview`
+- 홈 = 로고 클릭 → `?view=overview`
 
 ### 운영·워크스페이스
 
-- 캘린더, Repurpose, Deploy — Supabase 테이블 + UI
-- 네이버 블로그·티스토리 수집·분석 (YouTube 다음으로 성숙)
-- 로그인·middleware, `npm run verify:collect`
+- 네이버 블로그·티스토리 수집·분석
+- 발행 확장: TikTok·Instagram·Blogger 가이드 (`publish-expand`)
+- 캘린더, Repurpose, Deploy — Supabase + UI
+- 로그인·middleware, `npm run verify:collect`, `npm run env:check`
 
-### n8n (로컬)
+### n8n (로컬 Docker)
 
-- W01 YouTube 수집, W02 Outlier 태깅 등 — `./scripts/n8n-setup.sh`
-- «구현됨» = Webhook 404 아님 (`live-workflows.ts`)
-
----
-
-## 아직 부분·더미
-
-| 영역 | 상태 |
-|------|------|
-| TikTok | UI + 더미 데이터 |
-| Instagram | 준비 중 shell |
-| 수익 추적 | 로드맵·UI 중심 |
-| 기간별 추이 차트 | 없음 |
-| n8n 클라우드·Vercel cron | 로컬 Docker 의존 → **PC 종료 시 스케줄 중단** |
-| 자동화 테스트 | `verify:collect`만, Vitest/Playwright 없음 |
-
-사이드바 **(더미)** / **[준비중]** 배지: `lib/dashboard/dashboard-nav.ts`
+- W01~W10: `live-workflows.ts` 등록·운영 (`./scripts/n8n-setup.sh`)
+- 스케줄 수집: **12시간** 간격 (W01~W05, W07)
 
 ---
 
-## 사이드바 요약 (2026-05-30 기준)
+## 미완성·제한 사항
+
+| 영역 | 상태 | 비고 |
+|------|------|------|
+| **W11 BGM 정밀 식별** | 코드·JSON·setup 있음, **미연결** | `live-workflows.ts` 미등록, webhook 404. AudD 토큰·컨테이너 yt-dlp 필요 |
+| Instagram 레퍼런스 수집 | 발행 가이드만 | Business 계정 + Insights API 선행 |
+| TikTok 레퍼런스 수집 | 발행 가이드만 | Apify 등 실수집 없음 — YouTube Shorts로 기획 |
+| 수익 추적 | UI·추정치 | 실데이터 RPM 연동 없음 |
+| 기간별 추이 차트 | 없음 | |
+| n8n 인프라 | 로컬 Docker | PC 종료 시 W01~W11 스케줄·웹훅 중단 |
+| 자동화 테스트 | `verify:collect`만 | Vitest/Playwright 없음 |
+| 프로덕션 빌드 | `archive/` 포함 시 실패 | tsconfig에 `archive` exclude 권장 |
+| DB 마이그레이션 14·15 | 파일 존재 | Supabase 적용 여부 수동 확인 필요 |
+
+사이드바 배지 정의: `lib/dashboard/dashboard-nav.ts` (`NAV_PARTIAL_DUMMY_VIEW_IDS` 등)
+
+---
+
+## 사이드바 구조 (2026-06-12)
 
 ```
 로고(홈=overview)
-├ n8n: 로드맵 · 워크플로 관리
-├ 콘텐츠 만들기: 가이드 · 제작 · 히스토리
-├ 채널 등록: benchmark
-├ 콘텐츠 분석: YouTube(실) · TikTok(더미) · IG(준비) · 네이버·티스토리(실)
-├ 기획: 트렌딩 · Outlier · AI인사이트 · 주제선별
-├ 내 채널: 운영허브 · 캘린더 · 플랫폼별(내)
-├ 파이프라인: Repurpose · Deploy · 데이터수집
-└ 수익 추적
-설정: 헤더 ⚙ → settings
+
+🔧 n8n — 로드맵 · 워크플로 관리
+✨ 콘텐츠 만들기 — 가이드 · 분석기 · 제작 보드 · 발행 편집 · 히스토리
+📝 채널 등록 — benchmark
+📊 콘텐츠 분석 — YouTube(Shorts/롱폼) · 네이버 · 티스토리
+💡 기획/인사이트 — 트렌딩 · Outlier · AI인사이트 · 주제선별
+📺 내 채널 — 운영허브 · 캘린더 · 플랫폼별(내)
+📤 발행 확장 — TikTok · Instagram · Blogger
+⚙️ 파이프라인 — Repurpose · Deploy · 데이터수집
+💰 수익 추적
+설정: 헤더 ⚙
 ```
 
-화면별 상세·API·localStorage 키 → [DASHBOARD_OVERVIEW](./guides/DASHBOARD_OVERVIEW_20260530.md)
+단일 소스: `lib/dashboard/dashboard-nav.ts` (`NAV_TREE`, `VIEW_META`)
+
+---
+
+## n8n 워크플로 (코드 기준)
+
+| # | Webhook | 상태 |
+|---|---------|------|
+| W01 | `youtube-collect` | ✅ |
+| W02 | `outlier-tagging` | ✅ |
+| W03 | `rss-topic-collect` | ✅ |
+| W04 | `naver-blog-collect` | ✅ |
+| W05 | `tistory-collect` | ✅ |
+| W06 | `notion-log` | ✅ (후속 호출) |
+| W07 | `naver-blog-views` | ✅ |
+| W08 | `longform-script` | ✅ |
+| W09 | `topic-suggest` | ✅ |
+| W10 | `ai-insights` | ✅ |
+| **W11** | `bgm-identify` | ❌ **미등록·미연결** |
+
+상세: [n8n/README.md](./n8n/README.md) · 코드: `lib/n8n/live-workflows.ts`
 
 ---
 
@@ -99,40 +135,31 @@
 | 파일 | 용도 |
 |------|------|
 | `00` | 전체 스키마 (최초 1회) |
-| `01` | 워크스페이스 (캘린더·리퍼포즈·배포) |
-| `02` | 채널 카테고리 |
-| `03` | Shorts/롱폼·saved_shorts |
-| `04` | outlier_tags |
-| `05`~`09` | RSS·Notion·인증·추적 등 |
-| `10` | channel_tracking_status |
-| `11` | content_generation_history |
-| `12` | topic_keyword_guide_history |
+| `01`~`12` | 워크스페이스·RSS·인증·히스토리 등 |
+| `13` | 보안·성능 |
+| `14` | 롱폼 vs_avg_longform·chapter_markers |
+| `15` | channel_content_style |
 
 ---
 
-## 코드·설정 단일 진입점
-
-| 목적 | 파일 |
-|------|------|
-| 사이드바·헤더 | `lib/dashboard/dashboard-nav.ts` |
-| 화면 라우팅 | `components/dashboard/DashboardPageContent.tsx` |
-| n8n 워크플로 | `lib/n8n/live-workflows.ts` |
-| 플랫폼 수집 여부 | `lib/dashboard/platforms.ts` |
-| Agent 스냅샷 | `archive/agent-snapshots/` (Git 제외) |
-
----
-
-## 환경·로컬 접속
+## 환경변수 (핵심)
 
 ```env
-# .env.local — 예시 키만, 값은 저장소에 없음
 NEXT_PUBLIC_SUPABASE_URL=…
 SUPABASE_SERVICE_ROLE_KEY=…
 YOUTUBE_API_KEY=…
+
+# AI — 콘텐츠 분석기 등 직접 호출 시
 GEMINI_API_KEY=…
-N8N_WEBHOOK_YOUTUBE_COLLECT=http://localhost:5678/webhook/youtube-collect
-N8N_WEBHOOK_OUTLIER_TAG=http://localhost:5678/webhook/outlier-tagging
-# DASHBOARD_API_SECRET=…  (프로덕션)
+DASHBOARD_GEMINI_DIRECT=1
+
+# n8n (예시)
+N8N_WEBHOOK_LONGFORM_SCRIPT=http://localhost:5678/webhook/longform-script
+N8N_WEBHOOK_AI_INSIGHTS=http://localhost:5678/webhook/ai-insights
+N8N_WEBHOOK_BGM_IDENTIFY=http://localhost:5678/webhook/bgm-identify  # W11
+AUDD_API_TOKEN=…  # W11 · n8n 컨테이너로 전달
+
+# DASHBOARD_API_SECRET=…  (프로덕션·n8n 연동)
 ```
 
 | 용도 | URL |
@@ -142,25 +169,39 @@ N8N_WEBHOOK_OUTLIER_TAG=http://localhost:5678/webhook/outlier-tagging
 
 ---
 
-## 다음 우선순위 (운영·로드맵)
+## 다음 우선순위
 
-1. **보안** — API 키 로테이션, 프로덕션 시크릿
-2. **멀티플랫폼** — TikTok/Instagram 실수집 (Apify 등)
-3. **운영** — n8n·cron 클라우드 이전 (로컬 종료 리스크 해소)
-4. **품질** — vs.Avg·수집 단위 테스트
-5. **문서** — 구현 변경 시 `dashboard-nav.ts` + OVERVIEW + 이 SUMMARY 동시 갱신
-
-6단계 전개(분석 → 멀티플랫폼 → AI 기획 → 생성·배포): [PROJECT_REPORT_20260524.md](./PROJECT_REPORT_20260524.md)
+1. **W11 BGM 식별 마무리** — AudD → docker rebuild → `n8n-setup.sh` → `live-workflows.ts` W11 등록
+2. **신규 기능 실사용 QA** — 콘텐츠 분석기·제작 진행 보드 URL 1건 end-to-end
+3. **빌드 복구** — `tsconfig.json`에 `archive` exclude
+4. **마이그레이션 14·15** Supabase 적용 확인
+5. **n8n 클라우드/VPS 이전** 검토 (로컬 PC 종료 리스크)
+6. Instagram Business 계정 전환 여부 확인
+7. 숏폼 샘플 — **Google Flow(Veo)**로 1편 제작 후 품질 확인 (Higgsfield 결제 전)
 
 ---
 
-## PC 이전 · Agent 복구 (짧은 체크)
+## 코드 단일 진입점
+
+| 목적 | 파일 |
+|------|------|
+| 사이드바·헤더 | `lib/dashboard/dashboard-nav.ts` |
+| 화면 라우팅 | `components/dashboard/DashboardPageContent.tsx` |
+| n8n 워크플로 | `lib/n8n/live-workflows.ts` |
+| 플랫폼·수집 | `lib/dashboard/platforms.ts` |
+| 콘텐츠 가이드라인 | `guidelines/contents_guideline.md` |
+| Agent 스냅샷 | `archive/agent-snapshots/` (Git 제외) |
+
+---
+
+## PC 이전 · 복구 체크
 
 1. `dashboard-app` + `.env.local`
 2. `npm install` → `npm run dev`
-3. Supabase `00`~`12` 적용 확인
-4. n8n Docker + `./scripts/n8n-setup.sh`
-5. 로그인 → 가이드 → 히스토리 동작 확인
+3. Supabase `00`~`15` 적용 확인
+4. `docker compose -f docker-compose.n8n.yml --env-file .env.local up -d --build`
+5. `./scripts/n8n-setup.sh`
+6. 로그인 → 가이드 → 분석기 → 히스토리 동작 확인
 
 ---
 
@@ -168,12 +209,10 @@ N8N_WEBHOOK_OUTLIER_TAG=http://localhost:5678/webhook/outlier-tagging
 
 | 문서 | 용도 |
 |------|------|
-| [DASHBOARD_OVERVIEW_20260530.md](./guides/DASHBOARD_OVERVIEW_20260530.md) | 화면·API·DB·n8n **전체 맵** |
-| [CONTENT_CREATION_PIPELINE_RECOVERY.md](./guides/CONTENT_CREATION_PIPELINE_RECOVERY.md) | 생성 파이프라인 복구 |
-| [DASHBOARD_USAGE.md](./guides/DASHBOARD_USAGE.md) | 사용법·타이밍 |
-| [CHANGELOG.md](./CHANGELOG.md) | 날짜별 이력 |
-| [PROJECT_REPORT_20260524.md](./PROJECT_REPORT_20260524.md) | 투자·Gemini·우선순위 |
-
----
+| [DASHBOARD_OVERVIEW.md](./guides/DASHBOARD_OVERVIEW.md) | 화면·API·DB·n8n 전체 맵 |
+| [CONTENT_CREATION_WORKFLOW.md](./guides/CONTENT_CREATION_WORKFLOW.md) | 콘텐츠 생성 단계 |
+| [CONTENT_PRODUCTION_AZ_CHECKLIST.md](./guides/CONTENT_PRODUCTION_AZ_CHECKLIST.md) | A-Z 실행 체크리스트 |
+| [LONGFORM_CAROUSEL.md](./LONGFORM_CAROUSEL.md) | 롱폼·캐러셀 확장 현황 |
+| [CHANGELOG.md](./CHANGELOG.md) | 변경 이력 |
 
 *구현이 바뀌면 `dashboard-nav.ts`, OVERVIEW, 이 SUMMARY를 함께 갱신하세요.*

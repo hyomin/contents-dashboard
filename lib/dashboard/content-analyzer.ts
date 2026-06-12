@@ -1,3 +1,5 @@
+import { sanitizeGeminiJsonText } from '@/lib/dashboard/gemini-models'
+
 export type ContentAnalyzerPlatform = 'youtube' | 'instagram' | 'tiktok' | 'unknown'
 
 export interface ContentAnalyzerResult {
@@ -61,6 +63,35 @@ export function detectContentPlatform(url: string): ContentAnalyzerPlatform {
 /** Gemini가 fileData(fileUri)로 영상을 직접 시청·분석할 수 있는 플랫폼 (현재 YouTube 공개 영상만 지원) */
 export function supportsDirectVideoAnalysis(platform: ContentAnalyzerPlatform): boolean {
   return platform === 'youtube'
+}
+
+/**
+ * Gemini fileData(fileUri)에 넘길 YouTube URL을 정규화한다.
+ * "list=RD...&start_radio=1" 같은 재생목록/라디오 파라미터가 붙은 URL은 Gemini가 영상이 아닌
+ * HTML 믹스 페이지를 가져와 "Unsupported MIME type: text/html"로 거부하므로,
+ * 영상 ID만 추출해 https://www.youtube.com/watch?v=<id> 형태로 정리한다.
+ * ID를 추출할 수 없으면 원본 URL을 그대로 반환한다.
+ */
+export function normalizeYoutubeUrlForGemini(url: string): string {
+  try {
+    const u = new URL(url)
+    const host = u.hostname.replace(/^(www|m)\./, '')
+    let id: string | null = null
+
+    if (host === 'youtu.be') {
+      id = u.pathname.split('/')[1] || null
+    } else if (host === 'youtube.com') {
+      if (u.pathname === '/watch') {
+        id = u.searchParams.get('v')
+      } else if (u.pathname.startsWith('/shorts/') || u.pathname.startsWith('/embed/')) {
+        id = u.pathname.split('/')[2] || null
+      }
+    }
+
+    return id ? `https://www.youtube.com/watch?v=${id}` : url
+  } catch {
+    return url
+  }
 }
 
 const PLATFORM_LABEL: Record<ContentAnalyzerPlatform, string> = {
@@ -134,12 +165,15 @@ export function parseContentAnalyzerResponse(
 ): ContentAnalyzerResult | null {
   if (!text.trim()) return null
   try {
+    // 1차: 원문 그대로 시도 → 실패 시 흔한 LLM JSON 깨짐(멀티라인 문자열 내 줄바꿈 미이스케이프 등)을 보정해 재시도
+    const sanitized = sanitizeGeminiJsonText(text)
     const fence = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
     const cleaned = fence ? fence[1].trim() : text
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return null
-    const fixed = jsonMatch[0].replace(/,\s*([}\]])/g, '$1')
-    const parsed = JSON.parse(fixed) as {
+    if (!jsonMatch && !sanitized) return null
+    const raw = jsonMatch ? jsonMatch[0].replace(/,\s*([}\]])/g, '$1') : null
+
+    let parsed: {
       targetEmotion?: { summary?: string; keywords?: string[] }
       bgm?: {
         moodAnalysis?: string
@@ -149,7 +183,18 @@ export function parseContentAnalyzerResponse(
       }
       story?: { summary?: string; structure?: string[] }
       productionGuide?: string[]
+    } | null = null
+
+    for (const candidate of [raw, sanitized]) {
+      if (!candidate) continue
+      try {
+        parsed = JSON.parse(candidate)
+        break
+      } catch {
+        continue
+      }
     }
+    if (!parsed) return null
 
     const toStrArray = (arr?: unknown[]) =>
       Array.isArray(arr) ? arr.map((x) => String(x).trim()).filter(Boolean) : []
