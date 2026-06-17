@@ -38,5 +38,5 @@ blog_image_guide_count: 3
 
 ## 숏폼 카테고리 추가
 
-1. MD에 `### category-id: my-new-id` 블록 추가 (label / description / **flow_hint**)
+1. MD에 `### category-id: my-new-id` 블록 추가 (label / description)
 2. 대시보드 UI에서 «숏폼 카테고리» 직접 추가 시 id가 맞는지 확인

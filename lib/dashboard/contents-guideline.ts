@@ -19,8 +19,6 @@ export interface ContentsGuidelineCategory {
   id: string
   label: string
   description: string
-  /** Google Flow(Veo) 프롬프트 힌트 */
-  flowHint: string
 }
 
 export interface ContentsGuidelineFile {
@@ -123,11 +121,8 @@ function parseCategoriesBlock(block: string): ContentsGuidelineCategory[] {
     const id = idLine.replace(/\s+#.*$/, '').trim()
     const label = part.match(/\*\*label:\*\*\s*(.+)/i)?.[1]?.trim()
     const description = part.match(/\*\*description:\*\*\s*(.+)/i)?.[1]?.trim()
-    const flowHint =
-      part.match(/\*\*flow_hint:\*\*\s*(.+)/i)?.[1]?.trim() ??
-      part.match(/\*\*higgsfield_hint:\*\*\s*(.+)/i)?.[1]?.trim()
-    if (!label || !description || !flowHint) continue
-    categories.push({ id, label, description, flowHint })
+    if (!label || !description) continue
+    categories.push({ id, label, description })
   }
   return categories
 }
@@ -208,7 +203,6 @@ export function buildShortformCategoryAgentBlock(categoryId: string | undefined)
 ## 숏폼 카테고리 (필수 반영 — contents_guideline.md)
 - 유형: ${fromMd.label}
 - 제작 방향: ${fromMd.description}
-- Google Flow(Veo) 프롬프트 힌트: ${fromMd.flowHint}
 `.trim()
 }
 
@@ -230,7 +224,7 @@ export function buildAgentFormatGuidelineBlock(
     const platformSpec = getPlatformShortformSpecBlock()
     if (platformSpec) {
       parts.push(
-        `## [최우선] 플랫폼별 숏폼 스펙 (스크립트·Flow 프롬프트·길이·안전영역 — 반드시 먼저 준수)\n\n${platformSpec}`,
+        `## [최우선] 플랫폼별 숏폼 스펙 (스크립트·길이·안전영역 — 반드시 먼저 준수)\n\n${platformSpec}`,
       )
     }
     const shortform = getAgentGuidelineSection('shortform')

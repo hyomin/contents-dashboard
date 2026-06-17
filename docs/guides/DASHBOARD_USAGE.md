@@ -129,5 +129,5 @@ n8n 스케줄(12h)이 켜져 있으면 ③·Outlier 태깅·RSS는 자동 실행
 ## 6. 관련 문서
 
 - [SUMMARY.md](../SUMMARY.md) — 현황·우선순위
-- [DASHBOARD_OVERVIEW.md](./DASHBOARD_OVERVIEW.md) — 화면·API 맵
-- [CONTENT_CREATION_WORKFLOW.md](./CONTENT_CREATION_WORKFLOW.md) — 콘텐츠 생성 단계
+- [DASHBOARD_OVERVIEW.md](./DASHBOARD_OVERVIEW.md) — 화면·API 맵·콘텐츠 파이프라인
+- [CONTENT_PRODUCTION_AZ_CHECKLIST.md](./CONTENT_PRODUCTION_AZ_CHECKLIST.md) — 콘텐츠 제작 A-Z 체크리스트

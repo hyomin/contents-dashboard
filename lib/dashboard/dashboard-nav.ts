@@ -171,7 +171,7 @@ export const VIEW_META: Record<string, ViewMeta> = {
   create: { title: '콘텐츠 만들기', desc: '가이드에서 발행용 스크립트 생성 → (선택) 편집·변환 → 히스토리 보관.' },
   'content-guide': {
     title: '콘텐츠 가이드',
-    desc: '발행 주제·레퍼런스·가이드라인(MD) 기반으로 발행용 스크립트·본문을 한 번에 생성합니다. 숏폼은 Flow 씬별 붙여넣기 블록까지 포함합니다.',
+    desc: '발행 주제·레퍼런스·가이드라인(MD) 기반으로 발행용 스크립트·본문을 한 번에 생성합니다. 숏폼은 시간대별 씬 스크립트·자막까지 포함합니다.',
   },
   'content-analyzer': {
     title: '콘텐츠 분석기',

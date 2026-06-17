@@ -9,7 +9,7 @@ blog_image_guide_count: 3
 
 > **경로:** `dashboard-app/guidelines/contents_guideline.md`  
 > **대상:** 블로그(`writing`) · 숏폼(`video` / shortform) Agent 프롬프트  
-> **숏폼 영상 생성:** Google AI Pro · **Google Flow**(Veo) — Higgsfield 아님  
+> **영상 제작:** 스크립트 기반 수동 편집 (캡컷 등) — AI 자동 영상 생성 없음  
 > **플랫폼 스펙(최우선):** `guidelines/platform_shortform_specs.md` — [Branderkey Notion](https://branderkey.notion.site/33c835c9591a8008b0cef37fcf50043f)  
 > **UI 체크리스트:** 콘텐츠 가이드 화면 «포맷별 제작 가이드»는 `lib/dashboard/content-creation-guide.ts`와 동기화하려면 수동 맞춤 또는 추후 연동
 
@@ -288,70 +288,43 @@ blog_image_guide_count: 3
 - [ ] 타겟 시청자가 제목을 보고 «어? 내 얘긴데?» 할 수 있는가?
 - [ ] 영상 시작 0~3초 안에 썸네일의 떡밥을 바로 회수하는가?
 
-### 영상·이미지 생성 (필수 전제)
-
-- 숏츠 클립·비주얼은 **Higgsfield가 아님**. **Google AI Pro + [Google Flow](https://flow.google)**(Veo)로 생성합니다.
-- Agent는 **Flow에 붙여넣을 영문 프롬프트**를 장면마다 작성합니다. (일상어 한글 설명 + 구체적 영문 생성 지시)
-- Flow/Veo 특성: **씬당 짧은 클립**(수 초), **9:16 세로**, 시네마틱·프롬프트 준수·(Veo 3) 환경음·대사 가능
-- **Ingredients to video**: 동일 캐릭터·오브젝트 유지가 필요하면 프롬프트에 외형·의상·색을 반복 명시
-- 크레딧 절약: **씬 3~5개**, 재생성 최소 · Fast/Lite vs Quality는 제작 메모에 표기
-
 ### 플랫폼 (업로드)
 
 - YouTube Shorts / Reels / TikTok
-- 세로 **9:16**, **60초 이내** (Flow 클립 여러 개 → 캡컷 등에서 이어 붙임)
+- 세로 **9:16**, **60초 이내** (클립 여러 개 → 캡컷 등에서 이어 붙임)
 - 첫 **1~2초 훅** · 루프 가능 엔딩 · 짧은 자막(onScreenText) 필수
 
 ### 숏폼 장면 스크립트 (fullContent 필수)
 
 - **45~60초** 기준, **3~5개 장면**으로 분할합니다.
 - 레퍼런스 흔적 제거·발행용 톤 유지, 본문은 **시간대별 장면 블록**이 핵심입니다.
+- 영상 클립은 직접 촬영·OBS 화면 녹화·스톡 영상으로 준비 후 캡컷 등에서 편집합니다.
 
-#### flowPasteBlock (씬별 — Flow에 **한 번에 복사**하는 유일한 위치)
-
-씬마다 아래 형식. 영문은 **한 덩어리**로만 (9:16·안전영역·비주얼·카메라를 중복 문장 없이 통합).
-
-```
-### 씬1 · 0~5초 · 첫 훅
-
-Vertical 9:16 cinematic close-up, hands offering water and medicine beside a bed, sick person resting, warm window light, shallow depth of field, worried caring mood, slow push-in. Subject centered in 1080×1300 safe zone, no on-screen text or UI.
-
----
-
-### 씬2 · 6~14초 · 헌신
-(다음 씬 영문 한 덩어리)
-```
-
-#### fullContent 장면 블록 (Flow 줄 **금지** — 상단 flowPasteBlock과 중복 금지)
+#### fullContent 장면 블록 형식
 
 ```
-[0~5초] 장면1 · 첫 훅) 여친이 아파서 오늘 하루 온전히 돌봐주기로 했어요.
-**화면(한글):** 침대 옆에서 물·약 챙기는 손 클로즈업, 걱정스러운 표정
+[0~5초] 장면1 · 첫 훅) 오늘 작업에서 이런 오류가 나왔어요.
+**화면 설명:** 화면 녹화 클립 — 오류 상황 클로즈업
+**자막:** 이게 왜 이러는 거지...
 
-[6~14초] 장면2 · 헌신) ...
+[6~14초] 장면2) ...
 ```
-
-#### JSON 출력 (숏폼 필수 필드)
-
-- **flowPasteBlock**: 씬별 `### 씬N · 시간 · 제목` + 영문 한 덩어리 (`---`로 씬 구분). 사용자가 **씬마다 블록 전체**를 Flow에 붙여넣음
-- **fullContent**: 시간·나레이션·화면(한글)·자막·제작 메모만 (**Google Flow:** 줄 없음)
 
 #### fullContent 맨 아래 필수 섹션
 
 ## 📱 자막 오버레이
 - (장면별 핵심 자막 1줄씩, 4~6개)
 
-## 🎬 Google Flow 제작 메모
-- 도구: Google Flow (Gemini Pro / Veo) · 세로 9:16
-- 총 N씬 · 씬당 Flow 1생성 권장 (크레딧 절약)
-- (선택) Veo Fast / Quality · Ingredients·캐릭터 일관성 메모 1줄
-- 편집: 생성 클립을 시간순 concat → Shorts 업로드
+## 🎬 편집 메모
+- 도구: 캡컷 (또는 CapCut) · 세로 9:16 · 총 N씬
+- 클립 소스: (직접 촬영 / OBS 화면 녹화 / 스톡 영상)
+- 편집: 클립 시간순 concat → 자막 삽입 → Shorts 업로드
 
 #### 규칙
 
 - 시간대는 **0초부터 연속**, 겹치지 않게, 합계 **60초 이내**
 - 장면 제목은 **한글**로 «무슨 장면인지» 바로 알 수 있게
-- Flow용 영문은 **flowPasteBlock에만** · 구체적 비주얼 (추상적 «예쁜 영상» 금지). Higgsfield·Midjourney 등 다른 툴 이름 금지
+- 화면 설명은 촬영·편집 방향 안내용 (AI 생성 프롬프트 아님)
 
 ### 마무리 팁
 
@@ -370,46 +343,75 @@ Vertical 9:16 cinematic close-up, hands offering water and medicine beside a bed
 
 - **label:** 동물 숏츠 · 실사 스토리형
 - **description:** 실사 영상·내레이션·감정선이 있는 동물 에피소드. 1마리=1스토리, 반전·구원·우정 등 짧은 드라마 구조.
-- **flow_hint:** Veo vertical, photoreal animal, natural light, close-up, emotional beat on last 2 seconds
 
 ### category-id: animal-3d-dance-comic
 
 - **label:** 동물 숏츠 · 3D / 댄스 / 코믹형
 - **description:** 3D·댄스·밈·과장 코믹. 루프·비트에 맞춘 동작, 귀여움·웃음·충격 컷.
-- **flow_hint:** Stylized 3D character motion, dance beat sync, bright colors, fast cuts, loop-friendly ending
 
 ### category-id: story-nate-blind
 
 - **label:** 썰 숏츠 · 네이트 판 / 블라인드 스토리형
 - **description:** 익명·판형·블라인드 톤. 1인칭 썰, 댓글 반응형·반전 엔딩, 자막이 스토리 전달의 핵심.
-- **flow_hint:** Blurred B-roll background, subtitle-safe framing, minimal motion, narration-friendly pacing
 
 ### category-id: comedy-short-happening
 
 - **label:** 개그 숏츠 · 해프닝 / 상황극형
 - **description:** 돕거나 일상하다 **웃긴 사고·오해·반전**이 터지는 코믹. 감동보다 **해프닝·밈·리액션**이 클릭 이유.
-- **flow_hint:** Exaggerated expressions, slapstick timing, quick punchline cut, comedic loop end
 
 ### category-id: empathy-character-drama
 
 - **label:** 공감 숏츠 · 캐릭터 드라마형
 - **description:** 고정 캐릭터·일상·연애·직장 공감 드라마. 짧은 대사·표정·상황극.
-- **flow_hint:** Same character look across scenes (describe outfit/hair), indoor daily life, emotional close-up
 
 ### category-id: quote-motivation-cinematic
 
 - **label:** 명언/동기부여 숏츠 · 시네마틱 배경형
 - **description:** 명언·동기부여·자기계발. 시네마틱 B-roll + 굵은 자막 + 잔잔한 BGM.
-- **flow_hint:** Cinematic landscape B-roll, slow motion, golden hour, space for bold typography overlay
 
 ### category-id: asmr-sound-focus
 
 - **label:** ASMR 숏츠 · 소리에 집중하는 영상형
 - **description:** 타격음·먹방·자연음·속삭임. 화면보다 소리·리듬·근접 마이크감이 핵심.
-- **flow_hint:** Macro texture shots, hands and food close-up, minimal camera move, Veo ambient sound emphasis
 
 ### category-id: interview-drama-bts
 
 - **label:** 인터뷰 숏츠 · 드라마/영화 비하인드형
 - **description:** 가상 인터뷰·비하인드·패러디. 무비클립 톤·자막 Q&A·드라마틱 조명.
-- **flow_hint:** Interview framing, shallow depth of field, blurred backdrop, film grain, lower-third safe area
+
+### category-id: ai-creation-process
+
+- **label:** AI 제작 과정 숏츠 · 날것 브이로그형
+- **description:** AI 관련 작업 중 일어나는 실패·오류·해프닝을 해결 없이 그대로 보여주는 날것 브이로그형. OBS 화면 녹화 클립 모음. 바이럴·공감 목적.
+
+#### 스크립트 구조
+
+- **A. 날것 오류 모음형** (연속 편집, 해결 없이 끝남)
+  1. 첫 1~2초: 제작자 반응 훅 («이게 나왔다고?» «오늘도 실패다»)
+  2. 오류 클립 2~4개 연속 — 각 2~4초, 자막으로 오류 포인트 강조
+  3. 엔딩: 제작자 리액션 or 밈 컷 → 루프 가능 마무리
+
+- **편집 메모**
+  - 클립 소스: OBS 화면 녹화본 그대로 사용
+  - 자막: 오류 상황 명시 (공감 포인트)
+  - 편집: 캡컷에서 클립 연결 → 자막 삽입 → Shorts 업로드
+
+### category-id: ai-failure-resolved
+
+- **label:** AI 제작 과정 숏츠 · 실패→해결형
+- **description:** AI 작업 중 오류를 발견하고 설정·방법을 수정해 해결하는 과정을 보여주는 교육형. 문제 제시 → 수정 과정 → 해결 완료 구조. 시청 지속률 유리·롱폼 채널 연결형.
+
+#### 스크립트 구조
+
+- **B. 실패→해결 아크형** (스토리 구조, 교육 목적)
+  1. 첫 1~3초: 오류 클립 or 해결 결과 미리보기 (훅 — 결과부터 보여주기)
+  2. 문제 제시: 어떤 오류가 났는지 2~3초 (자막으로 오류 포인트 강조)
+  3. 수정 과정: 바꾼 설정·방법 텍스트 오버레이로 표시 5~8초
+  4. 해결된 결과 클립: 2~3초
+  5. 배운 점 1줄 자막 → «자세한 과정은 롱폼에서» CTA → 루프 마무리
+
+- **편집 메모**
+  - 클립 소스: OBS 화면 녹화본 (실패/해결 클립 모두 녹화본 사용)
+  - Before-after 구조: 오류 화면 → 해결된 화면 컷 전환
+  - 롱폼 CTA 필수: «전체 제작 과정은 롱폼에서» — 채널 트래픽 연결
+  - 편집: 캡컷에서 클립 연결 → 텍스트 오버레이 → 자막 → Shorts 업로드

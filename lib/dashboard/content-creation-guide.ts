@@ -164,6 +164,7 @@ export const GUIDE_BY_CATEGORY: Record<GuideCategory, CategoryGuide> = {
       '본론 전 “이 영상에서 얻는 것” 한 문장 예고',
       '챕터(롱폼) 또는 텍스트 훅(숏)으로 이탈 구간 막기',
       '엔딩: 구독·다음 영상 예고 + 동일 키워드 자막 반복',
+      'OBS 상시 녹화: 제작 과정·실패 클립 캡처 → 숏폼 소재',
     ],
     sections: [
       {
@@ -174,10 +175,20 @@ export const GUIDE_BY_CATEGORY: Record<GuideCategory, CategoryGuide> = {
         ],
       },
       {
+        heading: 'AI 제작 과정형 롱폼 (원소스 3-아웃풋)',
+        bullets: [
+          '구조: 완성 결과물 먼저 공개(1~2분) → 제작 과정 회고(5~6분) → 실패·해결 하이라이트(2분) → 숏폼 예고 CTA(1분)',
+          '완성 영상 먼저 보여준 뒤 “어떻게 만들었나”로 전환 — 시청 지속률 유지 포인트',
+          '실패 클립은 숏폼 A(날것 브이로그) + 숏폼 B(해결형)로 파생 — 제작 1회=아웃풋 3종',
+          'YouTube AI 라벨: 완성 영상·제작 과정 영상 모두 AI 생성 콘텐츠 표시 필수',
+        ],
+      },
+      {
         heading: '숏폼 / 릴스',
         bullets: [
           '루프 가능한 구조(마지막이 첫 장면과 연결) 실험',
           '자막은 키워드만 굵게, 한 줄 길이 짧게',
+          '카테고리 선택: ai-creation-process(날것형) / ai-failure-resolved(해결형) — 같은 세션 소재로 두 종류 생성',
         ],
       },
     ],

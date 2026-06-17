@@ -1,7 +1,7 @@
 # 콘텐츠 제작 — A-Z 액션 체크리스트
 
 > **갱신:** 2026-06-12  
-> 상세 설명: [CONTENT_CREATION_WORKFLOW.md](./CONTENT_CREATION_WORKFLOW.md)
+> 파이프라인 전체 맵: [DASHBOARD_OVERVIEW.md](./DASHBOARD_OVERVIEW.md)
 
 ---
 
@@ -46,9 +46,9 @@
 - [ ] 최종 문장·메모·포맷 변환
 - [ ] localStorage 저장 (원본은 히스토리에 보관)
 
-## J. (숏폼) Google Flow 제작
-- [ ] `flowPasteBlock` / 씬별 블록을 **Google Flow**에 붙여넣기 (Higgsfield 아님)
-- [ ] 완성 영상 다운로드·편집 툴로 마감
+## J. (숏폼) 영상 편집
+- [ ] 씬별 스크립트를 캡컷 등 편집 도구에서 클립으로 구성
+- [ ] OBS 녹화 클립·스톡 영상 합성 → 자막 삽입 → 최종 내보내기
 
 ## K. 발행 확장 (`publish-expand`)
 - [ ] TikTok · Instagram · Blogger 가이드 확인

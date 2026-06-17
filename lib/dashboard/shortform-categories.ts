@@ -1,5 +1,5 @@
 /**
- * 숏폼 제작 카테고리 — Google Flow·Shorts/Reels 기획용
+ * 숏폼 제작 카테고리 — Shorts/Reels 기획용
  * Agent 상세 규칙: guidelines/contents_guideline.md
  */
 
@@ -8,18 +8,8 @@ export interface ShortformCategory {
   label: string
   /** AI 프롬프트·체크리스트용 설명 */
   description: string
-  /** Google Flow(Veo) 프롬프트 힌트 */
-  flowHint: string
-  /** @deprecated 하위 호환 — flowHint 사용 */
-  higgsfieldHint?: string
   /** 내장(builtin) vs 사용자 추가 */
   source: 'builtin' | 'custom'
-}
-
-function normalizeCategory(c: ShortformCategory): ShortformCategory {
-  const flowHint = c.flowHint?.trim() || c.higgsfieldHint?.trim() || ''
-  const { higgsfieldHint: _legacy, ...rest } = c
-  return { ...rest, flowHint }
 }
 
 export const BUILTIN_SHORTFORM_CATEGORIES: ShortformCategory[] = [
@@ -28,7 +18,6 @@ export const BUILTIN_SHORTFORM_CATEGORIES: ShortformCategory[] = [
     label: '동물 숏츠 · 실사 스토리형',
     description:
       '실사 영상·내레이션·감정선이 있는 동물 에피소드. 1마리=1스토리, 반전·구원·우정 등 짧은 드라마 구조.',
-    flowHint: 'Veo vertical, photoreal animal, natural light, close-up, emotional beat on last 2 seconds',
     source: 'builtin',
   },
   {
@@ -36,7 +25,6 @@ export const BUILTIN_SHORTFORM_CATEGORIES: ShortformCategory[] = [
     label: '동물 숏츠 · 3D / 댄스 / 코믹형',
     description:
       '3D·댄스·밈·과장 코믹. 루프·비트에 맞춘 동작, 귀여움·웃음·충격 컷.',
-    flowHint: 'Stylized 3D character motion, dance beat sync, bright colors, fast cuts, loop-friendly ending',
     source: 'builtin',
   },
   {
@@ -44,7 +32,6 @@ export const BUILTIN_SHORTFORM_CATEGORIES: ShortformCategory[] = [
     label: '썰 숏츠 · 네이트 판 / 블라인드 스토리형',
     description:
       '익명·판형·블라인드 톤. 1인칭 썰, 댓글 반응형·반전 엔딩, 자막이 스토리 전달의 핵심.',
-    flowHint: 'Blurred B-roll background, subtitle-safe framing, minimal motion, narration-friendly pacing',
     source: 'builtin',
   },
   {
@@ -52,7 +39,6 @@ export const BUILTIN_SHORTFORM_CATEGORIES: ShortformCategory[] = [
     label: '개그 숏츠 · 해프닝 / 상황극형',
     description:
       '돕거나 일상하다 **웃긴 사고·오해·반전**이 터지는 코믹. 감동보다 **해프닝·밈·리액션**이 클릭 이유.',
-    flowHint: 'Exaggerated expressions, slapstick timing, quick punchline cut, comedic loop end',
     source: 'builtin',
   },
   {
@@ -60,7 +46,6 @@ export const BUILTIN_SHORTFORM_CATEGORIES: ShortformCategory[] = [
     label: '공감 숏츠 · 캐릭터 드라마형',
     description:
       '고정 캐릭터·일상·연애·직장 공감 드라마. 짧은 대사·표정·상황극.',
-    flowHint: 'Same character look across scenes (describe outfit/hair), indoor daily life, emotional close-up',
     source: 'builtin',
   },
   {
@@ -68,7 +53,6 @@ export const BUILTIN_SHORTFORM_CATEGORIES: ShortformCategory[] = [
     label: '명언/동기부여 숏츠 · 시네마틱 배경형',
     description:
       '명언·동기부여·자기계발. 시네마틱 B-roll + 굵은 자막 + 잔잔한 BGM.',
-    flowHint: 'Cinematic landscape B-roll, slow motion, golden hour, space for bold typography overlay',
     source: 'builtin',
   },
   {
@@ -76,7 +60,6 @@ export const BUILTIN_SHORTFORM_CATEGORIES: ShortformCategory[] = [
     label: 'ASMR 숏츠 · 소리에 집중하는 영상형',
     description:
       '타격음·먹방·자연음·속삭임. 화면보다 소리·리듬·근접 마이크감이 핵심.',
-    flowHint: 'Macro texture shots, hands and food close-up, minimal camera move, Veo ambient sound emphasis',
     source: 'builtin',
   },
   {
@@ -84,7 +67,20 @@ export const BUILTIN_SHORTFORM_CATEGORIES: ShortformCategory[] = [
     label: '인터뷰 숏츠 · 드라마/영화 비하인드형',
     description:
       '가상 인터뷰·비하인드·패러디. 무비클립 톤·자막 Q&A·드라마틱 조명.',
-    flowHint: 'Interview framing, shallow depth of field, blurred backdrop, film grain, lower-third safe area',
+    source: 'builtin',
+  },
+  {
+    id: 'ai-creation-process',
+    label: 'AI 제작 과정 숏츠 · 날것 브이로그형',
+    description:
+      'AI 관련 작업 중 일어나는 실패·오류·해프닝을 해결 없이 그대로 보여주는 날것 브이로그형. OBS 녹화 클립 모음. 바이럴·공감 목적.',
+    source: 'builtin',
+  },
+  {
+    id: 'ai-failure-resolved',
+    label: 'AI 제작 과정 숏츠 · 실패→해결형',
+    description:
+      'AI 작업 중 오류를 발견하고 설정·프롬프트를 수정해 해결하는 과정을 보여주는 교육형. 문제 제시 → 수정 과정 → 해결 완료 구조. 시청 지속률 유리·롱폼 채널 연결형.',
     source: 'builtin',
   },
 ]
@@ -98,9 +94,7 @@ export function loadCustomShortformCategories(): ShortformCategory[] {
     const raw = localStorage.getItem(CUSTOM_STORAGE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as ShortformCategory[]
-    return parsed
-      .filter((c) => c.id && c.label && c.source === 'custom')
-      .map(normalizeCategory)
+    return parsed.filter((c) => c.id && c.label && c.source === 'custom')
   } catch {
     return []
   }
@@ -108,7 +102,7 @@ export function loadCustomShortformCategories(): ShortformCategory[] {
 
 export function saveCustomShortformCategories(items: ShortformCategory[]): void {
   if (typeof window === 'undefined') return
-  localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(items.map(normalizeCategory)))
+  localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(items))
 }
 
 export function loadSelectedShortformCategoryId(): string {
@@ -184,6 +178,18 @@ export function buildTopicGuideAngleRules(categoryId: string | undefined): strin
       rules: 'angle: **가상 인터뷰·비하인드 Q&A** 형식. 드라마/영화 톤.',
       example: '«배우» → 「촬영장 인터뷰 질문3개+속마음 자막」',
     },
+    'ai-creation-process': {
+      rules:
+        'angle에는 **날것 오류·해프닝·제작자 반응**만 쓸 것. 해결 없이 끝나는 구조. 오류 종류를 구체적으로 명시. 밈·공감 톤.',
+      example:
+        '«AI 오류 모음» → angle: «오늘 작업 중 나온 황당한 오류 3개 연속 공개 → 내 반응 / 오늘도 실패했다 밈으로 마무리 → 루프 엔딩»',
+    },
+    'ai-failure-resolved': {
+      rules:
+        'angle에는 **오류 발견 → 수정 과정 → 해결 결과** 3단 구조를 명시할 것. 배운 점 1줄 요약 엔딩. 롱폼 채널 CTA 포함.',
+      example:
+        '«오류 해결» → angle: «오류 상황 공개(2초) → 이렇게 바꿨다 텍스트 오버레이(5초) → 해결된 결과(3초) → "자세한 과정은 롱폼에서" CTA»',
+    },
   }
 
   const preset = byId[cat.id]
@@ -216,7 +222,6 @@ export function buildShortformCategoryPromptBlock(categoryId: string | undefined
 ## 숏폼 카테고리 (필수 반영)
 - 유형: ${cat.label}
 - 제작 방향: ${cat.description}
-- Google Flow(Veo) 프롬프트 힌트: ${cat.flowHint}
 - 플랫폼: YouTube Shorts / Reels / TikTok (세로 9:16, 60초 이내)
 - 첫 1~2초 훅 · 루프 가능 엔딩 · 짧은 자막(onScreenText) 필수
 `

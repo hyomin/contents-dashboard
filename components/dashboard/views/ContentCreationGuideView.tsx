@@ -581,7 +581,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
       category === 'writing'
         ? '\n · 발행용 블로그 + 이미지·표 가이드'
         : category === 'video' && videoMode === 'shortform'
-          ? '\n · [0~N초] 장면별 대본 + 화면(한글) + Google Flow 프롬프트'
+          ? '\n · [0~N초] 장면별 대본 + 화면 묘사(한글) + 자막·편집 메모'
           : category === 'video' && videoMode === 'longform'
             ? '\n · 챕터별 완성 대본 + YouTube 설명란 타임스탬프'
             : ''
@@ -1543,7 +1543,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
         <TitleWithHint
           as="h3"
           className="text-lg font-bold text-indigo-900 dark:text-indigo-200"
-          hint="«내 콘텐츠 생성» 한 번으로 발행용 본문이 나옵니다. 숏폼은 장면별 대본·화면(한글)·Google Flow(Veo) 영문 프롬프트가, 롱폼은 챕터별 내레이션 전체 대본·설명란 타임스탬프가 포함됩니다. 블로그는 이미지·표 가이드 블록이 포함됩니다."
+          hint="«내 콘텐츠 생성» 한 번으로 발행용 본문이 나옵니다. 숏폼은 장면별 대본·화면 묘사·자막·편집 메모가, 롱폼은 챕터별 내레이션 전체 대본·설명란 타임스탬프가 포함됩니다. 블로그는 이미지·표 가이드 블록이 포함됩니다."
         >
           생성 결과
         </TitleWithHint>
@@ -1559,7 +1559,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
             <Spinner size="md" />
             {getGeminiModelLabel(scriptGuideModel)}로 발행용 콘텐츠 작성 중…
             {category === 'video' && videoMode === 'shortform' && (
-              <p className="text-xs text-gray-500">장면별 대본 + Google Flow 프롬프트 포함</p>
+              <p className="text-xs text-gray-500">장면별 대본 + 편집 메모 포함</p>
             )}
             {category === 'video' && videoMode === 'longform' && (
               <p className="text-xs text-gray-500">챕터별 내레이션 전체 대본 + 설명란 타임스탬프 포함</p>

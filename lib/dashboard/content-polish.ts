@@ -6,7 +6,6 @@ import {
   getAgentGuidelineSection,
   getBlogImageAgentBlock,
 } from '@/lib/dashboard/contents-guideline'
-import { prependGeminiFlowPasteBlock } from '@/lib/dashboard/gemini-flow-paste'
 import { sanitizeGeminiJsonText } from '@/lib/dashboard/gemini-models'
 import {
   BLOG_PLATFORM_VARIANTS_SCHEMA,
@@ -42,8 +41,6 @@ export interface ContentPolishResult {
   summary: string
   imageGuideCount: number
   polishedAt: string
-  /** 숏폼: Gemini/Flow 붙여넣기용 (최상단 고정 전 원문) */
-  flowPasteBlock?: string
   /** 블로그: 네이버/티스토리/Blogger 동시 발행용 제목·메타·태그 변형 */
   platformVariants?: BlogPlatformVariants
 }
@@ -120,15 +117,14 @@ ${guidelineBlock || '(가이드라인 로드 실패 — 정재 원칙만 적용)
 반드시 JSON만 응답 (다른 텍스트 없이):
 {
   "title": "발행용 제목",
-  "flowPasteBlock": ${shortform ? '"씬별 ### 씬N · 시간 · 제목 + Flow용 영문 한 덩어리 (유일한 Flow 위치, 중복 문장 금지)"' : 'null'},
   "fullContent": "${
     shortform
-      ? '장면별 [0~N초]·화면(한글)·자막·제작 메모 (Google Flow 줄 없음)'
+      ? '장면별 [0~N초]·나레이션·화면 설명(한글)·자막·편집 메모'
       : longform
-        ? '챕터별 내레이션 전체 대본 (마크다운 ## 챕터 제목 + 실제로 읽는 문장체 본문, Flow·씬 표기 없음)'
+        ? '챕터별 내레이션 전체 대본 (마크다운 ## 챕터 제목 + 실제로 읽는 문장체 본문)'
         : '마크다운 전체 본문 (이미지·표 가이드 블록 포함)'
   }",
-  "summary": "정재 시 변경한 점 2~3문장${shortform ? ' (장면 수·Flow 씬 요약 포함)' : longform ? ' (챕터 구성 요약)' : ''}",
+  "summary": "정재 시 변경한 점 2~3문장${shortform ? ' (장면 수·구성 요약)' : longform ? ' (챕터 구성 요약)' : ''}",
   "imageGuideCount": ${imageCount}${
     imageCount > 0
       ? `,
@@ -174,19 +170,14 @@ export function parseContentPolishResponse(
     }
     if (!parsed) return null
 
-    let fullContent = String(parsed.fullContent ?? '').trim()
+    const fullContent = String(parsed.fullContent ?? '').trim()
     if (!fullContent) return null
-    const flowPasteBlock = String(parsed.flowPasteBlock ?? '').trim() || undefined
-    if (options?.shortform) {
-      fullContent = prependGeminiFlowPasteBlock(fullContent, flowPasteBlock)
-    }
     return {
       title: String(parsed.title ?? fallbackTitle).trim() || fallbackTitle,
       fullContent,
       summary: String(parsed.summary ?? '레퍼런스 흔적을 제거하고 발행용 톤으로 정재했습니다.').trim(),
       imageGuideCount: Number(parsed.imageGuideCount) || 0,
       polishedAt: new Date().toISOString(),
-      flowPasteBlock,
       platformVariants: parseBlogPlatformVariants(parsed),
     }
   } catch {

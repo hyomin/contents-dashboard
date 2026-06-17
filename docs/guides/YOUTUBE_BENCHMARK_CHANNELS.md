@@ -1,7 +1,7 @@
 # YouTube Shorts 벤치마크 채널
 
 > **갱신:** 2026-06-12  
-> **목적:** 숏폼 레퍼런스 채널 등록·수집 가이드 (Google Flow·Shorts/Reels 전략)  
+> **목적:** 숏폼 레퍼런스 채널 등록·수집 가이드 (Shorts/Reels 전략)  
 > **선정 기준:** Shorts 비중·훅·Outlier 학습 가치 — 순수 롱폼·MV 채널 제외
 
 ---

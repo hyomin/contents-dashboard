@@ -5,8 +5,8 @@
 **접속:** `http://localhost:3000/dashboard?view=<화면ID>`
 
 > 상세 맵(화면·API·DB·n8n): [guides/DASHBOARD_OVERVIEW.md](./guides/DASHBOARD_OVERVIEW.md)  
-> 일상 사용법: [guides/DASHBOARD_USAGE.md](./guides/DASHBOARD_USAGE.md)  
-> 콘텐츠 만들기: [guides/CONTENT_CREATION_WORKFLOW.md](./guides/CONTENT_CREATION_WORKFLOW.md)
+> 일상 사용법·세팅: [guides/DASHBOARD_USAGE.md](./guides/DASHBOARD_USAGE.md)  
+> A-Z 체크리스트: [guides/CONTENT_PRODUCTION_AZ_CHECKLIST.md](./guides/CONTENT_PRODUCTION_AZ_CHECKLIST.md)
 
 ---
 
@@ -20,7 +20,7 @@
 | DB | Supabase (PostgreSQL) |
 | 자동화 | n8n (Docker, `localhost:5678`) |
 | AI | Google Gemini — n8n 경유(기본) 또는 `DASHBOARD_GEMINI_DIRECT=1` 직접 호출 |
-| 숏폼 영상 | **Google Flow (Veo)** — `flowPasteBlock` 수동 붙여넣기 (Higgsfield 아님) |
+| 숏폼 영상 | OBS 녹화·스톡 영상 → 캡컷 수동 편집 |
 | 인증 | `dashboard_app_users` + 세션 쿠키 + `DASHBOARD_API_SECRET` (프로덕션) |
 
 ---
@@ -170,7 +170,7 @@ N8N_WEBHOOK_AI_INSIGHTS=http://localhost:5678/webhook/ai-insights
 2. **마이그레이션 14·15** Supabase 적용 확인
 3. **n8n 클라우드/VPS 이전** 검토 (로컬 PC 종료 리스크)
 4. Instagram Business 계정 전환 여부 확인
-5. 숏폼 샘플 — **Google Flow(Veo)**로 1편 제작 후 품질 확인
+5. 숏폼 샘플 — OBS 녹화 클립으로 1편 캡컷 편집 후 업로드 확인
 
 ---
 
@@ -202,10 +202,9 @@ N8N_WEBHOOK_AI_INSIGHTS=http://localhost:5678/webhook/ai-insights
 
 | 문서 | 용도 |
 |------|------|
-| [DASHBOARD_OVERVIEW.md](./guides/DASHBOARD_OVERVIEW.md) | 화면·API·DB·n8n 전체 맵 |
-| [CONTENT_CREATION_WORKFLOW.md](./guides/CONTENT_CREATION_WORKFLOW.md) | 콘텐츠 생성 단계 |
+| [DASHBOARD_OVERVIEW.md](./guides/DASHBOARD_OVERVIEW.md) | 화면·API·DB·n8n·파이프라인 전체 맵 |
+| [DASHBOARD_USAGE.md](./guides/DASHBOARD_USAGE.md) | 일상 사용법·세팅·문제 해결 |
 | [CONTENT_PRODUCTION_AZ_CHECKLIST.md](./guides/CONTENT_PRODUCTION_AZ_CHECKLIST.md) | A-Z 실행 체크리스트 |
-| [LONGFORM_CAROUSEL.md](./LONGFORM_CAROUSEL.md) | 롱폼·캐러셀 확장 현황 |
 | [CHANGELOG.md](./CHANGELOG.md) | 변경 이력 |
 
 *구현이 바뀌면 `dashboard-nav.ts`, OVERVIEW, 이 SUMMARY를 함께 갱신하세요.*

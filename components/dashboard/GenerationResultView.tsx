@@ -3,11 +3,6 @@
 import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import type { ScriptGuideOutput } from '@/lib/dashboard/script-guide-output'
 import type { BlogPlatformVariants } from '@/lib/dashboard/blog-platform-variants'
-import {
-  extractFlowScenePaste,
-  extractGeminiFlowPasteSection,
-  listFlowScenePastes,
-} from '@/lib/dashboard/gemini-flow-paste'
 import { FORMAT_META } from '@/components/dashboard/views/ContentStudioView'
 import { getPlatformName } from '@/lib/dashboard/dashboard-helpers'
 import { BlogPlatformPackage } from '@/components/dashboard/BlogPlatformPackage'
@@ -107,7 +102,7 @@ export function GenerationResultView({ result, polished, modeLabel, addToast, on
               : category === 'video' && videoMode === 'longform'
                 ? '롱폼 발행용 대본 (챕터별)'
                 : category === 'video'
-                  ? '발행용 숏폼 스크립트 (상단 Flow 블록 고정)'
+                  ? '발행용 숏폼 스크립트'
                   : category === 'image'
                     ? '캐러셀 슬라이드 카피'
                     : '발행용 본문'}
@@ -131,47 +126,6 @@ export function GenerationResultView({ result, polished, modeLabel, addToast, on
                 className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/60"
               >
                 ⏱ 챕터 복사
-              </button>
-            )}
-            {category === 'video' && videoMode === 'shortform' &&
-              listFlowScenePastes(polished?.fullContent ?? result.fullScript).map(
-                (scene) => (
-                  <button
-                    key={scene.index}
-                    type="button"
-                    onClick={() => {
-                      const full = polished?.fullContent ?? result.fullScript
-                      const paste =
-                        extractFlowScenePaste(full, scene.index) || scene.text
-                      if (!paste) {
-                        addToast(`씬${scene.index} 블록을 찾지 못했습니다`, 'warning')
-                        return
-                      }
-                      void navigator.clipboard.writeText(paste)
-                      addToast(`${scene.label} 전체 복사됨 (Flow 붙여넣기)`, 'success')
-                    }}
-                    className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/60"
-                  >
-                    {scene.label}
-                  </button>
-                ),
-              )}
-            {category === 'video' && videoMode === 'shortform' && (
-              <button
-                type="button"
-                onClick={() => {
-                  const full = polished?.fullContent ?? result.fullScript
-                  const paste = extractGeminiFlowPasteSection(full)
-                  if (!paste) {
-                    addToast('Flow 붙여넣기 블록을 찾지 못했습니다', 'warning')
-                    return
-                  }
-                  void navigator.clipboard.writeText(paste)
-                  addToast('모든 씬 Flow 블록 복사됨', 'success')
-                }}
-                className="text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:underline"
-              >
-                Flow 전체
               </button>
             )}
             <button
@@ -215,7 +169,7 @@ export function GenerationResultView({ result, polished, modeLabel, addToast, on
 
       {polished && category === 'video' && videoMode === 'shortform' && (
         <p className="text-xs text-gray-500 dark:text-gray-400 bg-violet-50/50 dark:bg-violet-950/20 rounded-lg px-3 py-2">
-          📋 <strong>씬N</strong> 버튼으로 해당 씬 블록 전체를 복사한 뒤 Google Flow에 붙여넣으세요. Flow 영문은 상단에만 있고 발행 스크립트와 중복되지 않습니다. 플랫폼 스펙:{' '}
+          🎬 시간대별 씬 스크립트를 복사해 영상 편집 도구(캡컷 등)에서 활용하세요. 플랫폼 스펙:{' '}
           <a
             href="https://branderkey.notion.site/33c835c9591a8008b0cef37fcf50043f"
             target="_blank"
@@ -224,7 +178,7 @@ export function GenerationResultView({ result, polished, modeLabel, addToast, on
           >
             Branderkey 가이드
           </a>
-          기준입니다.
+          기준 · 9:16 · 45~60초 이내.
         </p>
       )}
       {polished && category === 'video' && videoMode === 'longform' && (
@@ -240,7 +194,7 @@ export function GenerationResultView({ result, polished, modeLabel, addToast, on
 
       {onGoToStudio && (
         <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-          위 «전체 복사»·씬별 Flow 복사로 바로 제작 가능합니다. 문장만 더 다듬거나 .txt로 보낼 때만{' '}
+          위 «전체 복사»로 바로 제작 가능합니다. 문장만 더 다듬거나 .txt로 보낼 때만{' '}
           <button type="button" onClick={onGoToStudio} className="font-semibold text-indigo-600 dark:text-indigo-400 underline">
             발행 편집·변환
           </button>

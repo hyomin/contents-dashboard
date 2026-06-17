@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>액션 플랜 체크리스트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
+  :root{
+    --paper:#f3f4f1;--surface:#ffffff;--ink:#182230;--ink-deep:#121823;
+    --muted:#5a6573;--teal:#1f7a6d;--teal-deep:#14564c;--amber:#b06a24;
+    --line:#e3e5e1;--line-soft:#eceee9;
+    --c-now:#d64545;--c-soon:#c2772b;--c-mid:#c2a52b;--c-later:#8a948f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Pretendard",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;letter-spacing:-0.01em;}
+  .serif{font-family:"Nanum Myeongjo",serif;}
+  .wrap{max-width:780px;margin:0 auto;padding:0 20px;}
+
+  .hero{background:var(--ink-deep);color:#eef0ee;padding:48px 0 40px;}
+  .eyebrow{font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;color:#7fb3aa;font-weight:600;margin-bottom:14px;}
+  .hero h1{font-size:clamp(1.6rem,4.3vw,2.3rem);line-height:1.3;font-weight:800;margin-bottom:18px;}
+
+  .progress{margin-top:8px;}
+  .bar{height:9px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3fb39f,#1f7a6d);border-radius:999px;transition:width .4s ease;}
+  .ptxt{font-size:.84rem;color:#aab4b0;margin-top:8px;}
+  .ptxt b{color:#eef0ee;}
+
+  main{padding:34px 0 10px;}
+  .group{margin-bottom:30px;}
+  .ghead{display:flex;align-items:center;gap:10px;margin-bottom:13px;}
+  .ghead .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+  .ghead h2{font-size:1.12rem;font-weight:800;}
+  .ghead .when{font-size:.8rem;color:var(--muted);font-weight:600;}
+
+  ul{list-style:none;}
+  li.item{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:9px;padding:14px 16px;display:flex;gap:13px;align-items:flex-start;cursor:pointer;transition:background .15s ease,border-color .15s ease;}
+  li.item:hover{border-color:#cdd3cd;}
+  .box{width:21px;height:21px;border:2px solid #c2c8c2;border-radius:6px;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .15s ease;}
+  .box svg{width:13px;height:13px;opacity:0;transform:scale(.5);transition:all .15s ease;}
+  li.done .box{background:var(--teal);border-color:var(--teal);}
+  li.done .box svg{opacity:1;transform:scale(1);}
+  .txt b{font-weight:700;font-size:.97rem;display:block;margin-bottom:2px;}
+  .txt span{font-size:.86rem;color:var(--muted);}
+  .txt .step{font-size:.7rem;font-weight:700;color:var(--teal-deep);background:rgba(31,122,109,.1);padding:1px 7px;border-radius:999px;margin-left:6px;vertical-align:middle;}
+  li.done .txt b{text-decoration:line-through;color:var(--muted);}
+  li.skip{opacity:.62;}
+  li.skip .txt b{text-decoration:line-through;color:var(--muted);}
+  li.skip .box{background:#e6e3df;border-color:#cdd3cd;border-style:dashed;cursor:default;}
+
+  .pin{background:rgba(214,69,69,.07);border:1px solid rgba(214,69,69,.2);border-radius:12px;padding:14px 16px;margin:6px 0 30px;font-size:.88rem;}
+  .pin b{color:var(--c-now);}
+
+  .reset{display:inline-flex;align-items:center;gap:7px;background:none;border:1px solid var(--line);color:var(--muted);font:inherit;font-size:.82rem;padding:8px 16px;border-radius:999px;cursor:pointer;margin:6px 0 40px;}
+  .reset:hover{border-color:#c2772b;color:#c2772b;}
+
+  .foot{background:var(--ink-deep);color:#8a948f;padding:24px 0 32px;font-size:.8rem;}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  :focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">액션 플랜 · 진행 추적</div>
+    <h1 class="serif">다음에 할 일,<br>하나씩 지워나가기</h1>
+    <div class="progress">
+      <div class="bar"><i id="barFill"></i></div>
+      <div class="ptxt"><b id="doneCount">0</b> / <span id="totalCount">0</span> 완료 &nbsp;·&nbsp; <span id="pct">0%</span></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="pin">🔴 <b>먼저 끝낼 두 가지</b> — ② 주제 결정과 ① 빈틈 찾기. 채널 정체성을 좌우하는 가장 앞단이라 이 둘부터.</div>
+
+  <div class="group">
+    <div class="ghead"><span class="dot" style="background:var(--c-now)"></span><h2>이번 주 — 리서치를 실행으로</h2><span class="when">가벼움</span></div>
+    <ul data-group="now">
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>벤치마크 표 채우기 <span class="step">STEP 1</span></b><span>한국어 AI 영상 채널 5개 → 13개 항목 → "내가 들어갈 빈틈" 한 문장 도출</span></div></li>
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>콘텐츠 주제 좁히기</b><span>우주 교양 / 주식 시황 / 그 외 중 1개. 분석형 주제 유리하되 규제선 주의</span></div></li>
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>Higgsfield 크레딧 감 잡기</b><span>무료·Starter로 클립 1~2개 뽑아 "한 편당 크레딧" 체감 → 예산 상한 근거</span></div></li>
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>리서치 도구 정체 정리</b><span>다른 세션의 그 도구가 뭔지 정리 → 파이프라인 1단계(소재)에 연결</span></div></li>
+    </ul>
+  </div>
+
+  <div class="group">
+    <div class="ghead"><span class="dot" style="background:var(--c-soon)"></span><h2>2~4주 — 정체성 + 환경</h2><span class="when">중간</span></div>
+    <ul data-group="soon">
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>채널 정체성 5종 확정 <span class="step">STEP 2</span></b><span>채널명·콘셉트·시그니처 룩·고정 포맷·타깃 ("AI로 만든다" 기반)</span></div></li>
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>환경 세팅 (★최우선 갭) <span class="step">STEP 3</span></b><span>OBS(녹화) + 마이크 + whisper.cpp(자막), M1 Mac에 설치</span></div></li>
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>SOP 초안 + 더미 영상 1편</b><span>표준 작업순서 잡고, 더미 1편을 그 순서대로 끝까지 뽑아보기</span></div></li>
+    </ul>
+  </div>
+
+  <div class="group">
+    <div class="ghead"><span class="dot" style="background:var(--c-mid)"></span><h2>그 다음 — 제작 시작</h2><span class="when">본격</span></div>
+    <ul data-group="mid">
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>파일럿 3~5편 제작 <span class="step">STEP 4</span></b><span>1번(결과물) 만들며 2번(과정) 동시 녹화 = 부산물 확보</span></div></li>
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>한 편당 제작 시간 측정</b><span>주 5~10시간 안에 드는지 실측</span></div></li>
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>발행 + 성과 로그 시작 <span class="step">STEP 5</span></b><span>영상별 지표 기록 → 나중에 만들 분석 도구의 씨앗 데이터</span></div></li>
+    </ul>
+  </div>
+
+  <div class="group">
+    <div class="ghead"><span class="dot" style="background:var(--c-later)"></span><h2>나중에 — 분기와 가지</h2><span class="when">염두에만</span></div>
+    <ul data-group="later">
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>패턴 분석 → 분기 결정 <span class="step">STEP 6</span></b><span>4~8주 발행 후 콘텐츠 강화 / 제품화 / 재실험 선택</span></div></li>
+      <li class="item"><div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="txt"><b>1단계 가지 검토</b><span>채널 자리잡으면 디지털 상품·제휴</span></div></li>
+      <li class="item skip"><div class="box"></div><div class="txt"><b>자동화 대행 (안 함)</b><span>가지치기 — 성향 충돌. 신경 끄기</span></div></li>
+    </ul>
+  </div>
+
+  <button class="reset" id="resetBtn">↺ 전체 초기화</button>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">체크 상태는 이 브라우저에 자동 저장됩니다. · 핵심: 지금은 뿌리(채널)에만 집중 · 2026-06-16</div>
+</footer>
+
+<script>
+  (function(){
+    var KEY = "actionplan_v1";
+    var items = Array.prototype.slice.call(document.querySelectorAll("li.item:not(.skip)"));
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e){ saved = {}; }
+
+    items.forEach(function(li, i){
+      li.dataset.id = "t"+i;
+      if (saved["t"+i]) li.classList.add("done");
+      li.addEventListener("click", function(){
+        li.classList.toggle("done");
+        persist();
+        update();
+      });
+      li.setAttribute("tabindex","0");
+      li.setAttribute("role","checkbox");
+      li.addEventListener("keydown", function(e){
+        if(e.key===" "||e.key==="Enter"){ e.preventDefault(); li.click(); }
+      });
+    });
+
+    function persist(){
+      var st = {};
+      items.forEach(function(li){ st[li.dataset.id] = li.classList.contains("done"); });
+      try { localStorage.setItem(KEY, JSON.stringify(st)); } catch(e){}
+    }
+    function update(){
+      var done = items.filter(function(li){ return li.classList.contains("done"); }).length;
+      var total = items.length;
+      var pct = total ? Math.round(done/total*100) : 0;
+      document.getElementById("barFill").style.width = pct + "%";
+      document.getElementById("doneCount").textContent = done;
+      document.getElementById("totalCount").textContent = total;
+      document.getElementById("pct").textContent = pct + "%";
+      items.forEach(function(li){ li.setAttribute("aria-checked", li.classList.contains("done")); });
+    }
+    document.getElementById("resetBtn").addEventListener("click", function(){
+      items.forEach(function(li){ li.classList.remove("done"); });
+      persist(); update();
+    });
+    update();
+  })();
+</script>
+
+</body>
+</html>

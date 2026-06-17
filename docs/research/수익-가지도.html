@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>수익 가지도 — 채널에서 가지를 치다</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
+  :root{
+    --paper:#f3f4f1;--surface:#ffffff;--ink:#182230;--ink-deep:#121823;
+    --muted:#5a6573;--teal:#1f7a6d;--teal-deep:#14564c;--amber:#b06a24;
+    --line:#e3e5e1;--line-soft:#eceee9;--prune:#a9adaa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Pretendard",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background:var(--paper);color:var(--ink);line-height:1.65;-webkit-font-smoothing:antialiased;letter-spacing:-0.01em;}
+  .serif{font-family:"Nanum Myeongjo",serif;}
+  .wrap{max-width:860px;margin:0 auto;padding:0 22px;}
+
+  .hero{background:var(--ink-deep);color:#eef0ee;padding:56px 0 46px;}
+  .eyebrow{font-size:.76rem;letter-spacing:.2em;text-transform:uppercase;color:#7fb3aa;font-weight:600;margin-bottom:16px;}
+  .hero h1{font-size:clamp(1.7rem,4.6vw,2.6rem);line-height:1.3;font-weight:800;margin-bottom:16px;}
+  .hero h1 em{color:#3fb39f;font-style:normal;}
+  .hero p{color:#c4ccc8;max-width:580px;font-size:1rem;}
+
+  .tree{padding:42px 0 10px;}
+  .phase{position:relative;padding-left:42px;padding-bottom:34px;}
+  .phase::before{content:"";position:absolute;left:13px;top:6px;bottom:-6px;width:2px;background:var(--teal);}
+  .phase:last-child::before{display:none;}
+  .phase::after{content:"";position:absolute;left:6px;top:4px;width:16px;height:16px;border-radius:50%;background:var(--teal);border:3px solid var(--paper);box-shadow:0 0 0 2px var(--teal);}
+  .phase.root::after{background:#3fb39f;box-shadow:0 0 0 2px #3fb39f,0 0 0 7px rgba(63,179,159,.18);}
+  .phase.prune::before{background:var(--prune);}
+  .phase.prune::after{background:var(--prune);box-shadow:0 0 0 2px var(--prune);}
+
+  .ptag{font-size:.74rem;font-weight:700;letter-spacing:.08em;color:var(--teal-deep);text-transform:uppercase;}
+  .phase.prune .ptag{color:var(--prune);}
+  .ph-title{font-size:1.2rem;font-weight:800;margin:2px 0 4px;}
+  .ph-sub{font-size:.88rem;color:var(--muted);margin-bottom:16px;}
+
+  /* trunk/root card */
+  .trunk{background:var(--ink-deep);color:#eef0ee;border-radius:14px;padding:22px 22px;}
+  .trunk h3{font-size:1.1rem;font-weight:800;margin-bottom:6px;color:#fff;}
+  .trunk p{font-size:.9rem;color:#b8c2bd;margin-bottom:14px;}
+  .assets{display:flex;gap:10px;flex-wrap:wrap;}
+  .asset{flex:1;min-width:160px;background:rgba(255,255,255,.06);border:1px solid rgba(127,179,170,.25);border-radius:10px;padding:12px 14px;}
+  .asset b{display:block;color:#3fb39f;font-size:.82rem;margin-bottom:3px;}
+  .asset span{font-size:.82rem;color:#aab4b0;}
+
+  /* branch cards */
+  .branches{display:grid;grid-template-columns:repeat(2,1fr);gap:13px;}
+  .branch{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:18px 18px 16px;position:relative;transition:transform .16s ease,box-shadow .16s ease;}
+  .branch:hover{transform:translateY(-3px);box-shadow:0 12px 30px -18px rgba(20,60,55,.4);}
+  .branch.single{grid-column:1 / -1;}
+  .branch .bh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px;}
+  .branch h4{font-size:1.02rem;font-weight:700;}
+  .stars{font-size:.74rem;color:var(--teal);font-weight:700;letter-spacing:.05em;white-space:nowrap;}
+  .branch p{font-size:.86rem;color:var(--muted);margin-bottom:10px;}
+  .meta{display:flex;gap:7px;flex-wrap:wrap;}
+  .chip{font-size:.7rem;font-weight:600;padding:3px 9px;border-radius:999px;}
+  .c-pass{background:rgba(31,122,109,.12);color:var(--teal-deep);}
+  .c-low{background:rgba(63,179,159,.13);color:var(--teal-deep);}
+  .c-mid{background:rgba(176,106,36,.12);color:var(--amber);}
+
+  .branch.opt{border-style:dashed;}
+  .branch.opt .stars{color:var(--amber);}
+  .branch.pruned{opacity:.6;background:#eef0ec;}
+  .branch.pruned h4{text-decoration:line-through;color:var(--prune);}
+  .branch.pruned .stars{color:var(--prune);}
+
+  /* convergence */
+  .converge{background:linear-gradient(135deg,#14564c,#1f7a6d);color:#fff;border-radius:14px;padding:22px 22px;margin-top:4px;}
+  .converge .lbl{font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:#bfe6dd;font-weight:700;margin-bottom:8px;}
+  .converge h3{font-size:1.15rem;font-weight:800;margin-bottom:6px;}
+  .converge p{font-size:.9rem;color:#dff1ec;}
+  .loop{margin-top:12px;font-size:.84rem;background:rgba(255,255,255,.12);border-radius:9px;padding:10px 13px;}
+  .loop b{color:#fff;}
+
+  .legend{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:8px 0 40px;font-size:.82rem;color:var(--muted);}
+  .legend b{color:var(--ink);}
+  .legend .row{display:flex;gap:8px;align-items:center;padding:3px 0;}
+  .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+
+  .foot{background:var(--ink-deep);color:#8a948f;padding:26px 0 34px;font-size:.8rem;}
+
+  .fade{opacity:0;transform:translateY(12px);animation:rise .65s ease forwards;}
+  @keyframes rise{to{opacity:1;transform:none}}
+
+  @media (max-width:680px){
+    .branches{grid-template-columns:1fr;}
+    .assets{flex-direction:column;}
+  }
+  @media (prefers-reduced-motion:reduce){.fade{animation:none;opacity:1;transform:none;}.branch{transition:none;}}
+  :focus-visible{outline:2px solid var(--teal);outline-offset:3px;}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap fade">
+    <div class="eyebrow">수익 가지도 · 2026.06</div>
+    <h1 class="serif">새 사업을 벌이지 않는다.<br><em>채널 한 그루</em>에서 가지를 친다.</h1>
+    <p>AI 영상 채널이라는 줄기를 키우면, 수익원은 그 위에서 단계별로 가지처럼 뻗는다. 분석형 빌더 성향에 맞춰 시점과 우선순위를 배치한 지도.</p>
+  </div>
+</header>
+
+<main class="wrap tree">
+
+  <!-- ROOT -->
+  <div class="phase root">
+    <div class="ptag">뿌리 · 줄기</div>
+    <div class="ph-title">AI 영상 채널 = 모든 수익의 원천</div>
+    <div class="ph-sub">월 약 $59로 운영. 콘텐츠를 만들수록 두 가지 자산이 동시에 쌓인다.</div>
+    <div class="trunk">
+      <h3>1번(결과물) + 2번(과정) 트랙</h3>
+      <p>영상 한 편을 만들면, 보이는 콘텐츠와 보이지 않는 데이터가 함께 축적된다.</p>
+      <div class="assets">
+        <div class="asset"><b>① 콘텐츠 · 구독자</b><span>발행할수록 쌓이는 청중 = 모든 가지의 영양분</span></div>
+        <div class="asset"><b>② 운영 데이터</b><span>성과·제작 노하우 = 훗날 제품의 씨앗</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 1 -->
+  <div class="phase">
+    <div class="ptag">1단계 · 채널 자리잡으면</div>
+    <div class="ph-title">부산물 가지 — 노동 거의 없음</div>
+    <div class="ph-sub">만들면서 이미 생긴 것을 파는 단계. passive에 가깝다.</div>
+    <div class="branches">
+      <div class="branch">
+        <div class="bh"><h4>디지털 상품</h4><span class="stars">★★★★★</span></div>
+        <p>n8n 템플릿·프롬프트팩·제작 설정. 채널 만들며 자동 축적된 걸 번들로 판매.</p>
+        <div class="meta"><span class="chip c-pass">passive</span><span class="chip c-low">노동 낮음</span></div>
+      </div>
+      <div class="branch">
+        <div class="bh"><h4>제휴</h4><span class="stars">★★★★</span></div>
+        <p>영상에서 쓰는 AI 툴(반복 수수료형) 추천 링크. 콘텐츠에 얹기만.</p>
+        <div class="meta"><span class="chip c-pass">passive</span><span class="chip c-low">노동 최소</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 2 -->
+  <div class="phase">
+    <div class="ptag">2단계 · 채널 성장 후</div>
+    <div class="ph-title">콘텐츠 자산 가지</div>
+    <div class="ph-sub">쌓인 신뢰·노하우를 묶어 파는 단계.</div>
+    <div class="branches">
+      <div class="branch">
+        <div class="bh"><h4>강의 (자체 판매)</h4><span class="stars">★★★★</span></div>
+        <p>2번 트랙(과정)이 곧 강의 소재. 플랫폼 40% 수수료 대신 자체 판매로 마진↑.</p>
+        <div class="meta"><span class="chip c-mid">응대 약간</span></div>
+      </div>
+      <div class="branch opt">
+        <div class="bh"><h4>유료 뉴스레터 (선택)</h4><span class="stars">★★★</span></div>
+        <p>인사이트 구독. 스티비는 수수료 3.2%만. 단 별도 글쓰기 노동이 든다.</p>
+        <div class="meta"><span class="chip c-mid">추가 노동</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 3 / CONVERGENCE -->
+  <div class="phase">
+    <div class="ptag">3단계 · 장기 수렴점</div>
+    <div class="ph-title">채널이 제품이 되는 가지</div>
+    <div class="ph-sub">뿌리에서 쌓인 ②운영 데이터가 마침내 제품으로.</div>
+    <div class="converge">
+      <div class="lbl">Convergence</div>
+      <h3>마이크로 SaaS · 데이터 분석 도구 ★★★★★</h3>
+      <p>채널 운영하며 쌓은 데이터·반복 작업을 좁은 제품으로. 분석형 빌더 성향의 종착점.</p>
+      <div class="loop">🔁 <b>채널 → 데이터 → 제품 → 다시 채널 콘텐츠</b>로 순환. 콘텐츠·제품·수익이 한 점으로 모인다.</div>
+    </div>
+  </div>
+
+  <!-- PRUNE -->
+  <div class="phase prune">
+    <div class="ptag">가지치기 · 제거</div>
+    <div class="ph-title">키우지 않는 가지</div>
+    <div class="ph-sub">단가는 높지만 성향과 충돌해 잘라낸다.</div>
+    <div class="branches">
+      <div class="branch pruned single">
+        <div class="bh"><h4>자동화 대행 (에이전시)</h4><span class="stars">제외</span></div>
+        <p>리테이너 단가는 크지만 시간의 80%가 영업·고객 응대 — 고객 직접 응대가 성향 최하위인 키묘님과 정면충돌.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="row"><span class="dot" style="background:#3fb39f"></span><b>뿌리</b> &nbsp;채널 = 줄기, 먼저 키워야 모든 가지가 산다</div>
+    <div class="row"><span class="dot" style="background:var(--teal)"></span><b>실선 가지</b> &nbsp;추천 수익원 (시점 순서대로)</div>
+    <div class="row"><span class="dot" style="background:var(--amber)"></span><b>점선 가지</b> &nbsp;선택 — 여력 될 때만</div>
+    <div class="row"><span class="dot" style="background:var(--prune)"></span><b>가지치기</b> &nbsp;성향과 충돌해 제거</div>
+  </div>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">핵심 — 지금은 뿌리(채널)에만 집중. 1·3번 가지는 "나중에 이렇게 뻗는다"고 염두에만. · 2026-06-16</div>
+</footer>
+
+</body>
+</html>

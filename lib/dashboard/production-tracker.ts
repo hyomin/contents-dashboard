@@ -13,8 +13,8 @@ export interface ProductionStageDef {
 }
 
 export const PRODUCTION_STAGES = [
-  { id: 'plan', order: 1, icon: '📝', title: '기획·대본', subtitle: '주제 선정 → 스크립트·영상 프롬프트(flowPasteBlock) 작성 — 콘텐츠 가이드 활용' },
-  { id: 'visual', order: 2, icon: '🎬', title: '비주얼·클립 확보', subtitle: 'AI 영상 생성(Higgsfield·Google Flow) 또는 스톡 영상으로 씬별 컷 준비' },
+  { id: 'plan', order: 1, icon: '📝', title: '기획·대본', subtitle: '주제 선정 → 스크립트 작성 — 콘텐츠 가이드 활용' },
+  { id: 'visual', order: 2, icon: '🎬', title: '비주얼·클립 확보', subtitle: '스톡 영상·직접 촬영·화면 녹화(OBS)로 씬별 컷 준비 · 실패·과정 클립 캡처 → 숏폼 소재 확보' },
   { id: 'narration', order: 3, icon: '🎙️', title: '나레이션', subtitle: '대본을 음성으로 변환 — TTS(브루 등) 또는 직접 녹음' },
   { id: 'bgm', order: 4, icon: '🎵', title: 'BGM 선곡·배치', subtitle: '분위기에 맞는 곡 식별·확보(콘텐츠 분석기) 후 영상에 배치·더킹' },
   { id: 'edit', order: 5, icon: '✂️', title: '편집·합성', subtitle: '클립+나레이션+BGM+자막을 하나로 합쳐 컷 편집·트랜지션 정리' },

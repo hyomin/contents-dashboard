@@ -58,7 +58,7 @@ export function buildTopicKeywordGuidePrompt(
   const angleRule = isShortformVideo
     ? `5. **angle (필수)**: 위 «숏폼 카테고리» 장르에 맞는 **스토리 전개·톤·엔딩**만 80~150자. 다른 장르(예: 썰↔개그) 톤 혼용 금지.${toneSuffix}`
     : isLongformVideo
-      ? `5. **angle (필수)**: 8~12분 롱폼 영상으로 풀어낼 **챕터 구성·전개 방향**만 80~150자 (장면·Flow·숏폼 톤 언급 금지).${toneSuffix}`
+      ? `5. **angle (필수)**: 8~12분 롱폼 영상으로 풀어낼 **챕터 구성·전개 방향**만 80~150자 (숏폼 톤 언급 금지).${toneSuffix}`
       : '5. angle은 다룰 핵심 정보·스토리 포인트 (선택, 60자 내외).'
 
   const roleIntro = isShortformVideo

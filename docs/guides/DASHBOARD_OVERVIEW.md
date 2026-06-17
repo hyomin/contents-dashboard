@@ -123,12 +123,20 @@
 
 **콘텐츠 가이드 흐름:**
 
-1. 카테고리·포맷 (blog / carousel / shortform / longform)
-2. 발행 주제 입력 (필수)
-3. (선택) 레퍼런스·감정 톤·숏폼 카테고리
-4. 생성 — n8n W08 → 폴백 `content-generate`
-5. 숏폼: `flowPasteBlock` (Google Flow용) + 씬별 붙여넣기
-6. 내 콘텐츠화 → 히스토리 / 발행 편집
+```
+0. 소재 발굴     trending · outlier · ai-insight · topic-suggest
+0.5 (선택)      content-analyzer  (URL 레퍼런스 분석)
+1. 초안 생성     content-guide  (포맷·주제·레퍼런스·감정톤 → W08 → content-generate 폴백)
+1.5 (영상)      production-tracker  (기획→비주얼→나레이션→BGM→편집→자막)
+2. 정제          contents_guideline.md 형식 자동 반영 (파일만 편집하면 즉시)
+3. 히스토리      generation-history  (draft·polished Supabase 저장)
+4. 편집·변환     content-studio
+5. 발행 확장     publish-expand  (TikTok·Instagram·Blogger — 가이드만)
+6. 일정·배포     calendar / deploy
+7. 성과·재가공   outlier → repurpose
+```
+
+상세 체크리스트: [`CONTENT_PRODUCTION_AZ_CHECKLIST.md`](./CONTENT_PRODUCTION_AZ_CHECKLIST.md)
 
 **콘텐츠 분석기:**
 
@@ -136,6 +144,17 @@
 - Instagram/TikTok: URL·메모 기반 추정 분석
 - BGM: Gemini 무드 분석·곡 추정·식별·확보 가이드
 - API: `POST /api/dashboard/content-analyzer` (`GEMINI_API_KEY` + `DASHBOARD_GEMINI_DIRECT=1` 필수)
+
+**콘텐츠 유형별 파이프라인 현황:**
+
+| 유형 | 파이프라인 | 상태 |
+|------|-----------|------|
+| 숏폼 | Outlier·레퍼런스 → W08 → fullContent(씬 스크립트) → polish → Supabase | ✅ 완성 |
+| 롱폼 | intent `longform_video`, W08 `durationMinutes:8`, 챕터 마커 | ⚠️ W08 숏폼 공유·마이그레이션 14 Supabase 적용 필요 |
+| 캐러셀 | intent `carousel`, `CAROUSEL_RULES`, `content-generate` 분기 | ⚠️ n8n 전용 워크플로 없음·슬라이드 이미지 미생성 |
+
+- 롱폼 다음 단계: `14-longform-carousel-metrics.sql` Supabase 적용 후 롱폼 Outlier 기준선 확인
+- 캐러셀 다음 단계: Gemini 슬라이드 텍스트·배경 키워드 생성 → Canva 수동 제작
 
 ### 4.3 채널 등록
 

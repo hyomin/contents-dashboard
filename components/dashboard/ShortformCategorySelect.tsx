@@ -55,7 +55,6 @@ export function ShortformCategorySelect({
       id: slugifyCustomCategoryId(label),
       label,
       description: `${label} — 사용자 정의 숏폼 유형`,
-      flowHint: 'Google Flow — 프롬프트·카메라·톤을 직접 지정',
       source: 'custom',
     }
     const next = [...loadCustomShortformCategories(), item]
@@ -111,9 +110,6 @@ export function ShortformCategorySelect({
       {selected && (
         <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
           {selected.description}
-          <span className="block mt-1 text-violet-600/90 dark:text-violet-400/90">
-            Flow 힌트: {selected.flowHint}
-          </span>
         </p>
       )}
 
