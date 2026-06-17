@@ -1,5 +1,14 @@
 # 변경 이력
 
+## 2026-06-12 (W11 제거)
+
+### refactor: W11 BGM 정밀 식별(AudD) 제거
+- 콘텐츠 분석기는 Gemini BGM 분석만 사용
+- `N8N_BGM_IDENTIFY.json`, `Dockerfile.n8n`, AudD·yt-dlp 연동 삭제
+- n8n 워크플로 번호: W01~W10 유지 (W11 슬롯 없음)
+
+---
+
 ## 2026-06-12
 
 ### 문서 리뉴얼

@@ -45,3 +45,6 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# 주식 차트/슬라이드 이미지 출력 (로컬 검토용)
+/stock/

@@ -16,7 +16,7 @@ SQL·n8n·가이드·현황을 한곳에서 관리합니다.
 | 문서 | 설명 |
 |------|------|
 | [guides/DASHBOARD_OVERVIEW.md](./guides/DASHBOARD_OVERVIEW.md) | 화면·API·DB·n8n 상세 맵 |
-| [n8n/README.md](./n8n/README.md) | 워크플로 W01~W11 |
+| [n8n/README.md](./n8n/README.md) | 워크플로 W01~W10 |
 | [migrations/README.md](./migrations/README.md) | Supabase SQL (`00`~`15`) |
 | [LONGFORM_CAROUSEL.md](./LONGFORM_CAROUSEL.md) | 롱폼·캐러셀 확장 현황 |
 | [guides/YOUTUBE_BENCHMARK_CHANNELS.md](./guides/YOUTUBE_BENCHMARK_CHANNELS.md) | Shorts 벤치마크 채널 |

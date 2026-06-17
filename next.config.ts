@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // 종목 분석 리포트 차트 렌더링용 네이티브 모듈 — 서버 번들에 포함하지 않고 node_modules에서 직접 로드
+  serverExternalPackages: ['@napi-rs/canvas', 'echarts'],
   async headers() {
     return [
       {

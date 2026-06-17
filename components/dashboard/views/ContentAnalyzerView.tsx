@@ -261,56 +261,10 @@ export default function ContentAnalyzerView({ addToast }: { addToast: AddToast }
 
           <SectionCard icon="🎵" title="BGM 분석 · 식별·확보 가이드" highlight>
             <div className="space-y-4">
-              {result.bgm.preciseMatch && (
-                <div className="rounded-xl border-2 border-indigo-400 dark:border-indigo-600 bg-indigo-50/80 dark:bg-indigo-950/40 p-3.5">
-                  <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 mb-1">
-                    🔬 정밀 매칭 결과 (AudD 음향 지문 매칭 — AI 추정이 아닌 실제 매칭)
-                  </p>
-                  <p className="text-base font-bold text-gray-900 dark:text-white">
-                    {result.bgm.preciseMatch.artist
-                      ? `${result.bgm.preciseMatch.artist} - ${result.bgm.preciseMatch.title}`
-                      : result.bgm.preciseMatch.title}
-                  </p>
-                  {(result.bgm.preciseMatch.album || result.bgm.preciseMatch.releaseDate || result.bgm.preciseMatch.label) && (
-                    <p className="mt-1 text-[11px] text-indigo-800/70 dark:text-indigo-200/70">
-                      {[result.bgm.preciseMatch.album, result.bgm.preciseMatch.releaseDate, result.bgm.preciseMatch.label]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
-                  )}
-                  {(result.bgm.preciseMatch.links?.spotify || result.bgm.preciseMatch.links?.appleMusic) && (
-                    <div className="mt-1.5 flex flex-wrap gap-2">
-                      {result.bgm.preciseMatch.links?.spotify && (
-                        <a
-                          href={result.bgm.preciseMatch.links.spotify}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition"
-                        >
-                          Spotify에서 듣기 ↗
-                        </a>
-                      )}
-                      {result.bgm.preciseMatch.links?.appleMusic && (
-                        <a
-                          href={result.bgm.preciseMatch.links.appleMusic}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-600 text-white hover:bg-pink-700 transition"
-                        >
-                          Apple Music에서 듣기 ↗
-                        </a>
-                      )}
-                    </div>
-                  )}
-                  <p className="mt-2 text-[11px] text-indigo-700/70 dark:text-indigo-300/60 leading-relaxed">
-                    ⓘ n8n이 영상에서 추출한 오디오 클립을 AudD 음향 지문(Shazam 방식) DB와 직접 대조한 결과입니다 — 아래 «AI가 특정한 곡»보다 신뢰도가 높습니다.
-                  </p>
-                </div>
-              )}
               {result.bgm.identifiedTrack ? (
                 <div className="rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50/70 dark:bg-emerald-950/30 p-3.5">
                   <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 mb-1">
-                    🎯 AI가 특정한 곡{result.bgm.preciseMatch ? ' (참고 — 위 정밀 매칭 결과를 우선 신뢰)' : ''}
+                    🎯 AI가 특정한 곡
                   </p>
                   <p className="text-base font-bold text-gray-900 dark:text-white">
                     {result.bgm.identifiedTrack.artist

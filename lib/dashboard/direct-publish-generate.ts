@@ -14,6 +14,7 @@ import {
   parseContentPolishResponse,
   type ContentPolishResult,
 } from '@/lib/dashboard/content-polish'
+import { BLOG_PLATFORM_VARIANTS_SCHEMA } from '@/lib/dashboard/blog-platform-variants'
 import { buildEmotionToneScriptBlock } from '@/lib/dashboard/emotion-tones'
 import { sanitizeGeminiJsonText } from '@/lib/dashboard/gemini-models'
 import {
@@ -137,7 +138,12 @@ ${emotionToneBlock}
   "hook": "오프닝 훅 한 문단 (선택)",
   "cta": "마무리 CTA (선택)",
   "seoKeywords": ["키워드1", "키워드2"],
-  "chapterSummary": ["소제목1", "소제목2"]
+  "chapterSummary": ["소제목1", "소제목2"]${
+    blog
+      ? `,
+  ${BLOG_PLATFORM_VARIANTS_SCHEMA}`
+      : ''
+  }
 }`
 
   // 숏폼은 title·flowPasteBlock·fullContent(시간대별 전체 스크립트)·기타 메타를 하나의 JSON으로

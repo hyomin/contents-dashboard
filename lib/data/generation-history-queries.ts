@@ -128,6 +128,20 @@ export async function insertGenerationHistory(
   return { ok: true, item: rowToItem(data as HistoryRow) }
 }
 
+export async function getGenerationHistoryById(id: string): Promise<GenerationHistoryItem | null> {
+  const { data, error } = await supabaseAdmin
+    .from('content_generation_history')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error || !data) {
+    if (error) console.error('[generation-history] get by id failed', error.message)
+    return null
+  }
+  return rowToItem(data as HistoryRow)
+}
+
 export async function attachPolishedToHistory(
   id: string,
   polished: GenerationHistoryPolished,

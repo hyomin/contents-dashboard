@@ -47,7 +47,7 @@
 
 - 생성: n8n W08 `longform-script` 1순위 → `/api/dashboard/content-generate` 폴백
 - 감정 톤(`emotionTone`)·숏폼 카테고리·Flow 씬별 붙여넣기 블록 지원
-- 콘텐츠 분석기: Gemini 직접 시청(YouTube) + BGM 정밀 식별(n8n W11, 설정 시)
+- 콘텐츠 분석기: Gemini 직접 시청(YouTube) + BGM 무드·식별·확보 가이드
 
 ### 기획·인사이트
 
@@ -73,12 +73,11 @@
 
 | 영역 | 상태 | 비고 |
 |------|------|------|
-| **W11 BGM 정밀 식별** | 코드·JSON·setup 있음, **미연결** | `live-workflows.ts` 미등록, webhook 404. AudD 토큰·컨테이너 yt-dlp 필요 |
 | Instagram 레퍼런스 수집 | 발행 가이드만 | Business 계정 + Insights API 선행 |
 | TikTok 레퍼런스 수집 | 발행 가이드만 | Apify 등 실수집 없음 — YouTube Shorts로 기획 |
 | 수익 추적 | UI·추정치 | 실데이터 RPM 연동 없음 |
 | 기간별 추이 차트 | 없음 | |
-| n8n 인프라 | 로컬 Docker | PC 종료 시 W01~W11 스케줄·웹훅 중단 |
+| n8n 인프라 | 로컬 Docker | PC 종료 시 W01~W10 스케줄·웹훅 중단 |
 | 자동화 테스트 | `verify:collect`만 | Vitest/Playwright 없음 |
 | 프로덕션 빌드 | `archive/` 포함 시 실패 | tsconfig에 `archive` exclude 권장 |
 | DB 마이그레이션 14·15 | 파일 존재 | Supabase 적용 여부 수동 확인 필요 |
@@ -122,9 +121,8 @@
 | W08 | `longform-script` | ✅ |
 | W09 | `topic-suggest` | ✅ |
 | W10 | `ai-insights` | ✅ |
-| **W11** | `bgm-identify` | ❌ **미등록·미연결** |
 
-상세: [n8n/README.md](./n8n/README.md) · 코드: `lib/n8n/live-workflows.ts`
+상세: [n8n/README.md](./n8n/README.md) · 코드: `lib/n8n/live-workflows.ts` (W01~W10)
 
 ---
 
@@ -156,9 +154,6 @@ DASHBOARD_GEMINI_DIRECT=1
 # n8n (예시)
 N8N_WEBHOOK_LONGFORM_SCRIPT=http://localhost:5678/webhook/longform-script
 N8N_WEBHOOK_AI_INSIGHTS=http://localhost:5678/webhook/ai-insights
-N8N_WEBHOOK_BGM_IDENTIFY=http://localhost:5678/webhook/bgm-identify  # W11
-AUDD_API_TOKEN=…  # W11 · n8n 컨테이너로 전달
-
 # DASHBOARD_API_SECRET=…  (프로덕션·n8n 연동)
 ```
 
@@ -171,13 +166,11 @@ AUDD_API_TOKEN=…  # W11 · n8n 컨테이너로 전달
 
 ## 다음 우선순위
 
-1. **W11 BGM 식별 마무리** — AudD → docker rebuild → `n8n-setup.sh` → `live-workflows.ts` W11 등록
-2. **신규 기능 실사용 QA** — 콘텐츠 분석기·제작 진행 보드 URL 1건 end-to-end
-3. **빌드 복구** — `tsconfig.json`에 `archive` exclude
-4. **마이그레이션 14·15** Supabase 적용 확인
-5. **n8n 클라우드/VPS 이전** 검토 (로컬 PC 종료 리스크)
-6. Instagram Business 계정 전환 여부 확인
-7. 숏폼 샘플 — **Google Flow(Veo)**로 1편 제작 후 품질 확인 (Higgsfield 결제 전)
+1. **신규 기능 실사용 QA** — 콘텐츠 분석기·제작 진행 보드 URL 1건 end-to-end
+2. **마이그레이션 14·15** Supabase 적용 확인
+3. **n8n 클라우드/VPS 이전** 검토 (로컬 PC 종료 리스크)
+4. Instagram Business 계정 전환 여부 확인
+5. 숏폼 샘플 — **Google Flow(Veo)**로 1편 제작 후 품질 확인
 
 ---
 

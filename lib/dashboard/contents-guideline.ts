@@ -3,11 +3,14 @@
  */
 import fs from 'fs'
 import path from 'path'
+import { STOCK_CHART_LABELS, type StockChartIndex } from '@/lib/dashboard/stock-chart-render'
 
 export type ContentsGuidelineSectionId =
   | 'common'
   | 'blog'
   | 'blog-image'
+  | 'stock-report'
+  | 'stock-chart-image'
   | 'platform-shortform-spec'
   | 'shortform'
   | 'shortform-categories'
@@ -31,6 +34,8 @@ const SECTION_IDS: ContentsGuidelineSectionId[] = [
   'common',
   'blog',
   'blog-image',
+  'stock-report',
+  'stock-chart-image',
   'platform-shortform-spec',
   'shortform',
   'shortform-categories',
@@ -235,6 +240,40 @@ export function buildAgentFormatGuidelineBlock(
   }
 
   return parts.filter(Boolean).join('\n\n')
+}
+
+/** stock-chart-image 섹션 + {{availableCharts}} 치환 — 이번 리포트에서 자동 생성될 차트 목록 */
+export function buildStockChartImageAgentBlock(chartIndexes: StockChartIndex[]): string {
+  const section = getAgentGuidelineSection('stock-chart-image')
+  if (!section) return ''
+  const availableCharts = chartIndexes
+    .map((index) => `- output_${index}.png: ${STOCK_CHART_LABELS[index]}`)
+    .join('\n')
+  return section.replace(/\{\{availableCharts\}\}/g, availableCharts)
+}
+
+/** common + blog + stock-chart-image + stock-report — 주식 리포트(일일/포커스/섹터 공통) Agent 프롬프트 블록 */
+function buildStockReportGuidelineBlock(chartIndexes: StockChartIndex[]): string {
+  const common = getAgentGuidelineSection('common')
+  const blog = getAgentGuidelineSection('blog')
+  const stockChartImage = buildStockChartImageAgentBlock(chartIndexes)
+  const stockReport = getAgentGuidelineSection('stock-report')
+  return [common, blog, stockChartImage, stockReport].filter(Boolean).join('\n\n')
+}
+
+/** 종목/지수별 일일 리포트 Agent 프롬프트 블록 */
+export function buildStockDailyItemGuidelineBlock(chartIndexes: StockChartIndex[]): string {
+  return buildStockReportGuidelineBlock(chartIndexes)
+}
+
+/** 종목 분석(포커스) 리포트 Agent 프롬프트 블록 */
+export function buildStockFocusReportGuidelineBlock(chartIndexes: StockChartIndex[]): string {
+  return buildStockReportGuidelineBlock(chartIndexes)
+}
+
+/** 섹터/카테고리 종합분석 리포트 Agent 프롬프트 블록 */
+export function buildSectorResearchReportGuidelineBlock(chartIndexes: StockChartIndex[]): string {
+  return buildStockReportGuidelineBlock(chartIndexes)
 }
 
 /** 캐시 초기화 (테스트·핫 리로드) */

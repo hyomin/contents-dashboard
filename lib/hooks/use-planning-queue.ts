@@ -10,6 +10,8 @@ export interface PlanningQueueItem {
   icon?: string
   /** 어디서 추가됐는지 */
   source: 'trending' | 'insight' | 'outlier' | 'rss' | 'manual'
+  /** 현재 운영 카테고리 최적화용인지, 신규 카테고리 확장 후보인지 */
+  category?: 'current' | 'expansion'
   addedAt: string
   used?: boolean
 }
@@ -56,7 +58,7 @@ export function usePlanningQueue() {
     (
       keyword: string,
       source: PlanningQueueItem['source'] = 'manual',
-      options?: { detail?: string; icon?: string },
+      options?: { detail?: string; icon?: string; category?: PlanningQueueItem['category'] },
     ): boolean => {
       const trimmed = keyword.trim().slice(0, 100)
       if (!trimmed) return false
@@ -72,6 +74,7 @@ export function usePlanningQueue() {
           detail: detail || undefined,
           icon: options?.icon,
           source,
+          category: options?.category,
           addedAt: new Date().toISOString(),
         },
         ...current,
@@ -123,4 +126,11 @@ export const SOURCE_LABELS: Record<PlanningQueueItem['source'], { label: string;
     outlier: { label: '아웃라이어', color: 'bg-green-100 text-green-700' },
     rss: { label: 'RSS', color: 'bg-blue-100 text-blue-700' },
     manual: { label: '직접 입력', color: 'bg-gray-100 text-gray-600' },
+  }
+
+/** 기획 큐 항목의 카테고리 배지 — 현재 운영 최적화용 vs 신규 카테고리 확장 후보 */
+export const CATEGORY_LABELS: Record<NonNullable<PlanningQueueItem['category']>, { label: string; color: string }> =
+  {
+    current: { label: '현재 운영', color: 'bg-sky-100 text-sky-700' },
+    expansion: { label: '확장 후보', color: 'bg-pink-100 text-pink-700' },
   }

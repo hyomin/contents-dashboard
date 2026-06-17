@@ -217,6 +217,44 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
       { method: 'GET', path: '/api/dashboard/insights?keywords=', label: '키워드 스코프 인사이트' },
     ],
   },
+  {
+    no: 'W11',
+    key: 'stock-collect',
+    name: '주식 시세 수집 (KIS + Alpha Vantage)',
+    webhookPath: 'stock-collect',
+    envWebhookKey: 'N8N_WEBHOOK_STOCK_COLLECT',
+    workflowFile: 'N8N_STOCK_COLLECT.json',
+    triggers: ['webhook', 'manual', 'schedule'],
+    scheduleHint: '국내 장마감 후 KST 15:30, 미국 장마감 후 KST 05:00 (스케줄)',
+    description:
+      '워치리스트(국내 KIS / 미국 Alpha Vantage) 일별 시세를 수집해 stock_daily_snapshots에 저장. 「주식 일일 리포트」 생성의 데이터 소스.',
+    coreNodes: 'Schedule · HTTP(KIS) · HTTP(Alpha Vantage) · Code · Supabase Upsert',
+    roadmapServiceIds: ['stock-report'],
+    linkedViewIds: ['content-guide'],
+    dashboardApis: [
+      { method: 'GET', path: '/api/dashboard/stock-watchlist', label: '워치리스트 조회' },
+      { method: 'POST', path: '/api/dashboard/stock-collect', label: '시세 수집 실행' },
+    ],
+  },
+  {
+    no: 'W12',
+    key: 'stock-report-auto',
+    name: '주식 일일 리포트 자동 생성',
+    webhookPath: 'stock-report',
+    envWebhookKey: 'N8N_WEBHOOK_STOCK_REPORT',
+    workflowFile: 'N8N_STOCK_REPORT.json',
+    triggers: ['webhook', 'manual', 'schedule'],
+    scheduleHint: 'W11 이후 트리거 (국내·미국 시세 수집 완료 후)',
+    description:
+      'stock_report_settings(자동생성 on/off, 오늘 건너뛰기)를 확인해 조건이 맞으면 주식 일일 리포트를 생성·히스토리에 저장(발행은 항상 수동 검토).',
+    coreNodes: 'Schedule · HTTP(GET settings) · IF(분기) · HTTP(POST stock-report)',
+    roadmapServiceIds: ['stock-report'],
+    linkedViewIds: ['content-guide'],
+    dashboardApis: [
+      { method: 'GET', path: '/api/dashboard/stock-report-settings', label: '자동생성 설정 조회' },
+      { method: 'POST', path: '/api/dashboard/stock-report', label: '주식 일일 리포트 생성·저장' },
+    ],
+  },
 ]
 
 export interface N8nArchivedWorkflow {
@@ -232,6 +270,12 @@ export const N8N_ARCHIVED_WORKFLOW_FILES: N8nArchivedWorkflow[] = [
     name: '주제 선별 AI (구버전 — LangChain)',
     webhookPath: 'topic-suggest-v1-archived',
     reason: 'LangChain(Claude) 노드 필요 — V2(N8N_TOPIC_SUGGEST_V2.json, Gemini HTTP)로 대체됨',
+  },
+  {
+    workflowFile: 'N8N_BGM_IDENTIFY.json',
+    name: 'BGM 정밀 식별 (AudD)',
+    webhookPath: 'bgm-identify',
+    reason: '제거 — 콘텐츠 분석기 Gemini BGM 분석으로 충분',
   },
 ]
 

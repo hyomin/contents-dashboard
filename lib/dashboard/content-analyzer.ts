@@ -14,30 +14,14 @@ export interface ContentAnalyzerResult {
   bgm: {
     /** 영상에서 느껴지는 BGM 무드·톤에 대한 분석 (직접 듣고 식별한 곡 정보가 아닐 수 있음을 안내) */
     moodAnalysis: string
-    /** AI(Gemini)가 영상에서 직접 알아낸 실제 곡 정보 — 어디까지나 "추정"이며 오인식 가능 (제목·아티스트를 특정할 수 있었을 때만 채워짐) */
+    /** AI(Gemini)가 영상에서 직접 알아낸 곡 정보 — 추정·오인식 가능 (확신 있을 때만 채움) */
     identifiedTrack: {
       title: string
       artist?: string
-      /** 식별 확신도 — 영상에서 직접 확인했는지, 추정인지 */
       confidence: 'high' | 'medium' | 'low'
-      /** 어떤 근거로 특정했는지 (예: "영상 음성에서 직접 인식", "영상 내 자막/크레딧 표기 확인") */
       basis: string
     } | null
-    /**
-     * n8n([W11] BGM 정밀 식별 워크플로 · yt-dlp 클립 추출 + AudD 음향 지문 매칭)이 반환한
-     * "추정이 아닌 실제 매칭" 결과. AudD DB에 곡이 있어야 채워지며, 워크플로 미설정·실패·미매칭 시 null.
-     */
-    preciseMatch: {
-      title: string
-      artist?: string
-      album?: string
-      releaseDate?: string
-      label?: string
-      links?: { spotify?: string; appleMusic?: string }
-      /** n8n 워크플로가 전달한 상태 메시지 (성공/미매칭/오류 사유) */
-      message: string
-    } | null
-    /** 어떻게 직접 곡을 특정·식별할 것인지 단계별 가이드 (식별에 실패했거나 확신도가 낮을 때를 위한 보조 수단) */
+    /** 직접 곡을 특정·식별하는 방법 (식별 실패·확신도 낮을 때) */
     identifyGuide: string[]
     /** 레퍼런스로 재사용할 수 있게 BGM을 합법적으로 확보하는 방법 가이드 */
     acquireGuide: string[]
@@ -227,8 +211,6 @@ export function parseContentAnalyzerResponse(
       bgm: {
         moodAnalysis: bgmMoodAnalysis,
         identifiedTrack,
-        // n8n BGM 정밀 식별 워크플로 결과는 이 함수 밖(라우트)에서 병합됨 — 기본값 null
-        preciseMatch: null,
         identifyGuide: toStrArray(parsed.bgm?.identifyGuide),
         acquireGuide: toStrArray(parsed.bgm?.acquireGuide),
       },

@@ -10,13 +10,12 @@
 | 영역 | 상태 | 영향 |
 |------|------|------|
 | TikTok·Instagram **레퍼런스 수집** | 발행 가이드만 | vs.Avg·Outlier는 YouTube Shorts 기준으로 기획 |
-| W11 BGM 정밀 식별 | 코드만, **미연결** | AudD 매칭 없으면 Gemini 추정만 |
 | n8n 인프라 | 로컬 Docker | PC 종료 시 스케줄·웹훅 중단 |
 | 수익·시계열 차트 | UI·추정 | 성과 추이 정량 비교 어려움 |
 | 자동화 테스트 | `verify:collect`만 | 회귀 수동 확인 |
 | 마이그레이션 14·15 | 파일만 | 미적용 시 롱폼 vs.Avg 왜곡 가능 |
 
-**한 줄:** 생성 파이프라인(가이드 → AI → 히스토리 → 제작)은 동작합니다. 부족한 쪽은 **멀티플랫폼 레퍼런스 데이터·운영 안정성·W11 연결**입니다.
+**한 줄:** 생성 파이프라인(가이드 → AI → 히스토리 → 제작)은 동작합니다. 부족한 쪽은 **멀티플랫폼 레퍼런스 데이터·운영 안정성**입니다.
 
 숏폼 영상: **Google Flow (Veo)** — `guidelines/contents_guideline.md` 기준 (Higgsfield 아님).
 
@@ -35,7 +34,7 @@
 
 - 마음에 드는 YouTube·Instagram·TikTok URL 입력
 - 추구 감정·BGM(무드·식별·확보 가이드)·스토리·제작 가이드
-- YouTube: Gemini 직접 시청 + (설정 시) n8n W11 AudD
+- YouTube: Gemini 직접 시청·BGM 분석
 - 필요: `GEMINI_API_KEY`, `DASHBOARD_GEMINI_DIRECT=1`
 
 ### 1단계 — 콘텐츠 가이드 (`content-guide`)

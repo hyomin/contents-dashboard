@@ -12,23 +12,18 @@ import {
 import type { ScriptGuideOutput } from '@/lib/dashboard/script-guide-output'
 import type { ContentPolishResult } from '@/lib/dashboard/content-polish'
 import {
-  extractFlowScenePaste,
-  extractGeminiFlowPasteSection,
-  listFlowScenePastes,
-} from '@/lib/dashboard/gemini-flow-paste'
-import { FORMAT_META } from '@/components/dashboard/views/ContentStudioView'
-import {
   categoryToDefaultFormat,
   categoryToDefaultPlatform,
   saveContentStudioImport,
 } from '@/lib/dashboard/content-studio-import'
-import { getPlatformName, formatViews } from '@/lib/dashboard/dashboard-helpers'
 import type { RssTopicCandidateRow } from '@/lib/data/rss-topic-collect'
 import type { TrendingTopic, RssTrendingResponse, CategoryStat } from '@/app/api/dashboard/rss-trending/route'
 import { TitleWithHint } from '@/components/dashboard/info-hint'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
 import { PageLoadingOverlay, Spinner } from '@/components/dashboard/ui/loading'
 import { GuideReferencePickerModal } from '@/components/dashboard/GuideReferencePickerModal'
+import { GenerationResultView } from '@/components/dashboard/GenerationResultView'
+import { StockReportPanel } from '@/components/dashboard/StockReportPanel'
 import {
   loadGuideReferences,
   saveGuideReferences,
@@ -42,7 +37,7 @@ import {
   savePublishTopic,
   parsePublishKeywords,
 } from '@/lib/dashboard/guide-publish-topic'
-import { usePlanningQueue, SOURCE_LABELS } from '@/lib/hooks/use-planning-queue'
+import { usePlanningQueue, SOURCE_LABELS, CATEGORY_LABELS } from '@/lib/hooks/use-planning-queue'
 import {
   draftToScriptOutput,
   useGenerationHistory,
@@ -235,6 +230,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [category, setCategory] = useState<GuideCategory>('video')
+  const [stockReportMode, setStockReportMode] = useState(false)
   const [videoMode, setVideoMode] = useState<VideoMode>('shortform')
   const [shortformCategoryId, setShortformCategoryId] = useState(
     () => BUILTIN_SHORTFORM_CATEGORIES[0].id,
@@ -247,6 +243,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const [refsLoaded, setRefsLoaded] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set())
+  const [sidebarTab, setSidebarTab] = useState<'tips' | 'history'>('tips')
   const [rssTopics, setRssTopics] = useState<RssTopicCandidateRow[]>([])
   const [hiddenRssIds, setHiddenRssIds] = useState<Set<string | number>>(new Set())
   const [rssLoading, setRssLoading] = useState(false)
@@ -259,6 +256,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const {
     items: historyItems,
     isLoading: historyLoading,
+    reload: reloadHistory,
     addFromGeneration,
     attachPolished,
     removeItem: removeHistoryItem,
@@ -771,7 +769,8 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
 
   return (
     <PageLoadingOverlay loading={isPageLoading} label="콘텐츠 가이드 데이터를 불러오는 중…">
-    <div className="space-y-8 max-w-4xl">
+    <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
+    <div className="flex-1 min-w-0 lg:max-w-3xl space-y-6">
       <N8nLv1ServicesSection viewId="content-guide" addToast={addToast} />
 
       {/* ── 포맷 탭 (숏폼 기본) ───────────────────────────────────── */}
@@ -869,7 +868,50 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
             </div>
           </div>
         )}
+        {category === 'writing' && (
+          <div className="mt-4 pt-4 border-t border-violet-100 dark:border-violet-900/50">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setStockReportMode(false)}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition
+                  ${
+                    !stockReportMode
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-indigo-100 dark:hover:bg-indigo-900/30'
+                  }`}
+              >
+                📝 일반 주제 작성
+              </button>
+              <button
+                type="button"
+                onClick={() => setStockReportMode(true)}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition
+                  ${
+                    stockReportMode
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
+                  }`}
+              >
+                📈 주식 일일 리포트
+              </button>
+            </div>
+          </div>
+        )}
       </section>
+
+      {category === 'writing' && stockReportMode && (
+        <StockReportPanel
+          addToast={addToast}
+          onGenerated={(script, polished, historyId) => {
+            setScriptResult(script)
+            setPolishedResult(polished)
+            setActiveHistoryId(historyId)
+            persistPublishTopic(script.topic)
+          }}
+          onSaved={() => void reloadHistory()}
+        />
+      )}
 
       {/* ── 1. 주제 키워드 가이드 (발행 주제 입력 전) ─────────────── */}
       <section className="rounded-2xl border-2 border-amber-300 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/30 dark:to-gray-900 p-6 space-y-4 shadow-sm">
@@ -1161,9 +1203,16 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
                               <p className="text-sm text-gray-900 dark:text-white line-clamp-2 group-hover:text-violet-800 dark:group-hover:text-violet-200">
                                 {item.detail ?? item.keyword}
                               </p>
-                              <span className={`inline-block mt-1.5 text-[10px] px-1.5 py-0.5 rounded font-semibold ${src.color}`}>
-                                {src.label}
-                              </span>
+                              <div className="flex items-center gap-1 mt-1.5">
+                                <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-semibold ${src.color}`}>
+                                  {src.label}
+                                </span>
+                                {item.category && (
+                                  <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-semibold ${CATEGORY_LABELS[item.category].color}`}>
+                                    {CATEGORY_LABELS[item.category].label}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -1489,95 +1538,6 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
         </div>
       </section>
 
-      {/* ── 포맷별 가이드 ─────────────────────────────────────────── */}
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">포맷별 제작 가이드</h3>
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setCategory(c.id)}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition
-                  ${
-                    category === c.id
-                      ? 'bg-violet-600 text-white shadow-md'
-                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:border-violet-300'
-                  }`}
-              >
-                <span>{c.icon}</span>
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-6 shadow-sm space-y-4">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            {CATEGORIES.find((c) => c.id === category)?.icon} {guide.title} 가이드
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{guide.intro}</p>
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-bold uppercase tracking-wide text-gray-400">체크리스트</p>
-              {checkedItems.size > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setCheckedItems(new Set())}
-                  className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
-                >
-                  초기화
-                </button>
-              )}
-            </div>
-            <ul className="space-y-1.5">
-              {guide.checklist.map((item, i) => {
-                const done = checkedItems.has(i)
-                return (
-                  <li
-                    key={i}
-                    onClick={() => toggleCheck(i)}
-                    className={`flex gap-2 cursor-pointer rounded-lg px-2 py-1.5 transition select-none
-                      ${done
-                        ? 'bg-violet-50 dark:bg-violet-950/30'
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
-                      }`}
-                  >
-                    <span className={`shrink-0 mt-0.5 ${done ? 'text-violet-500' : 'text-gray-300 dark:text-gray-600'}`}>
-                      {done ? '☑' : '☐'}
-                    </span>
-                    <span className={`text-sm ${done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-800 dark:text-gray-200'}`}>
-                      {item}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-            {checkedItems.size > 0 && (
-              <p className="mt-2 text-xs text-violet-600 dark:text-violet-400 text-right">
-                {checkedItems.size}/{guide.checklist.length} 완료
-              </p>
-            )}
-          </div>
-          {guide.sections.map((sec, i) => (
-            <div key={i} className="pt-2 border-t border-gray-100 dark:border-gray-700">
-              <p className="text-sm font-bold text-gray-900 dark:text-white mb-2">{sec.heading}</p>
-              <ul className="space-y-1.5">
-                {sec.bullets.map((b, j) => (
-                  <li key={j} className="text-sm text-gray-600 dark:text-gray-300 list-disc list-inside">
-                    {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-          <p className="text-sm italic text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30 rounded-xl p-3">
-            💡 {guide.closingTip}
-          </p>
-        </div>
-      </section>
-
       {/* ── 생성 결과 ───────────────────────────────────────────── */}
       <section className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 p-6 space-y-4">
         <TitleWithHint
@@ -1608,214 +1568,131 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
         )}
 
         {scriptResult && !scriptLoading && (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h4 className="text-base font-bold text-gray-900 dark:text-white">
-                  {polishedResult?.title ?? scriptResult.title}
-                </h4>
-                <p className="text-xs text-gray-500 mt-1">
-                  발행용 · {getGeminiModelLabel(scriptGuideModel)} ·{' '}
-                  {FORMAT_META[scriptResult.targetFormat]?.label ?? scriptResult.targetFormat} ·{' '}
-                  {getPlatformName(scriptResult.platform)} ·{' '}
-                  {new Date(polishedResult?.polishedAt ?? scriptResult.generatedAt).toLocaleString('ko-KR')}
-                </p>
-                {polishedResult?.summary && (
-                  <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">{polishedResult.summary}</p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={goToContentStudio}
-                className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition shrink-0"
-                title="가이드에서 복사·편집으로도 충분하면 생략 가능"
-              >
-                발행 편집 (선택) →
-              </button>
-            </div>
-
-            {scriptResult.hook && (
-              <div className="rounded-xl bg-white/80 dark:bg-gray-900/60 border border-indigo-100 dark:border-indigo-900 p-4">
-                <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 mb-1">오프닝 훅</p>
-                <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{scriptResult.hook}</p>
-              </div>
-            )}
-
-            {scriptResult.chapterSummary && scriptResult.chapterSummary.length > 0 && (
-              <ul className="flex flex-wrap gap-2">
-                {scriptResult.chapterSummary.map((c, i) => (
-                  <li
-                    key={i}
-                    className="text-xs px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 border border-indigo-100 dark:border-indigo-900 text-gray-700 dark:text-gray-300"
-                  >
-                    {i + 1}. {c}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="rounded-xl bg-white dark:bg-gray-900 border border-indigo-100 dark:border-indigo-900 overflow-hidden">
-              <div className="px-4 py-2 border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/30 flex items-center justify-between">
-                <span className="text-xs font-semibold text-indigo-800 dark:text-indigo-300">
-                  {category === 'writing'
-                    ? '발행용 본문'
-                    : category === 'video' && videoMode === 'longform'
-                      ? '롱폼 발행용 대본 (챕터별)'
-                      : category === 'video'
-                        ? '발행용 숏폼 스크립트 (상단 Flow 블록 고정)'
-                        : category === 'image'
-                          ? '캐러셀 슬라이드 카피'
-                          : '발행용 본문'}
-                  {polishedResult && polishedResult.imageGuideCount > 0
-                    ? ` · 📷 가이드 ${polishedResult.imageGuideCount}`
-                    : ''}
-                </span>
-                <div className="flex flex-wrap gap-2 items-center">
-                  {/* 롱폼: YouTube 설명란 챕터 복사 버튼 */}
-                  {category === 'video' && videoMode === 'longform' && scriptResult.chapterSummary && scriptResult.chapterSummary.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const lines = scriptResult.chapterSummary!.map((title, i) => {
-                          const minutes = Math.floor((i * 90) / 60)
-                          const seconds = (i * 90) % 60
-                          const ts = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-                          return `${ts} ${title}`
-                        })
-                        void navigator.clipboard.writeText(lines.join('\n'))
-                        addToast('YouTube 챕터 타임스탬프 복사됨', 'success')
-                      }}
-                      className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/60"
-                    >
-                      ⏱ 챕터 복사
-                    </button>
-                  )}
-                  {category === 'video' && videoMode === 'shortform' &&
-                    listFlowScenePastes(polishedResult?.fullContent ?? scriptResult.fullScript).map(
-                      (scene) => (
-                        <button
-                          key={scene.index}
-                          type="button"
-                          onClick={() => {
-                            const full = polishedResult?.fullContent ?? scriptResult.fullScript
-                            const paste =
-                              extractFlowScenePaste(full, scene.index) || scene.text
-                            if (!paste) {
-                              addToast(`씬${scene.index} 블록을 찾지 못습니다`, 'warning')
-                              return
-                            }
-                            void navigator.clipboard.writeText(paste)
-                            addToast(`${scene.label} 전체 복사됨 (Flow 붙여넣기)`, 'success')
-                          }}
-                          className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/60"
-                        >
-                          {scene.label}
-                        </button>
-                      ),
-                    )}
-                  {category === 'video' && videoMode === 'shortform' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const full = polishedResult?.fullContent ?? scriptResult.fullScript
-                        const paste = extractGeminiFlowPasteSection(full)
-                        if (!paste) {
-                          addToast('Flow 붙여넣기 블록을 찾지 못습니다', 'warning')
-                          return
-                        }
-                        void navigator.clipboard.writeText(paste)
-                        addToast('모든 씬 Flow 블록 복사됨', 'success')
-                      }}
-                      className="text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:underline"
-                    >
-                      Flow 전체
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const text = polishedResult?.fullContent ?? scriptResult.fullScript
-                      void navigator.clipboard.writeText(text)
-                      addToast('전체 복사되었습니다', 'success')
-                    }}
-                    className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline"
-                  >
-                    전체 복사
-                  </button>
-                </div>
-              </div>
-              <pre className="p-4 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-sans leading-relaxed max-h-[520px] overflow-y-auto">
-                {polishedResult?.fullContent ?? scriptResult.fullScript}
-              </pre>
-            </div>
-
-            {scriptResult.cta && (
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                <span className="font-semibold text-indigo-700 dark:text-indigo-400">CTA:</span> {scriptResult.cta}
-              </p>
-            )}
-
-            {polishedResult && category === 'writing' && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg px-3 py-2">
-                📷 «환기용 이미지 가이드»·«표 가이드» 블록은 직접 제작·삽입할 위치 안내입니다.
-              </p>
-            )}
-
-            {polishedResult && category === 'video' && videoMode === 'shortform' && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 bg-violet-50/50 dark:bg-violet-950/20 rounded-lg px-3 py-2">
-                📋 <strong>씬N</strong> 버튼으로 해당 씬 블록 전체를 복사한 뒤 Google Flow에 붙여넣으세요. Flow 영문은 상단에만 있고 발행 스크립트와 중복되지 않습니다. 플랫폼 스펙:{' '}
-                <a
-                  href="https://branderkey.notion.site/33c835c9591a8008b0cef37fcf50043f"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-violet-600 dark:text-violet-400 underline"
-                >
-                  Branderkey 가이드
-                </a>
-                기준입니다.
-              </p>
-            )}
-            {polishedResult && category === 'video' && videoMode === 'longform' && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 bg-orange-50/50 dark:bg-orange-950/20 rounded-lg px-3 py-2">
-                🎞️ <strong>⏱ 챕터 복사</strong> 버튼으로 YouTube 설명란에 바로 붙여넣을 타임스탬프 블록을 복사하세요. 챕터 순서대로 90초 간격으로 자동 계산됩니다.
-              </p>
-            )}
-            {category === 'image' && scriptResult && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 bg-pink-50/50 dark:bg-pink-950/20 rounded-lg px-3 py-2">
-                🖼️ 슬라이드별 카피를 복사해 <strong>Canva</strong>에 붙여넣으세요. 각 슬라이드는 <code>## 슬라이드 N</code> 형식으로 구분됩니다.
-              </p>
-            )}
-
-            <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-              위 «전체 복사»·씬별 Flow 복사로 바로 제작 가능합니다. 문장만 더 다듬거나 .txt로 보낼 때만{' '}
-              <button
-                type="button"
-                onClick={goToContentStudio}
-                className="font-semibold text-indigo-600 dark:text-indigo-400 underline"
-              >
-                발행 편집·변환
-              </button>
-              으로 이동하세요.
-            </p>
-          </div>
+          <GenerationResultView
+            result={scriptResult}
+            polished={polishedResult}
+            modeLabel={getGeminiModelLabel(scriptGuideModel)}
+            addToast={addToast}
+            onGoToStudio={goToContentStudio}
+            historyId={activeHistoryId}
+          />
         )}
       </section>
+    </div>
 
-      <ContentGenerationHistorySection
-        items={historyItems}
-        activeId={activeHistoryId}
-        isLoading={historyLoading}
-        addToast={addToast}
-        onLoad={loadFromHistory}
-        onRemove={async (id) => {
-          await removeHistoryItem(id)
-          if (activeHistoryId === id) setActiveHistoryId(null)
-        }}
-        onClearAll={async () => {
-          await clearHistory()
-        }}
-        onGoToStudio={goToContentStudioFromHistory}
-      />
+    {/* ── 오른쪽: 제작 팁 / 히스토리 (플로팅 + 독자 스크롤) ───────────── */}
+    <aside className="lg:w-[22rem] xl:w-96 shrink-0">
+      <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] flex flex-col gap-3">
+        <div className="flex gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setSidebarTab('tips')}
+            className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold transition ${
+              sidebarTab === 'tips'
+                ? 'bg-violet-600 text-white shadow-sm'
+                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-violet-300'
+            }`}
+          >
+            💡 제작 팁
+          </button>
+          <button
+            type="button"
+            onClick={() => setSidebarTab('history')}
+            className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold transition ${
+              sidebarTab === 'history'
+                ? 'bg-violet-600 text-white shadow-sm'
+                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-violet-300'
+            }`}
+          >
+            📚 히스토리{historyItems.length > 0 ? ` (${historyItems.length})` : ''}
+          </button>
+        </div>
+
+        <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+          {sidebarTab === 'tips' ? (
+            <section className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-5 shadow-sm space-y-4">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                💡 {CATEGORIES.find((c) => c.id === category)?.icon} {guide.title} 제작 팁
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{guide.intro}</p>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400">체크리스트</p>
+                  {checkedItems.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setCheckedItems(new Set())}
+                      className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+                    >
+                      초기화
+                    </button>
+                  )}
+                </div>
+                <ul className="space-y-1.5">
+                  {guide.checklist.map((item, i) => {
+                    const done = checkedItems.has(i)
+                    return (
+                      <li
+                        key={i}
+                        onClick={() => toggleCheck(i)}
+                        className={`flex gap-2 cursor-pointer rounded-lg px-2 py-1.5 transition select-none
+                          ${done
+                            ? 'bg-violet-50 dark:bg-violet-950/30'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                          }`}
+                      >
+                        <span className={`shrink-0 mt-0.5 ${done ? 'text-violet-500' : 'text-gray-300 dark:text-gray-600'}`}>
+                          {done ? '☑' : '☐'}
+                        </span>
+                        <span className={`text-sm ${done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-800 dark:text-gray-200'}`}>
+                          {item}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+                {checkedItems.size > 0 && (
+                  <p className="mt-2 text-xs text-violet-600 dark:text-violet-400 text-right">
+                    {checkedItems.size}/{guide.checklist.length} 완료
+                  </p>
+                )}
+              </div>
+              {guide.sections.map((sec, i) => (
+                <div key={i} className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <p className="text-sm font-bold text-gray-900 dark:text-white mb-2">{sec.heading}</p>
+                  <ul className="space-y-1.5">
+                    {sec.bullets.map((b, j) => (
+                      <li key={j} className="text-sm text-gray-600 dark:text-gray-300 list-disc list-inside">
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <p className="text-sm italic text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30 rounded-xl p-3">
+                💡 {guide.closingTip}
+              </p>
+            </section>
+          ) : (
+            <ContentGenerationHistorySection
+              items={historyItems}
+              activeId={activeHistoryId}
+              isLoading={historyLoading}
+              addToast={addToast}
+              onLoad={loadFromHistory}
+              onRemove={async (id) => {
+                await removeHistoryItem(id)
+                if (activeHistoryId === id) setActiveHistoryId(null)
+              }}
+              onClearAll={async () => {
+                await clearHistory()
+              }}
+              onGoToStudio={goToContentStudioFromHistory}
+            />
+          )}
+        </div>
+      </div>
+    </aside>
     </div>
     <GuideReferencePickerModal
       open={pickerOpen}

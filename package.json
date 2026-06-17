@@ -9,10 +9,14 @@
     "lint": "eslint",
     "verify:collect": "node scripts/verify-youtube-pipeline.mjs",
     "env:check": "npx --yes tsx scripts/env-check.ts",
-    "env:secret": "node scripts/generate-dashboard-secret.mjs"
+    "env:secret": "node scripts/generate-dashboard-secret.mjs",
+    "stock-chart": "npx --yes tsx scripts/stock-chart-export.ts"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.0",
     "@supabase/supabase-js": "^2.105.4",
+    "echarts": "^6.1.0",
+    "marked": "^18.0.5",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4"

@@ -1,9 +1,0 @@
-# BGM 정밀 식별 워크플로([W11])가 컨테이너 내부에서 yt-dlp·ffmpeg로
-# 영상의 짧은 오디오 클립을 추출한 뒤 AudD API로 전송하기 위한 커스텀 n8n 이미지.
-# 표준 n8n 이미지에는 yt-dlp/ffmpeg가 없으므로 빌드 시 추가한다.
-FROM docker.n8n.io/n8nio/n8n
-
-USER root
-RUN apk add --no-cache ffmpeg python3 py3-pip \
-  && pip install --no-cache-dir --break-system-packages yt-dlp
-USER node

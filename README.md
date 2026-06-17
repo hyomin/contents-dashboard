@@ -54,7 +54,7 @@ dashboard-app/
 | [docs/SUMMARY.md](./docs/SUMMARY.md) | **현황·우선순위** (먼저 읽기) |
 | [docs/guides/DASHBOARD_OVERVIEW.md](./docs/guides/DASHBOARD_OVERVIEW.md) | 화면·API·DB 맵 |
 | [docs/guides/DASHBOARD_USAGE.md](./docs/guides/DASHBOARD_USAGE.md) | 일상 사용법 |
-| [docs/n8n/README.md](./docs/n8n/README.md) | n8n W01~W11 |
+| [docs/n8n/README.md](./docs/n8n/README.md) | n8n W01~W10 |
 | [docs/CHANGELOG.md](./docs/CHANGELOG.md) | 변경 이력 |
 
 ## 환경변수 (요약)

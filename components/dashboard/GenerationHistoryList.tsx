@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from 'react'
 import type { AddToast } from '@/lib/dashboard/dashboard-types'
-import type { GenerationHistoryItem } from '@/lib/dashboard/generation-history-types'
+import { draftToScriptOutput, type GenerationHistoryItem } from '@/lib/dashboard/generation-history-types'
 import { FORMAT_META } from '@/components/dashboard/views/ContentStudioView'
 import { getPlatformName } from '@/lib/dashboard/dashboard-helpers'
+import { GenerationResultView } from '@/components/dashboard/GenerationResultView'
 
 export type GenerationHistoryListVariant = 'embedded' | 'page'
 
@@ -48,7 +49,6 @@ export function GenerationHistoryList({
   const [expandedId, setExpandedId] = useState<string | null>(initialExpandedId)
 
   const isPage = variant === 'page'
-  const previewMaxH = isPage ? 'max-h-[min(70vh,640px)]' : 'max-h-64'
 
   const bodyOf = (item: GenerationHistoryItem) => item.polished?.fullContent ?? item.draft.fullScript
   const bodyLen = (item: GenerationHistoryItem) => bodyOf(item).trim().length
@@ -130,11 +130,6 @@ export function GenerationHistoryList({
                   </p>
                 )}
 
-                <p className="text-[11px] text-slate-500">
-                  {item.draft.mode === 'n8n' ? 'n8n Gemini' : '대시보드 AI'} · {getPlatformName(item.draft.platform)} ·{' '}
-                  {formatDate(item.polished?.polishedAt ?? item.draft.generatedAt, true)}
-                </p>
-
                 {item.referenceTitles.length > 0 && (
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">
                     <span className="font-semibold text-violet-600 dark:text-violet-400">참고 레퍼런스:</span>{' '}
@@ -143,39 +138,55 @@ export function GenerationHistoryList({
                   </div>
                 )}
 
-                {item.draft.hook && (
-                  <div className="rounded-lg bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900 px-3 py-2">
-                    <p className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 mb-1">오프닝 훅</p>
-                    <p className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{item.draft.hook}</p>
-                  </div>
-                )}
+                {isPage ? (
+                  <GenerationResultView
+                    result={draftToScriptOutput(item.draft, item.category)}
+                    polished={item.polished}
+                    modeLabel={item.draft.mode === 'n8n' ? 'n8n Gemini' : '대시보드 AI'}
+                    addToast={addToast}
+                    onGoToStudio={() => onGoToStudio(item)}
+                    historyId={item.id}
+                  />
+                ) : (
+                  <>
+                    <p className="text-[11px] text-slate-500">
+                      {item.draft.mode === 'n8n' ? 'n8n Gemini' : '대시보드 AI'} · {getPlatformName(item.draft.platform)} ·{' '}
+                      {formatDate(item.polished?.polishedAt ?? item.draft.generatedAt, true)}
+                    </p>
 
-                {item.polished?.summary && (
-                  <p className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg px-3 py-2">
-                    {item.polished.summary}
-                  </p>
-                )}
+                    {item.draft.hook && (
+                      <div className="rounded-lg bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900 px-3 py-2">
+                        <p className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 mb-1">오프닝 훅</p>
+                        <p className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{item.draft.hook}</p>
+                      </div>
+                    )}
 
-                <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                  <div className="px-3 py-1.5 bg-slate-100 dark:bg-gray-800 flex justify-between items-center">
-                    <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300">본문</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(bodyOf(item))
-                        addToast('복사되었습니다', 'success')
-                      }}
-                      className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline"
-                    >
-                      복사
-                    </button>
-                  </div>
-                  <pre
-                    className={`p-3 text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-sans leading-relaxed overflow-y-auto ${previewMaxH} ${isPage ? 'text-sm' : 'text-xs'}`}
-                  >
-                    {bodyOf(item)}
-                  </pre>
-                </div>
+                    {item.polished?.summary && (
+                      <p className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg px-3 py-2">
+                        {item.polished.summary}
+                      </p>
+                    )}
+
+                    <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                      <div className="px-3 py-1.5 bg-slate-100 dark:bg-gray-800 flex justify-between items-center">
+                        <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300">본문</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void navigator.clipboard.writeText(bodyOf(item))
+                            addToast('복사되었습니다', 'success')
+                          }}
+                          className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline"
+                        >
+                          복사
+                        </button>
+                      </div>
+                      <pre className="p-3 text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-sans leading-relaxed overflow-y-auto max-h-64">
+                        {bodyOf(item)}
+                      </pre>
+                    </div>
+                  </>
+                )}
 
                 <div className="flex flex-wrap gap-2">
                   {onLoadInGuide && (
@@ -184,16 +195,18 @@ export function GenerationHistoryList({
                       onClick={() => onLoadInGuide(item)}
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition"
                     >
-                      {isPage ? '콘텐츠 가이드에서 열기' : '결과 영역에 불러오기'}
+                      {isPage ? '가이드에서 이어 작업 →' : '결과 영역에 불러오기'}
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => onGoToStudio(item)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90 transition"
-                  >
-                    발행 편집 →
-                  </button>
+                  {!isPage && (
+                    <button
+                      type="button"
+                      onClick={() => onGoToStudio(item)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90 transition"
+                    >
+                      발행 편집 →
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

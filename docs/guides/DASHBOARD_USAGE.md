@@ -37,9 +37,6 @@ N8N_WEBHOOK_AI_INSIGHTS=http://localhost:5678/webhook/ai-insights
 GEMINI_API_KEY=…
 DASHBOARD_GEMINI_DIRECT=1
 
-# W11 BGM (선택)
-N8N_WEBHOOK_BGM_IDENTIFY=http://localhost:5678/webhook/bgm-identify
-AUDD_API_TOKEN=…
 ```
 
 점검: `npm run env:check`
@@ -101,9 +98,8 @@ n8n 스케줄(12h)이 켜져 있으면 ③·Outlier 태깅·RSS는 자동 실행
 | W08 | `longform-script` | content-guide | 수동 |
 | W09 | `topic-suggest` | topic-suggest | 수동 |
 | W10 | `ai-insights` | ai-insight | 수동 |
-| W11 | `bgm-identify` | content-analyzer | 수동 (**미연결**) |
 
-상세: [n8n/README.md](../n8n/README.md)
+상세: [n8n/README.md](../n8n/README.md) (W01~W10)
 
 ---
 
@@ -121,10 +117,9 @@ n8n 스케줄(12h)이 켜져 있으면 ③·Outlier 태깅·RSS는 자동 실행
 
 | 증상 | 확인 |
 |------|------|
-| Webhook 404 | `./scripts/n8n-setup.sh` → W11은 `live-workflows.ts` 등록 여부 |
+| Webhook 404 | `./scripts/n8n-setup.sh` → `live-workflows.ts`와 경로 일치 확인 |
 | 분석기 503 | `GEMINI_API_KEY` + `DASHBOARD_GEMINI_DIRECT=1` |
 | Gemini MIME 오류 (YouTube) | 재생목록 URL — 영상 ID만 있는 URL 사용 |
-| BGM 정밀 식별 없음 | W11 미연결 또는 `AUDD_API_TOKEN` |
 | 수집 0건 | `benchmark` 채널·`YOUTUBE_API_KEY` |
 | PC 꺼지면 수집 중단 | n8n 로컬 Docker — 클라우드 이전 검토 |
 | `npm run build` 실패 | `tsconfig`에 `archive` exclude |

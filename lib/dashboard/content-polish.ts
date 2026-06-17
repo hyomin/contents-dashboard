@@ -8,6 +8,11 @@ import {
 } from '@/lib/dashboard/contents-guideline'
 import { prependGeminiFlowPasteBlock } from '@/lib/dashboard/gemini-flow-paste'
 import { sanitizeGeminiJsonText } from '@/lib/dashboard/gemini-models'
+import {
+  BLOG_PLATFORM_VARIANTS_SCHEMA,
+  parseBlogPlatformVariants,
+  type BlogPlatformVariants,
+} from '@/lib/dashboard/blog-platform-variants'
 
 export interface ContentPolishReference {
   title: string
@@ -39,6 +44,8 @@ export interface ContentPolishResult {
   polishedAt: string
   /** 숏폼: Gemini/Flow 붙여넣기용 (최상단 고정 전 원문) */
   flowPasteBlock?: string
+  /** 블로그: 네이버/티스토리/Blogger 동시 발행용 제목·메타·태그 변형 */
+  platformVariants?: BlogPlatformVariants
 }
 
 /** 본문 문단 수 추정 (빈 줄·헤더·가이드 블록 제외) */
@@ -122,7 +129,12 @@ ${guidelineBlock || '(가이드라인 로드 실패 — 정재 원칙만 적용)
         : '마크다운 전체 본문 (이미지·표 가이드 블록 포함)'
   }",
   "summary": "정재 시 변경한 점 2~3문장${shortform ? ' (장면 수·Flow 씬 요약 포함)' : longform ? ' (챕터 구성 요약)' : ''}",
-  "imageGuideCount": ${imageCount}
+  "imageGuideCount": ${imageCount}${
+    imageCount > 0
+      ? `,
+  ${BLOG_PLATFORM_VARIANTS_SCHEMA}`
+      : ''
+  }
 }
 
 ## 가이드 초안
@@ -150,13 +162,7 @@ export function parseContentPolishResponse(
     if (!jsonMatch && !sanitized) return null
     const raw = jsonMatch ? jsonMatch[0].replace(/,\s*([}\]])/g, '$1') : null
 
-    let parsed: {
-      title?: string
-      fullContent?: string
-      flowPasteBlock?: string
-      summary?: string
-      imageGuideCount?: number
-    } | null = null
+    let parsed: Record<string, unknown> | null = null
     for (const candidate of [raw, sanitized]) {
       if (!candidate) continue
       try {
@@ -181,6 +187,7 @@ export function parseContentPolishResponse(
       imageGuideCount: Number(parsed.imageGuideCount) || 0,
       polishedAt: new Date().toISOString(),
       flowPasteBlock,
+      platformVariants: parseBlogPlatformVariants(parsed),
     }
   } catch {
     return null

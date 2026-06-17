@@ -2,6 +2,7 @@ import type { ContentFormat } from '@/app/api/dashboard/content-generate/route'
 import type { GuideCategory } from '@/lib/dashboard/content-creation-guide'
 import type { ScriptGuideOutput, ChapterMarker } from '@/lib/dashboard/script-guide-output'
 import type { ContentPolishResult } from '@/lib/dashboard/content-polish'
+import type { BlogPlatformVariants } from '@/lib/dashboard/blog-platform-variants'
 
 export type { ChapterMarker }
 
@@ -26,6 +27,12 @@ export interface GenerationHistoryPolished {
   summary: string
   imageGuideCount: number
   polishedAt: string
+  /** 블로그: 네이버/티스토리/Blogger 동시 발행용 제목·메타·태그 변형 */
+  platformVariants?: BlogPlatformVariants
+  /** 주식 리포트 전용 — fullContent 내 output_N.png 가이드 블록에 대응하는 차트 번호 목록 */
+  chartIndexes?: number[]
+  /** 주식 리포트 전용 — output_N.png → 종목별 슬라이드 PNG 상대경로 매핑(slideFiles[i]는 chartIndexes[i]에 대응) */
+  chartImages?: { name: string; slideFiles: string[] }[]
 }
 
 export interface GenerationHistoryItem {
@@ -64,6 +71,7 @@ export function polishToHistory(polished: ContentPolishResult): GenerationHistor
     summary: polished.summary,
     imageGuideCount: polished.imageGuideCount,
     polishedAt: polished.polishedAt,
+    platformVariants: polished.platformVariants,
   }
 }
 

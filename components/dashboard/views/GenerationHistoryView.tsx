@@ -22,6 +22,15 @@ import { PageLoadingOverlay } from '@/components/dashboard/ui/loading'
 
 type HistoryCategory = 'guide' | 'analyzer'
 
+type GuideFormatFilter = 'all' | 'video' | 'writing' | 'image'
+
+const GUIDE_FORMAT_FILTERS: { id: GuideFormatFilter; label: string }[] = [
+  { id: 'all', label: '전체' },
+  { id: 'video', label: '영상' },
+  { id: 'writing', label: '글' },
+  { id: 'image', label: '카드뉴스' },
+]
+
 export default function GenerationHistoryView({ addToast }: { addToast: AddToast }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -32,6 +41,7 @@ export default function GenerationHistoryView({ addToast }: { addToast: AddToast
   const { items, isLoading, removeItem, clearAll, reload } = useGenerationHistory()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<HistoryCategory>(categoryParam)
+  const [formatFilter, setFormatFilter] = useState<GuideFormatFilter>('all')
   const [analyzerHistory, setAnalyzerHistory] = useState<ContentAnalyzerHistoryItem[]>([])
 
   useEffect(() => {
@@ -43,9 +53,10 @@ export default function GenerationHistoryView({ addToast }: { addToast: AddToast
   }, [categoryParam])
 
   const filtered = useMemo(() => {
+    const byFormat = formatFilter === 'all' ? items : items.filter((x) => x.category === formatFilter)
     const q = query.trim().toLowerCase()
-    if (!q) return items
-    return items.filter(
+    if (!q) return byFormat
+    return byFormat.filter(
       (x) =>
         x.draft.title.toLowerCase().includes(q) ||
         x.publishTopic.toLowerCase().includes(q) ||
@@ -53,7 +64,13 @@ export default function GenerationHistoryView({ addToast }: { addToast: AddToast
         x.draft.fullScript.toLowerCase().includes(q) ||
         x.polished?.fullContent.toLowerCase().includes(q),
     )
-  }, [items, query])
+  }, [items, query, formatFilter])
+
+  const formatCounts = useMemo(() => {
+    const counts: Record<GuideFormatFilter, number> = { all: items.length, video: 0, writing: 0, image: 0 }
+    for (const x of items) counts[x.category] += 1
+    return counts
+  }, [items])
 
   const switchCategory = (next: HistoryCategory) => {
     setCategory(next)
@@ -176,6 +193,23 @@ export default function GenerationHistoryView({ addToast }: { addToast: AddToast
                     </button>
                   )}
                 </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {GUIDE_FORMAT_FILTERS.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setFormatFilter(f.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      formatFilter === f.id
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {f.label} ({formatCounts[f.id]})
+                  </button>
+                ))}
               </div>
 
               <input
