@@ -95,7 +95,7 @@ export const VIEW_META: Record<string, ViewMeta> = {
   insights: { title: '기획 / 인사이트', desc: '트렌드·Outlier·AI 기획 등 인사이트 메뉴입니다.' },
   trending: { title: '트렌딩 키워드', desc: '급상승 키워드 및 트렌드' },
   outlier: { title: 'Outlier 분석', desc: 'vs.Avg 3.0x 이상 콘텐츠' },
-  'ai-insight': { title: 'AI 인사이트', desc: 'AI 기반 콘텐츠 기획 추천' },
+  'niche-research': { title: '니치 탐색', desc: 'YouTube 전체 검색으로 진입 전 니치를 탐색하고 AI가 패턴을 분석합니다.' },
   benchmark: { title: '채널·콘텐츠 등록', desc: '수집·분석 대상 채널과 레퍼런스 콘텐츠를 등록합니다.' },
   'channel-register': {
     title: '채널 등록·관리',
@@ -303,14 +303,7 @@ export const NAV_TREE: DashboardNavItem[] = [
     children: [
       { id: 'trending', label: '트렌딩 키워드', icon: '🔥' },
       { id: 'outlier', label: 'Outlier 분석', icon: '🚀' },
-      { id: 'ai-insight', label: 'AI 인사이트', icon: '🤖' },
-      {
-        id: 'topic-suggest',
-        label: '주제 선별 AI',
-        icon: '🎯',
-        badge: 'NEW',
-        badgeColor: 'bg-green-100 text-green-700',
-      },
+      { id: 'niche-research', label: '니치 탐색', icon: '🔍', badge: 'NEW', badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200' },
     ],
   },
   {

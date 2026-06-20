@@ -23,7 +23,7 @@ import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-s
 import { PageLoadingOverlay, Spinner } from '@/components/dashboard/ui/loading'
 import { GuideReferencePickerModal } from '@/components/dashboard/GuideReferencePickerModal'
 import { GenerationResultView } from '@/components/dashboard/GenerationResultView'
-import { StockReportPanel } from '@/components/dashboard/StockReportPanel'
+import { StockReportPanel, type StockDailyItemResult } from '@/components/dashboard/StockReportPanel'
 import {
   loadGuideReferences,
   saveGuideReferences,
@@ -74,6 +74,23 @@ import {
   saveSelectedEmotionToneId,
   type EmotionToneId,
 } from '@/lib/dashboard/emotion-tones'
+
+// ─── 레퍼런스 기반 주제 분석 타입 ─────────────────────────────────
+interface BmRefUrl { id: string; url: string; title: string; vsAvg: string }
+interface BenchmarkSuggestion { title: string; hook: string; structure: string[]; keywords: string[]; estimatedVsAvg: string; reasoning: string }
+const BM_PLATFORMS = [
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'naver-blog', label: '네이버 블로그' },
+  { value: 'tistory', label: '티스토리' },
+] as const
+function detectBmPlatform(url: string) {
+  if (url.includes('youtube.com') || url.includes('youtu.be')) return '🔴'
+  if (url.includes('instagram.com')) return '💗'
+  if (url.includes('blog.naver.com')) return '🟢'
+  if (url.includes('tistory.com')) return '🟠'
+  return '🔗'
+}
 
 /** 체널 카테고리 = RSS 카테고리와 동일 */
 const CATEGORY_TABS = [
@@ -229,8 +246,14 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  // AI 인사이트에서 넘어온 경우 포맷 자동 설정 — localStorage 저장 없이 세션 내에서만 적용
+  const insightFormatRef = useRef<string | null>(null)
+  const [fromInsightFormat, setFromInsightFormat] = useState<string | null>(null)
   const [category, setCategory] = useState<GuideCategory>('video')
   const [stockReportMode, setStockReportMode] = useState(false)
+  const [stockDailyResults, setStockDailyResults] = useState<StockDailyItemResult[]>([])
+  const [activeStockResultKey, setActiveStockResultKey] = useState<string | null>(null)
+  const resultSectionRef = useRef<HTMLElement>(null)
   const [videoMode, setVideoMode] = useState<VideoMode>('shortform')
   const [shortformCategoryId, setShortformCategoryId] = useState(
     () => BUILTIN_SHORTFORM_CATEGORIES[0].id,
@@ -298,6 +321,15 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   const [topicGuideForCategoryId, setTopicGuideForCategoryId] = useState<string | null>(null)
   const [scriptGuideModel, setScriptGuideModel] = useState(loadScriptGuideModel)
 
+  // 레퍼런스 기반 주제 분석
+  const [topicMode, setTopicMode] = useState<'keyword' | 'benchmark'>('keyword')
+  const [benchmarkUrls, setBenchmarkUrls] = useState<BmRefUrl[]>([])
+  const [benchmarkSuggestions, setBenchmarkSuggestions] = useState<BenchmarkSuggestion[] | null>(null)
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false)
+  const [benchmarkPlatform, setBenchmarkPlatform] = useState('youtube')
+  const [newBmUrl, setNewBmUrl] = useState('')
+  const [newBmTitle, setNewBmTitle] = useState('')
+
   const loadTrending = useCallback((cat?: string) => {
     setTrendingLoading(true)
     const catParam = cat && cat !== 'all' ? `&category=${encodeURIComponent(cat)}` : ''
@@ -327,16 +359,119 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
       .finally(() => setRssLoading(false))
   }, [])
 
+  const autoFillBenchmarks = useCallback(async () => {
+    setBenchmarkLoading(true)
+    try {
+      const res = await fetch('/api/dashboard/benchmarks')
+      if (!res.ok) throw new Error()
+      type DBBm = { id: string; url: string; title: string; vs_avg: number | null }
+      const data = (await res.json()) as DBBm[]
+      const filtered = data
+        .filter((b) => b.url && b.title)
+        .sort((a, b) => (b.vs_avg ?? 0) - (a.vs_avg ?? 0))
+        .slice(0, 8)
+      if (filtered.length === 0) { addToast('등록된 레퍼런스가 없습니다', 'warning'); return }
+      setBenchmarkUrls((prev) => {
+        const existing = new Set(prev.map((u) => u.url))
+        const added = filtered
+          .filter((b) => !existing.has(b.url))
+          .map((b) => ({ id: `bm-${b.id}`, url: b.url, title: b.title, vsAvg: b.vs_avg != null ? b.vs_avg.toFixed(1) : '?' }))
+        if (added.length === 0) { addToast('이미 모두 추가됐습니다', 'info'); return prev }
+        addToast(`벤치마크 ${added.length}개 자동 추가 ✅`, 'success')
+        return [...prev, ...added]
+      })
+    } catch { addToast('벤치마크 로드 실패', 'warning') }
+    finally { setBenchmarkLoading(false) }
+  }, [addToast])
+
+  const runBenchmarkAnalysis = async () => {
+    setBenchmarkLoading(true)
+    setBenchmarkSuggestions(null)
+    try {
+      const catLabel =
+        category === 'video'
+          ? (findShortformCategory(shortformCategoryId)?.label ?? 'video')
+          : category === 'writing' ? '글쓰기' : '캐러셀'
+      const res = await fetch('/api/topic-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: catLabel,
+          platform: benchmarkPlatform,
+          urls: benchmarkUrls,
+          trendingKeywords: trendingKeywords.map((k) => k.keyword).slice(0, 8),
+        }),
+      })
+      const data = (await res.json()) as { suggestions?: BenchmarkSuggestion[]; error?: string }
+      if (!res.ok || data.error) {
+        addToast(data.error ?? '분석 실패. GEMINI_API_KEY를 확인해주세요', 'warning')
+      } else if (Array.isArray(data.suggestions)) {
+        setBenchmarkSuggestions(data.suggestions)
+        addToast('레퍼런스 분석 완료 🎯', 'success')
+      } else {
+        addToast('결과를 가져오지 못했습니다', 'warning')
+      }
+    } catch { addToast('네트워크 오류', 'warning') }
+    finally { setBenchmarkLoading(false) }
+  }
+
+  const addBmUrl = () => {
+    if (!newBmUrl.trim()) return
+    setBenchmarkUrls((prev) => [
+      ...prev,
+      { id: Date.now().toString(), url: newBmUrl.trim(), title: newBmTitle.trim() || newBmUrl.trim(), vsAvg: '?' },
+    ])
+    setNewBmUrl('')
+    setNewBmTitle('')
+  }
+
   useEffect(() => {
     setReferences(loadGuideReferences())
     setRefsLoaded(true)
+
+    // topic → 발행 주제 (AI 인사이트의 action 필드 = 짧은 추천 액션)
     const fromUrl = searchParams.get('topic')?.trim()
     setPublishTopic(fromUrl || loadPublishTopic())
     setPublishTopicLoaded(true)
+
+    // seedKeyword → 주제 키워드 가이드 입력 자동 채우기 (AI 인사이트의 text 필드 = 설명 문장)
+    const seedFromUrl = searchParams.get('seedKeyword')
+    if (seedFromUrl) {
+      try {
+        setSeedKeyword(decodeURIComponent(seedFromUrl).trim())
+      } catch {
+        setSeedKeyword(seedFromUrl.trim())
+      }
+    }
+
+    // insightFormat → 포맷 자동 설정 (AI 인사이트에서 넘어온 경우)
+    // localStorage 저장 없이 세션 내에서만 적용 (사용자 기존 설정 보호)
+    const insightFormat = searchParams.get('insightFormat')
+    insightFormatRef.current = insightFormat
+    if (insightFormat) {
+      setFromInsightFormat(insightFormat)
+      if (insightFormat === 'writing') {
+        setCategory('writing')
+      } else if (insightFormat === 'image') {
+        setCategory('image')
+      } else if (insightFormat === 'longform') {
+        setCategory('video')
+        setVideoMode('longform')
+      } else if (insightFormat === 'shortform') {
+        setCategory('video')
+        setVideoMode('shortform')
+      }
+    } else {
+      setFromInsightFormat(null)
+    }
   }, [searchParams])
 
   useEffect(() => {
-    setShortformCategoryId(loadSelectedShortformCategoryId())
+    // AI 인사이트에서 shortform으로 진입한 경우 localStorage 숏폼 카테고리를 적용하지 않음
+    // (저장된 "동물 숏츠" 등이 트렌드 기반 주제와 맞지 않을 수 있으므로 기본값 유지)
+    if (insightFormatRef.current !== 'shortform') {
+      setShortformCategoryId(loadSelectedShortformCategoryId())
+    }
     setEmotionTone(loadSelectedEmotionToneId())
   }, [])
 
@@ -610,12 +745,13 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
       const data = (await res.json()) as ScriptGuideOutput & {
         polished?: ContentPolishResult
         error?: string
+        warning?: string
       }
       if (!res.ok || data.error) {
         addToast(data.error ?? '발행용 콘텐츠 생성 실패', 'warning')
       } else {
         const polished = data.polished ?? null
-        const { polished: _p, ...script } = data
+        const { polished: _p, warning: _w, ...script } = data
         setScriptResult(script)
         setPolishedResult(polished)
         const historyId = await addFromGeneration({
@@ -641,6 +777,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
             : '발행용 콘텐츠 생성 완료 (히스토리 저장 실패)',
           historyId ? 'success' : 'warning',
         )
+        if (data.warning) addToast(data.warning, 'warning')
       }
     } catch {
       addToast('네트워크 오류가 발생했습니다', 'warning')
@@ -745,6 +882,9 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
   }
 
   const guide = GUIDE_BY_CATEGORY[category]
+  const activeSections = guide.sections.filter((sec) =>
+    !sec.modes || (category === 'video' && sec.modes.includes(videoMode as 'shortform' | 'longform'))
+  )
 
   const guideContext = useMemo(
     (): AiScriptGuideRequestContext => ({
@@ -772,6 +912,25 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
     <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
     <div className="flex-1 min-w-0 lg:max-w-3xl space-y-6">
       <N8nLv1ServicesSection viewId="content-guide" addToast={addToast} />
+
+      {/* ── AI 인사이트 유입 배너 ─────────────────────────────────── */}
+      {fromInsightFormat && (() => {
+        const fmtLabel: Record<string, string> = {
+          shortform: '숏폼 영상 (60초 이내)',
+          longform: '롱폼 영상 (5분 이상)',
+          writing: '글쓰기 · 블로그',
+          image: '캐러셀 · 카드뉴스',
+        }
+        return (
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs text-indigo-700 dark:text-indigo-300">
+            <span className="text-base">💡</span>
+            <span>
+              AI 인사이트 추천 포맷: <strong>{fmtLabel[fromInsightFormat] ?? fromInsightFormat}</strong>으로 자동 설정됐습니다.
+              {fromInsightFormat === 'shortform' && ' 숏폼 카테고리는 아래에서 직접 선택해 주세요.'}
+            </span>
+          </div>
+        )
+      })()}
 
       {/* ── 포맷 탭 (숏폼 기본) ───────────────────────────────────── */}
       <section className="rounded-2xl border border-violet-200 dark:border-violet-800 bg-white dark:bg-gray-800 p-4 shadow-sm">
@@ -908,11 +1067,20 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
             setPolishedResult(polished)
             setActiveHistoryId(historyId)
             persistPublishTopic(script.topic)
+            // 하단 결과 영역으로 자동 스크롤
+            setTimeout(() => resultSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
+          }}
+          onDailyResults={(items) => {
+            setStockDailyResults(items)
+            const firstOk = items.find((i) => i.ok)
+            if (firstOk) setActiveStockResultKey(`${firstOk.market}:${firstOk.ticker}`)
           }}
           onSaved={() => void reloadHistory()}
         />
       )}
 
+      {/* ── 1. 주제 가이드 / 2. 발행 주제 / 3. 참고 레퍼런스 — 주식 일일 리포트 모드에서 숨김 */}
+      {!(category === 'writing' && stockReportMode) && (<>
       {/* ── 1. 주제 키워드 가이드 (발행 주제 입력 전) ─────────────── */}
       <section className="rounded-2xl border-2 border-amber-300 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/30 dark:to-gray-900 p-6 space-y-4 shadow-sm">
         <TitleWithHint
@@ -920,9 +1088,37 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           className="text-base font-bold text-amber-900 dark:text-amber-100"
           hint="아직 발행 주제가 정해지지 않았을 때, 넓은 키워드로 AI가 흥미로운 발행 주제 예시를 제안합니다. 카드를 클릭하면 아래 «발행 주제» 필드에 자동 입력됩니다."
         >
-          💡 주제 키워드 가이드
+          💡 주제 가이드
           <span className="ml-2 text-xs font-normal text-amber-600 dark:text-amber-400">선택 · 1단계</span>
         </TitleWithHint>
+
+        {/* 모드 토글: 키워드 찾기 vs 레퍼런스 분석 */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => { setTopicMode('keyword'); setBenchmarkSuggestions(null) }}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${
+              topicMode === 'keyword'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+            }`}
+          >
+            💡 키워드로 찾기
+          </button>
+          <button
+            type="button"
+            onClick={() => setTopicMode('benchmark')}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${
+              topicMode === 'benchmark'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+            }`}
+          >
+            📊 레퍼런스 분석
+          </button>
+        </div>
+
+        {topicMode === 'keyword' && (<>
         {category === 'video' && videoMode === 'shortform' && (
           <p className="text-xs text-amber-800/90 dark:text-amber-200/90 leading-relaxed">
             상단 <strong>숏폼 카테고리</strong>에 맞춰 각 카드의 <strong>angle</strong>에 스토리 전개가 달라집니다.
@@ -1059,6 +1255,170 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           }}
           onClearAll={clearTopicGuideHistory}
         />
+        </>)}
+
+        {/* ── 레퍼런스 분석 모드 ─────────────────────────────────────── */}
+        {topicMode === 'benchmark' && (
+          <div className="space-y-4">
+            <p className="text-xs text-amber-800/90 dark:text-amber-200/90 leading-relaxed">
+              성과 높은 콘텐츠를 레퍼런스로 추가하면 AI가 패턴을 분석해 주제·훅·구성안을 제안합니다.
+            </p>
+
+            {/* 플랫폼 */}
+            <div>
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-2">대상 플랫폼</p>
+              <div className="flex gap-2 flex-wrap">
+                {BM_PLATFORMS.map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => setBenchmarkPlatform(p.value)}
+                    className={`px-3 py-1.5 text-xs rounded-xl border font-medium transition ${
+                      benchmarkPlatform === p.value
+                        ? 'bg-amber-700 text-white border-amber-700'
+                        : 'bg-white dark:bg-gray-900 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:border-amber-400'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 벤치마크 자동 채우기 */}
+            <button
+              type="button"
+              onClick={() => void autoFillBenchmarks()}
+              disabled={benchmarkLoading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 text-sm border border-dashed border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 rounded-xl hover:border-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 disabled:opacity-50 transition"
+            >
+              {benchmarkLoading && !benchmarkSuggestions ? (
+                <><Spinner size="sm" color="border-amber-400" /> 불러오는 중…</>
+              ) : (
+                '📊 등록된 벤치마크에서 자동 추가'
+              )}
+            </button>
+
+            {/* URL 목록 */}
+            {benchmarkUrls.length > 0 && (
+              <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                {benchmarkUrls.map((u) => (
+                  <div key={u.id} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-900/60 rounded-xl border border-amber-100 dark:border-amber-900/50 group">
+                    <span className="text-sm shrink-0">{detectBmPlatform(u.url)}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{u.title}</p>
+                      <p className="text-xs text-gray-400 truncate">{u.url}</p>
+                    </div>
+                    {u.vsAvg !== '?' && <span className="text-xs font-bold text-green-600 shrink-0">{u.vsAvg}x</span>}
+                    <button
+                      type="button"
+                      onClick={() => setBenchmarkUrls((prev) => prev.filter((x) => x.id !== u.id))}
+                      className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition text-xs shrink-0"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 수동 URL 추가 */}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  value={newBmUrl}
+                  onChange={(e) => setNewBmUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addBmUrl()}
+                  placeholder="https://www.youtube.com/watch?v=…"
+                  className="flex-1 px-3 py-2 text-sm rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 text-gray-900 dark:text-white placeholder:text-gray-400"
+                />
+                <input
+                  value={newBmTitle}
+                  onChange={(e) => setNewBmTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addBmUrl()}
+                  placeholder="제목 (선택)"
+                  className="w-28 px-3 py-2 text-sm rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 text-gray-900 dark:text-white placeholder:text-gray-400"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addBmUrl}
+                disabled={!newBmUrl.trim()}
+                className="w-full py-2 text-xs border border-dashed border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 rounded-xl hover:border-amber-400 disabled:opacity-40 transition"
+              >
+                + URL 직접 추가
+              </button>
+            </div>
+
+            {/* 분석 버튼 */}
+            <button
+              type="button"
+              onClick={() => void runBenchmarkAnalysis()}
+              disabled={benchmarkLoading}
+              className={`w-full py-3 rounded-xl text-sm font-bold transition ${
+                benchmarkLoading
+                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-amber-600 to-orange-500 text-white hover:from-amber-700 hover:to-orange-600 shadow-sm'
+              }`}
+            >
+              {benchmarkLoading && !benchmarkSuggestions ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Spinner size="sm" color="border-white" /> 패턴 분석 중…
+                </span>
+              ) : (
+                '🎯 레퍼런스 패턴 분석'
+              )}
+            </button>
+
+            {/* 분석 결과 */}
+            {benchmarkSuggestions && benchmarkSuggestions.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                  추천 주제 {benchmarkSuggestions.length}개
+                </p>
+                {benchmarkSuggestions.map((s, i) => (
+                  <div key={i} className="rounded-xl border border-amber-200 dark:border-amber-800 bg-white/90 dark:bg-gray-900/60 overflow-hidden">
+                    <div className="p-4 space-y-2">
+                      <div className="flex items-start gap-2">
+                        <span className="w-6 h-6 rounded-full bg-amber-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white leading-snug">{s.title}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] rounded-full font-medium">
+                          예상 {s.estimatedVsAvg}
+                        </span>
+                        {s.keywords.map((k) => (
+                          <span key={k} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-[10px] rounded-full">
+                            #{k}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+                        <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 mb-0.5">⚡ 오프닝 훅</p>
+                        <p className="text-xs text-amber-800 dark:text-amber-300">{s.hook}</p>
+                      </div>
+                      <p className="text-[10px] text-gray-400 italic">🔍 {s.reasoning}</p>
+                    </div>
+                    <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-amber-100 dark:border-amber-900/50">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          persistPublishTopic(s.title)
+                          addToast(`"${s.title.slice(0, 20)}…" 발행 주제로 설정됐습니다 ✓`, 'success')
+                        }}
+                        className="w-full py-2 text-xs font-bold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition"
+                      >
+                        ✓ 이 주제로 선정
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* ── 2. 발행 주제 (필수) ─────────────────────────────────────── */}
@@ -1537,9 +1897,14 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           </p>
         </div>
       </section>
+      </>)}
 
       {/* ── 생성 결과 ───────────────────────────────────────────── */}
-      <section className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 p-6 space-y-4">
+      <section
+        ref={resultSectionRef}
+        id="result-section"
+        className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 p-6 space-y-4"
+      >
         <TitleWithHint
           as="h3"
           className="text-lg font-bold text-indigo-900 dark:text-indigo-200"
@@ -1548,9 +1913,64 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
           생성 결과
         </TitleWithHint>
 
+        {/* 주식 일일 리포트 종목 선택 내비게이션 */}
+        {category === 'writing' && stockReportMode && stockDailyResults.length > 0 && (
+          <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-gray-900 p-3 space-y-2">
+            <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+              📋 일일 리포트 종목 선택 — 클릭하면 아래에 내용이 표시됩니다
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {stockDailyResults.map((r) => {
+                const key = `${r.market}:${r.ticker}`
+                const isActive = activeStockResultKey === key
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={!r.ok}
+                    onClick={() => {
+                      if (!r.ok || !r.script || !r.polished) return
+                      setActiveStockResultKey(key)
+                      setScriptResult(r.script)
+                      setPolishedResult(r.polished)
+                      setActiveHistoryId(r.historyId ?? null)
+                      persistPublishTopic(r.script.topic)
+                    }}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition ${
+                      !r.ok
+                        ? 'opacity-40 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                        : isActive
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-emerald-50 dark:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/70'
+                    }`}
+                  >
+                    <span>{r.ok ? '✅' : '⏭'}</span>
+                    {r.name}
+                    {r.historyId && r.ok && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); window.open(`/api/dashboard/content-output-html?historyId=${encodeURIComponent(r.historyId!)}`, '_blank') }}
+                        className="ml-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300"
+                        title="HTML 보기"
+                      >
+                        HTML
+                      </button>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[9px] text-gray-400 dark:text-gray-500">
+              ⏭ = 시세 없음(skip) · ✅ = 리포트 생성 완료 · HTML 링크는 발행용 HTML 새 탭
+            </p>
+          </div>
+        )}
+
         {!scriptResult && !scriptLoading && (
           <p className="text-sm text-gray-500 text-center py-8">
-            발행 주제를 입력한 뒤 «내 콘텐츠 생성»을 누르면 발행용 본문이 바로 표시되고 히스토리에 저장됩니다.
+            {category === 'writing' && stockReportMode
+              ? '상단에서 «오늘 리포트 생성»을 실행하면 종목별 리포트가 자동으로 여기에 표시됩니다.'
+              : '발행 주제를 입력한 뒤 «내 콘텐츠 생성»을 누르면 발행용 본문이 바로 표시되고 히스토리에 저장됩니다.'}
           </p>
         )}
 
@@ -1657,7 +2077,7 @@ export default function ContentCreationGuideView({ addToast }: { addToast: AddTo
                   </p>
                 )}
               </div>
-              {guide.sections.map((sec, i) => (
+              {activeSections.map((sec, i) => (
                 <div key={i} className="pt-2 border-t border-gray-100 dark:border-gray-700">
                   <p className="text-sm font-bold text-gray-900 dark:text-white mb-2">{sec.heading}</p>
                   <ul className="space-y-1.5">

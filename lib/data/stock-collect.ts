@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/data/supabase'
-import { fetchNaverDailySeries, type StockDailyBar } from '@/lib/data/naver-finance-stock'
+import { fetchNaverDailySeries, fetchNaverWorldDailySeries, type StockDailyBar } from '@/lib/data/naver-finance-stock'
 import { fetchAlphaVantageDailySeries } from '@/lib/data/alpha-vantage-stock'
 import {
   DEFAULT_STOCK_WATCHLIST,
@@ -31,6 +31,25 @@ export interface StockCollectResult {
   savedCount: number
   perTicker: StockCollectTickerResult[]
   message: string
+}
+
+/**
+ * 미국 종목 일별 시세 수집.
+ * 네이버 해외주식 API(키 불필요, 최대 60일) 우선 → 실패 시 Alpha Vantage(키 필요) 폴백.
+ */
+async function fetchUsStockSeries(ticker: string, days: number): Promise<ReturnType<typeof fetchNaverWorldDailySeries>> {
+  const naverResult = await fetchNaverWorldDailySeries(ticker, days)
+  if (naverResult.ok) return naverResult
+
+  const avResult = await fetchAlphaVantageDailySeries(ticker, days)
+  if (avResult.ok && avResult.bars) {
+    return { ok: true, bars: avResult.bars }
+  }
+  return {
+    ok: false,
+    reason: 'request_failed',
+    message: `네이버: ${naverResult.message} / Alpha Vantage: ${avResult.message ?? 'API 키 미설정'}`,
+  }
 }
 
 /** `stock_watchlist`이 비어있으면 기본 워치리스트로 시드 */
@@ -85,7 +104,7 @@ export async function runStockCollect(): Promise<StockCollectResult> {
   for (const item of watchlist) {
     const result = item.market === 'KR'
       ? await fetchNaverDailySeries(item.ticker, item.asset_type, days)
-      : await fetchAlphaVantageDailySeries(item.ticker, days)
+      : await fetchUsStockSeries(item.ticker, days)
 
     if (!result.ok || !result.bars) {
       perTicker.push({ ticker: item.ticker, market: item.market, ok: false, reason: result.reason ?? 'unknown' })
@@ -219,6 +238,44 @@ export async function getStockSeriesForReport(days = 20): Promise<StockSeriesFor
     assetType: w.asset_type,
     bars: (byTicker.get(w.ticker) ?? []).sort((a, b) => (a.tradeDate < b.tradeDate ? -1 : 1)),
   }))
+}
+
+/** 단일 종목 시세 수집 및 stock_daily_snapshots 저장 (자동 리포트 생성 시 데이터 없는 종목용) */
+export async function runStockCollectForTicker(
+  ticker: string,
+  market: StockMarket,
+  assetType: StockAssetType,
+): Promise<StockCollectTickerResult> {
+  const days = getStockCollectLookbackDays()
+  const result = market === 'KR'
+    ? await fetchNaverDailySeries(ticker, assetType, days)
+    : await fetchUsStockSeries(ticker, days)
+
+  if (!result.ok || !result.bars || result.bars.length === 0) {
+    return { ticker, market, ok: false, reason: result.message ?? 'unknown' }
+  }
+
+  const bars = [...result.bars].sort((a, b) => (a.tradeDate < b.tradeDate ? -1 : 1))
+  const rows = bars.map((bar, i) => ({
+    ticker,
+    market,
+    trade_date: bar.tradeDate,
+    open: bar.open,
+    high: bar.high,
+    low: bar.low,
+    close: bar.close,
+    volume: bar.volume,
+    change_pct: calcChangePct(bar.close, i > 0 ? bars[i - 1].close : null),
+    raw: bar,
+  }))
+
+  const { error } = await supabase
+    .from('stock_daily_snapshots')
+    .upsert(rows, { onConflict: 'ticker,trade_date' })
+  if (error) {
+    return { ticker, market, ok: false, reason: error.message }
+  }
+  return { ticker, market, ok: true, savedCount: rows.length }
 }
 
 /** 차트 렌더링용 — 특정 종목의 최근 N일 OHLCV (오래된→최신 정렬). W11이 적재한 stock_daily_snapshots를 그대로 사용 */

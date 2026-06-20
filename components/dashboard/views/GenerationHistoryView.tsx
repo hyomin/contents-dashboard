@@ -134,7 +134,6 @@ export default function GenerationHistoryView({ addToast }: { addToast: AddToast
   const handleClearAnalyzerHistory = () => {
     clearContentAnalyzerHistory()
     setAnalyzerHistory([])
-    addToast('분석 기록을 비웠습니다', 'info')
   }
 
   return (

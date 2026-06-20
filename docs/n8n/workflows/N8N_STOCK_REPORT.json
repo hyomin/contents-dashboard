@@ -1,0 +1,264 @@
+{
+  "name": "[W12] 주식 일일 리포트 자동 생성 (장마감 후)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stock-report-auto",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "node-webhook-stock-report",
+      "name": "Webhook (W11 연동)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 200],
+      "webhookId": "stock-report-auto-webhook"
+    },
+    {
+      "parameters": {},
+      "id": "node-manual-stock-report",
+      "name": "수동 실행",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 380]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "node-schedule-stock-report",
+      "name": "스케줄 (평일 16:00 KST·폴백)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 560]
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = ($env.DASHBOARD_API_URL || 'http://host.docker.internal:3000').replace(/\\/$/, '');\nconst secret = $env.DASHBOARD_API_SECRET || '';\n\nif (!secret) {\n  return [{ json: {\n    ok: false,\n    skipCall: true,\n    message: 'DASHBOARD_API_SECRET 미설정. .env.local 확인 후 n8n 컨테이너를 재기동하세요.',\n  } }];\n}\n\nreturn [{ json: {\n  skipCall: false,\n  settingsUrl: `${base}/api/dashboard/stock-report-settings`,\n  reportUrl: `${base}/api/dashboard/stock-report`,\n  apiSecret: secret,\n  source: 'n8n-w12',\n} }];"
+      },
+      "id": "node-code-stock-report",
+      "name": "기준·API 설정",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 380]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip",
+              "leftValue": "={{ $json.skipCall }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-skip-report",
+      "name": "설정 오류?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [540, 380]
+    },
+    {
+      "parameters": {},
+      "id": "node-noop-report-error",
+      "name": "완료 (설정 오류)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [760, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.settingsUrl }}",
+        "options": {}
+      },
+      "id": "node-http-get-settings",
+      "name": "자동 생성 설정 조회",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 460]
+    },
+    {
+      "parameters": {
+        "jsCode": "const settings = $json;\nconst config = $('기준·API 설정').first().json;\n\nconst autoEnabled = settings.auto_generate_enabled !== false;\nconst skipUntil = settings.skip_until ?? null;\nconst todayKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);\nconst isSkipped = skipUntil !== null && skipUntil >= todayKst;\n\nconst skipGenerate = !autoEnabled || isSkipped;\nconst skipReason = !autoEnabled\n  ? '자동 생성 비활성화됨'\n  : isSkipped\n  ? `${skipUntil}까지 건너뜀 설정됨`\n  : null;\n\nreturn [{ json: {\n  skipGenerate,\n  skipReason,\n  reportUrl: config.reportUrl,\n  apiSecret: config.apiSecret,\n  todayKst,\n} }];"
+      },
+      "id": "node-code-check-settings",
+      "name": "자동 생성 조건 확인",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 460]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip-gen",
+              "leftValue": "={{ $json.skipGenerate }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-skip-gen",
+      "name": "생성 건너뜀?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 460]
+    },
+    {
+      "parameters": {},
+      "id": "node-noop-skipped",
+      "name": "건너뜀",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1420, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.reportUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-dashboard-secret",
+              "value": "={{ $json.apiSecret }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"force\": false}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "node-http-gen-report",
+      "name": "리포트 생성",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [1420, 560]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst statusCode = res.statusCode ?? res.status ?? 200;\n\nif (statusCode === 409) {\n  return [{ json: {\n    ok: false,\n    alreadyExists: true,\n    message: '오늘 리포트가 이미 생성됐습니다. 건너뜁니다.',\n    statusCode,\n  } }];\n}\n\nconst body = res.body ?? res;\nreturn [{ json: {\n  ok: body.ok !== false,\n  alreadyExists: false,\n  message: body.message ?? '리포트 생성 완료',\n  reportDate: body.reportDate ?? '',\n  itemCount: Array.isArray(body.items) ? body.items.length : 0,\n  statusCode,\n} }];"
+      },
+      "id": "node-code-report-result",
+      "name": "생성 결과 확인",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1640, 560]
+    },
+    {
+      "parameters": {},
+      "id": "node-noop-report-done",
+      "name": "완료",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1860, 560]
+    }
+  ],
+  "connections": {
+    "Webhook (W11 연동)": {
+      "main": [
+        [{ "node": "기준·API 설정", "type": "main", "index": 0 }]
+      ]
+    },
+    "수동 실행": {
+      "main": [
+        [{ "node": "기준·API 설정", "type": "main", "index": 0 }]
+      ]
+    },
+    "스케줄 (평일 16:00 KST·폴백)": {
+      "main": [
+        [{ "node": "기준·API 설정", "type": "main", "index": 0 }]
+      ]
+    },
+    "기준·API 설정": {
+      "main": [
+        [{ "node": "설정 오류?", "type": "main", "index": 0 }]
+      ]
+    },
+    "설정 오류?": {
+      "main": [
+        [{ "node": "완료 (설정 오류)", "type": "main", "index": 0 }],
+        [{ "node": "자동 생성 설정 조회", "type": "main", "index": 0 }]
+      ]
+    },
+    "자동 생성 설정 조회": {
+      "main": [
+        [{ "node": "자동 생성 조건 확인", "type": "main", "index": 0 }]
+      ]
+    },
+    "자동 생성 조건 확인": {
+      "main": [
+        [{ "node": "생성 건너뜀?", "type": "main", "index": 0 }]
+      ]
+    },
+    "생성 건너뜀?": {
+      "main": [
+        [{ "node": "건너뜀", "type": "main", "index": 0 }],
+        [{ "node": "리포트 생성", "type": "main", "index": 0 }]
+      ]
+    },
+    "리포트 생성": {
+      "main": [
+        [{ "node": "생성 결과 확인", "type": "main", "index": 0 }]
+      ]
+    },
+    "생성 결과 확인": {
+      "main": [
+        [{ "node": "완료", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [{ "name": "StockReport" }],
+  "pinData": {}
+}

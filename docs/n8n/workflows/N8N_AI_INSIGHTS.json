@@ -1,5 +1,7 @@
 {
+  "id": "ZlOhWxuP6O6DzTjL",
   "name": "[W10] AI 인사이트 (Gemini, 대시보드 데이터 연동)",
+  "active": true,
   "nodes": [
     {
       "parameters": {
@@ -198,15 +200,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
-  "tags": [
-    {
-      "name": "AI 인사이트"
-    },
-    {
-      "name": "Gemini"
-    }
-  ],
-  "pinData": {},
-  "id": "ZlOhWxuP6O6DzTjL"
+  "meta": {
+    "instanceId": "n8n-local"
+  }
 }

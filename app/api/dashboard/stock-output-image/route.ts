@@ -3,10 +3,20 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { denyUnlessDashboardMutationAuth } from '@/lib/dashboard/api-auth'
 
-/** stock/<YYYY-MM-DD>/<daily|research>/<chart|slide>/{이름}-{1~4}.png 형식만 허용 (경로 탈출 방지) */
-const PATH_PATTERN = /^stock\/\d{4}-\d{2}-\d{2}\/(daily|research)\/(chart|slide)\/[^/\\]+\.png$/
+/** 허용 경로:
+ *  - stock/<YYYY-MM-DD>/<daily|research>/<chart|slide>/{이름}.png  (차트/슬라이드)
+ *  - stock/thumbnails/{historyId}.{png|jpg|jpeg|webp}              (사용자 업로드 썸네일)
+ */
+const PATH_PATTERN = /^stock\/(?:\d{4}-\d{2}-\d{2}\/(daily|research)\/(chart|slide)\/[^/\\]+\.png|thumbnails\/[^/\\]+\.(png|jpe?g|webp))$/
 
-/** 주식 리포트 차트/슬라이드 PNG 서빙 — HTML 변환(클립보드 복사)용 원본 이미지 제공 */
+const MIME_MAP: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+}
+
+/** 주식 리포트 차트/슬라이드 PNG 서빙 및 커스텀 썸네일 서빙 */
 export async function GET(req: NextRequest) {
   const denied = await denyUnlessDashboardMutationAuth(req)
   if (denied) return denied
@@ -21,8 +31,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: '파일을 찾을 수 없습니다.' }, { status: 404 })
   }
 
+  const ext = path.split('.').pop()?.toLowerCase() ?? 'png'
+  const contentType = MIME_MAP[ext] ?? 'image/png'
+
   const buffer = readFileSync(filePath)
   return new NextResponse(buffer, {
-    headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' },
+    headers: { 'Content-Type': contentType, 'Cache-Control': 'no-store' },
   })
 }

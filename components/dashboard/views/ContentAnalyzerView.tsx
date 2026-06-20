@@ -80,6 +80,7 @@ export default function ContentAnalyzerView({ addToast }: { addToast: AddToast }
   const [result, setResult] = useState<ContentAnalyzerResult | null>(null)
   const [canWatchDirectly, setCanWatchDirectly] = useState(false)
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null)
+  const [isRestoredFromHistory, setIsRestoredFromHistory] = useState(false)
 
   const historyHref = (() => {
     const p = new URLSearchParams(searchParams.toString())
@@ -94,6 +95,7 @@ export default function ContentAnalyzerView({ addToast }: { addToast: AddToast }
     setResult(item.result)
     setCanWatchDirectly(item.canWatchDirectly)
     setActiveHistoryId(item.id)
+    setIsRestoredFromHistory(true)
   }
 
   const loadedHistoryFromUrl = useRef<string | null>(null)
@@ -128,6 +130,7 @@ export default function ContentAnalyzerView({ addToast }: { addToast: AddToast }
     setLoading(true)
     setResult(null)
     setActiveHistoryId(null)
+    setIsRestoredFromHistory(false)
     try {
       const res = await fetch('/api/dashboard/content-analyzer', {
         method: 'POST',
@@ -239,7 +242,7 @@ export default function ContentAnalyzerView({ addToast }: { addToast: AddToast }
                 추정 기반 분석
               </span>
             )}
-            {activeHistoryId && (
+            {isRestoredFromHistory && (
               <span className="px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300 font-bold shrink-0">
                 🕘 기록에서 불러옴
               </span>

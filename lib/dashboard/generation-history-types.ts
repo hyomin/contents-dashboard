@@ -33,6 +33,8 @@ export interface GenerationHistoryPolished {
   chartIndexes?: number[]
   /** 주식 리포트 전용 — output_N.png → 종목별 슬라이드 PNG 상대경로 매핑(slideFiles[i]는 chartIndexes[i]에 대응) */
   chartImages?: { name: string; slideFiles: string[] }[]
+  /** 사용자 업로드 커스텀 썸네일 상대경로 (stock/thumbnails/{id}.{ext}) */
+  customThumbnail?: string
 }
 
 export interface GenerationHistoryItem {

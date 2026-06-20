@@ -220,15 +220,15 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
   {
     no: 'W11',
     key: 'stock-collect',
-    name: '주식 시세 수집 (KIS + Alpha Vantage)',
+    name: '주식 시세 수집 (네이버 금융 API)',
     webhookPath: 'stock-collect',
     envWebhookKey: 'N8N_WEBHOOK_STOCK_COLLECT',
     workflowFile: 'N8N_STOCK_COLLECT.json',
     triggers: ['webhook', 'manual', 'schedule'],
-    scheduleHint: '국내 장마감 후 KST 15:30, 미국 장마감 후 KST 05:00 (스케줄)',
+    scheduleHint: '평일 장마감 후 KST 15:30 (UTC 06:30) 자동 실행 → W12 트리거',
     description:
-      '워치리스트(국내 KIS / 미국 Alpha Vantage) 일별 시세를 수집해 stock_daily_snapshots에 저장. 「주식 일일 리포트」 생성의 데이터 소스.',
-    coreNodes: 'Schedule · HTTP(KIS) · HTTP(Alpha Vantage) · Code · Supabase Upsert',
+      '워치리스트 국내(네이버 금융)·해외(네이버 월드 API) 일별 시세를 수집해 stock_daily_snapshots에 저장. 완료 후 W12 리포트 생성을 웹훅으로 트리거.',
+    coreNodes: 'Schedule · Webhook · HTTP(대시보드 stock-collect) · Code · W12 트리거',
     roadmapServiceIds: ['stock-report'],
     linkedViewIds: ['content-guide'],
     dashboardApis: [
@@ -240,14 +240,14 @@ export const N8N_LIVE_WORKFLOWS: N8nLiveWorkflow[] = [
     no: 'W12',
     key: 'stock-report-auto',
     name: '주식 일일 리포트 자동 생성',
-    webhookPath: 'stock-report',
+    webhookPath: 'stock-report-auto',
     envWebhookKey: 'N8N_WEBHOOK_STOCK_REPORT',
     workflowFile: 'N8N_STOCK_REPORT.json',
     triggers: ['webhook', 'manual', 'schedule'],
-    scheduleHint: 'W11 이후 트리거 (국내·미국 시세 수집 완료 후)',
+    scheduleHint: 'W11 완료 직후 웹훅 트리거 / 평일 KST 16:00 스케줄 폴백',
     description:
-      'stock_report_settings(자동생성 on/off, 오늘 건너뛰기)를 확인해 조건이 맞으면 주식 일일 리포트를 생성·히스토리에 저장(발행은 항상 수동 검토).',
-    coreNodes: 'Schedule · HTTP(GET settings) · IF(분기) · HTTP(POST stock-report)',
+      'stock_report_settings(자동생성 on/off, 오늘 건너뛰기)를 확인해 조건이 맞으면 주식 일일 리포트를 생성·히스토리에 저장. 발행은 대시보드에서 수동 검토 후 진행.',
+    coreNodes: 'Webhook(W11 연동) · Schedule(폴백) · HTTP(GET settings) · IF(분기) · HTTP(POST stock-report)',
     roadmapServiceIds: ['stock-report'],
     linkedViewIds: ['content-guide'],
     dashboardApis: [

@@ -46,6 +46,10 @@ const AiInsightView = dynamic(
   () => import('@/components/dashboard/views/AiInsightView'),
   { loading: ViewFallback },
 )
+const NicheResearchView = dynamic(
+  () => import('@/components/dashboard/views/NicheResearchView'),
+  { loading: ViewFallback },
+)
 const MyChannelsView = dynamic(
   () => import('@/components/dashboard/views/MyChannelsView'),
   { loading: ViewFallback },
@@ -106,11 +110,6 @@ const BenchmarkViewComponent = dynamic(
   () => import('@/components/dashboard/BenchmarkView'),
   { loading: ViewFallback },
 )
-const TopicSuggestView = dynamic(
-  () => import('@/components/dashboard/TopicSuggestView'),
-  { loading: ViewFallback },
-)
-
 // ─────────────────────────────────────────────────────────────────
 
 function ComingSoon({ title }: { title: string }) {
@@ -175,8 +174,9 @@ export function DashboardPageContent() {
       case 'outlier':              return <OutlierView onSelect={setSelectedVideo} addToast={addToast} />
       case 'trending':             return <TrendingView addToast={addToast} />
       case 'ai-insight':           return <AiInsightView addToast={addToast} />
+      case 'niche-research':       return <NicheResearchView addToast={addToast} />
       case 'benchmark':            return <BenchmarkViewComponent addToast={addToast} />
-      case 'topic-suggest':        return <TopicSuggestView addToast={addToast} />
+      case 'topic-suggest':        return <ContentCreationGuideView addToast={addToast} />
       case 'my-channels':
       case 'channels-mine':        return <MyChannelsView addToast={addToast} />
       case 'calendar':             return <CalendarView addToast={addToast} />

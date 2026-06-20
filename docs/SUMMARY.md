@@ -1,6 +1,6 @@
 # Contents Dashboard — 현황 요약
 
-**최종 갱신:** 2026-06-12  
+**최종 갱신:** 2026-06-17  
 **프로젝트 루트:** `dashboard-app/`  
 **접속:** `http://localhost:3000/dashboard?view=<화면ID>`
 
@@ -80,7 +80,9 @@
 | n8n 인프라 | 로컬 Docker | PC 종료 시 W01~W10 스케줄·웹훅 중단 |
 | 자동화 테스트 | `verify:collect`만 | Vitest/Playwright 없음 |
 | 프로덕션 빌드 | `archive/` 포함 시 실패 | tsconfig에 `archive` exclude 권장 |
-| DB 마이그레이션 14·15 | 파일 존재 | Supabase 적용 여부 수동 확인 필요 |
+| DB 마이그레이션 15 | ⚠️ **미적용** | `apply-pending-20260617.sql` Supabase SQL Editor에서 실행 필요 |
+| 미국 주식 시세 수집 | ⚠️ **ALPHA_VANTAGE_API_KEY 없음** | KR 종목은 정상, US(SPY/QQQ/AAPL/NVDA/MSFT) 데이터 없음 |
+| n8n W11/W12 | Phase 2 미완 | 워크플로 JSON 미작성, 수동 API 호출로 임시 운영 가능 |
 
 사이드바 배지 정의: `lib/dashboard/dashboard-nav.ts` (`NAV_PARTIAL_DUMMY_VIEW_IDS` 등)
 

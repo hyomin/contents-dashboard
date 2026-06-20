@@ -35,6 +35,8 @@ export interface AiScriptGuideRequestContext {
 export interface GuideSection {
   heading: string
   bullets: string[]
+  /** 이 섹션을 표시할 모드. 없으면 항상 표시. */
+  modes?: ('shortform' | 'longform')[]
 }
 
 export interface CategoryGuide {
@@ -173,6 +175,7 @@ export const GUIDE_BY_CATEGORY: Record<GuideCategory, CategoryGuide> = {
           '서론 10% · 본론 75% · 결론+CTA 15% 느낌으로 편집',
           '그래프·자료 화면은 7초 이상 머무르지 않게 컷 전환',
         ],
+        modes: ['longform'],
       },
       {
         heading: 'AI 제작 과정형 롱폼 (원소스 3-아웃풋)',
@@ -182,6 +185,7 @@ export const GUIDE_BY_CATEGORY: Record<GuideCategory, CategoryGuide> = {
           '실패 클립은 숏폼 A(날것 브이로그) + 숏폼 B(해결형)로 파생 — 제작 1회=아웃풋 3종',
           'YouTube AI 라벨: 완성 영상·제작 과정 영상 모두 AI 생성 콘텐츠 표시 필수',
         ],
+        modes: ['longform'],
       },
       {
         heading: '숏폼 / 릴스',
@@ -190,6 +194,7 @@ export const GUIDE_BY_CATEGORY: Record<GuideCategory, CategoryGuide> = {
           '자막은 키워드만 굵게, 한 줄 길이 짧게',
           '카테고리 선택: ai-creation-process(날것형) / ai-failure-resolved(해결형) — 같은 세션 소재로 두 종류 생성',
         ],
+        modes: ['shortform'],
       },
     ],
     closingTip: '벤치마킹으로 등록한 고성과 영상 3개의 도입부만 베껴 쓰기(문장 구조) 후 자신의 정보로 치환해 보세요.',

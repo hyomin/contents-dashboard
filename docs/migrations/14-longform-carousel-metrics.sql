@@ -66,8 +66,7 @@ BEGIN
     vs_avg_longform    = CASE
       WHEN lca.avg_lf > 0 THEN ROUND((v.views::DECIMAL / lca.avg_lf), 2)
       ELSE 0
-    END,
-    updated_at = NOW()
+    END
   FROM longform_channel_avg lca
   WHERE
     v.channel_id = lca.channel_id

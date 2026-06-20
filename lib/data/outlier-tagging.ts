@@ -63,7 +63,7 @@ function shouldUpgradeTier(current: string | null | undefined, next: 'S' | 'A' |
   return TIER_RANK[next] > cur
 }
 
-export async function getTaggedOutlierVideos(limit = 50): Promise<OutlierTagRow[]> {
+export async function getTaggedOutlierVideos(limit = 100): Promise<OutlierTagRow[]> {
   const { data, error } = await supabase
     .from('outlier_tags')
     .select('*')
@@ -126,6 +126,7 @@ export async function runOutlierTagging(options?: {
     tagged_at: now,
     source,
     updated_at: now,
+    format: (v.format as string | null) ?? null,
   }))
 
   const { error: upsertError } = await supabase

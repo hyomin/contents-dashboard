@@ -2,12 +2,12 @@
 
 로컬 Docker n8n 기준. JSON은 [workflows/](./workflows/) 에 있습니다.
 
-코드 기준 현행 목록: `lib/n8n/live-workflows.ts` (W01~W10)  
+코드 기준 현행 목록: `lib/n8n/live-workflows.ts` (W01~W12)  
 설치: `./scripts/n8n-setup.sh`
 
 스케줄 트리거는 **12시간마다** (`hoursInterval: 12`). 즉시 실행은 Webhook·수동·대시보드 버튼을 사용하세요.
 
-## 활성 워크플로 (W01~W10)
+## 활성 워크플로 (W01~W12)
 
 | # | JSON | Webhook | 설명 |
 |---|------|---------|------|
@@ -21,12 +21,14 @@
 | W08 | [N8N_LONGFORM_SCRIPT.json](./workflows/N8N_LONGFORM_SCRIPT.json) | `longform-script` | 콘텐츠 가이드 AI (글·이미지·영상) |
 | W09 | [N8N_TOPIC_SUGGEST_V2.json](./workflows/N8N_TOPIC_SUGGEST_V2.json) | `topic-suggest` | RSS+Outlier → 주제 5개 |
 | W10 | [N8N_AI_INSIGHTS.json](./workflows/N8N_AI_INSIGHTS.json) | `ai-insights` | 수집 데이터 → 인사이트 JSON |
+| W11 | — (설계 가이드: `docs/n8n-stock-report-guide.md`) | `stock-collect` | 주식 시세 수집 (KIS + Alpha Vantage) → `stock_daily_snapshots` |
+| W12 | — (설계 가이드: `docs/n8n-stock-report-guide.md`) | `stock-report` | 자동생성 설정 확인 → 주식 일일 리포트 생성 |
 
 ## 보관 (구버전·제거)
 
 | JSON | 비고 |
 |------|------|
-| [N8N_TOPIC_SUGGEST.json](./workflows/N8N_TOPIC_SUGGEST.json) | LangChain — **V2로 대체** |
+| `N8N_TOPIC_SUGGEST.json` | LangChain — **V2로 대체 후 삭제** |
 | `N8N_BGM_IDENTIFY.json` | **제거** — 콘텐츠 분석기 Gemini BGM 분석으로 대체 |
 
 ## 설치

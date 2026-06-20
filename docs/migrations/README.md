@@ -21,24 +21,39 @@ Supabase **SQL Editor**에서 아래 순서대로 실행합니다.
 | 11 | [11-content-generation-history.sql](./11-content-generation-history.sql) | 생성 히스토리 |
 | 12 | [12-topic-keyword-guide-history.sql](./12-topic-keyword-guide-history.sql) | 주제 키워드 가이드 히스토리 |
 | 13 | [13-security-and-perf.sql](./13-security-and-perf.sql) | 보안·성능 |
-| 14 | [14-longform-carousel-metrics.sql](./14-longform-carousel-metrics.sql) | vs_avg_longform, chapter_markers |
-| 15 | [15-channel-content-style.sql](./15-channel-content-style.sql) | channel_content_style |
+| 14 | [14-longform-carousel-metrics.sql](./14-longform-carousel-metrics.sql) | vs_avg_longform, chapter_markers — ✅ 컬럼 적용됨 / ⚠️ 함수 버그 수정 필요 |
+| 15 | [15-channel-content-style.sql](./15-channel-content-style.sql) | channels.content_style — ❌ 미적용 |
+| 16 | [16-stock-report.sql](./16-stock-report.sql) | stock_watchlist, stock_daily_snapshots, stock_report_settings — ✅ 적용됨 |
+| 17 | [17-outlier-tags-format.sql](./17-outlier-tags-format.sql) | outlier_tags.format 컬럼 추가 — ❌ 미적용 |
 
 ## 권장
 
 - **새 프로젝트:** `00-schema-full.sql` 한 번만 실행하면 대부분 충분합니다.
-- **기존 DB:** `00` 적용 후 추가된 기능만 `01`~`15`에서 골라 실행.
+- **기존 DB:** `00` 적용 후 추가된 기능만 `01`~`16`에서 골라 실행.
 
-## 적용 확인 (14·15)
+## ⚡ 즉시 적용 필요 (2026-06-17 기준)
+
+`apply-pending-20260617.sql`을 Supabase SQL Editor에 붙여넣고 실행:
+
+1. **migration 14 함수 버그 수정** — `update_longform_vs_avg()`가 존재하지 않는 `videos.updated_at`을 참조해 호출 시 500 에러 발생
+2. **migration 15** — `channels.content_style` 컬럼 미적용 → 채널 스타일 저장 불가
+
+## 적용 확인
 
 Supabase SQL Editor:
 
 ```sql
+-- 14 컬럼
 SELECT column_name FROM information_schema.columns
 WHERE table_name = 'videos' AND column_name IN ('vs_avg_longform', 'avg_views_longform');
 
-SELECT column_name FROM information_schema.columns
-WHERE table_name = 'channels' AND column_name = 'channel_content_style';
-```
+-- 14 함수 (수정 후)
+SELECT update_longform_vs_avg();  -- 정수 반환되면 정상
 
-결과가 없으면 해당 마이그레이션 파일을 실행하세요.
+-- 15
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'channels' AND column_name = 'content_style';
+
+-- 16
+SELECT COUNT(*) FROM stock_watchlist;
+```

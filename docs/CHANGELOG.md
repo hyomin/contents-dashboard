@@ -1,5 +1,16 @@
 # 변경 이력
 
+## 2026-06-17
+
+### fix: 프로젝트 누락 항목 3종 보완
+- **W10 n8n JSON 백업**: SQLite DB recovery로 추출, `docs/n8n/workflows/N8N_AI_INSIGHTS.json` 저장 (id: ZlOhWxuP6O6DzTjL, nodes 7개)
+- **migration 14 bugfix**: `update_longform_vs_avg()` 함수의 `videos.updated_at` 참조 제거 (컬럼 미존재)
+- **migration 15**: `channels.content_style` 미적용 — `docs/migrations/apply-pending-20260617.sql`에 즉시 실행 SQL 준비
+- **Alpha Vantage**: `.env.local`에 `ALPHA_VANTAGE_API_KEY` 플레이스홀더 추가, KIS 키를 주석 처리(현재 코드 미사용)
+- `docs/migrations/README.md` 16번·적용 상태 반영, SUMMARY.md 갱신
+
+---
+
 ## 2026-06-12 (W11 제거)
 
 ### refactor: W11 BGM 정밀 식별(AudD) 제거

@@ -20,6 +20,7 @@ import {
   callGeminiGenerateContent,
   formatGeminiApiError,
   resolveGeminiModel,
+  sanitizeGeminiJsonText,
 } from '@/lib/dashboard/gemini-models'
 import {
   buildReferencePromptBlock,
@@ -292,6 +293,8 @@ function mergeContext(
       client?.trendingKeywords?.length ? client.trendingKeywords : auto.trendingKeywords,
     rssTopics:
       client?.rssTopics?.length ? client.rssTopics : auto.rssTopics,
+    guideReferences: client?.guideReferences,
+    shortformCategoryId: client?.shortformCategoryId,
   }
 }
 
@@ -349,16 +352,19 @@ export async function POST(req: NextRequest) {
     }
 
     const text = result.text
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch)
-      return NextResponse.json({ error: 'AI 응답 파싱 실패. 다시 시도해주세요.' }, { status: 500 })
+    const sanitized = sanitizeGeminiJsonText(text)
+    const fence = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
+    const cleaned = fence ? fence[1].trim() : text
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+    const raw = jsonMatch ? jsonMatch[0].replace(/,\s*([}\]])/g, '$1') : null
 
-    let parsed: Record<string, unknown>
-    try {
-      parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>
-    } catch {
-      return NextResponse.json({ error: 'AI 응답 JSON 파싱 실패. 다시 시도해주세요.' }, { status: 500 })
+    let parsed: Record<string, unknown> | null = null
+    for (const candidate of [raw, sanitized]) {
+      if (!candidate) continue
+      try { parsed = JSON.parse(candidate) as Record<string, unknown>; break } catch { /* 다음 후보 */ }
     }
+    if (!parsed)
+      return NextResponse.json({ error: 'AI 응답 파싱 실패. 다시 시도해주세요.' }, { status: 500 })
 
     if (!isValidContentResult(parsed, body.targetFormat)) {
       console.error('[content-generate] schema mismatch', body.targetFormat, Object.keys(parsed))

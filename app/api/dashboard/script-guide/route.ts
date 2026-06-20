@@ -24,6 +24,8 @@ export type { ScriptGuideOutput }
 export interface ScriptGuideResponse extends ScriptGuideOutput {
   /** 발행용 정재본 — 생성 시 항상 포함 */
   polished: ContentPolishResult
+  /** 생성 완료됐지만 사용자에게 알려야 할 품질 경고 */
+  warning?: string
 }
 
 async function generateDirectPublish(
@@ -74,12 +76,9 @@ async function generateDirectPublish(
     return { output: null, error: 'AI 응답 파싱에 실패했습니다. 다시 시도해 주세요.' }
   }
 
-  if (
-    shortform &&
-    !parsed.polished.fullContent.includes('### 씬') &&
-    !parsed.polished.fullContent.includes('장면')
-  ) {
-    console.warn('[script-guide] shortform output may lack scene / Flow paste blocks')
+  let warning: string | undefined
+  if (shortform && !/\[\d+~\d+초\]/.test(parsed.polished.fullContent)) {
+    warning = '숏폼 장면([0~N초] 씬 구조)이 누락됐을 수 있습니다. 내용을 확인 후 필요하면 재생성하세요.'
   }
 
   return {
@@ -87,6 +86,7 @@ async function generateDirectPublish(
       ...parsed.script,
       mode: 'direct',
       polished: parsed.polished,
+      warning,
     },
   }
 }

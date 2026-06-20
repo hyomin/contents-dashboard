@@ -143,7 +143,7 @@ ${emotionToneBlock}
   }
 }`
 
-  const maxOutputTokens = shortform ? 8_192 : targetFormat === 'longform' ? 12_288 : 8192
+  const maxOutputTokens = shortform ? 8_192 : targetFormat === 'longform' ? 16_384 : 8_192
   return { prompt, maxOutputTokens, imageGuideCount }
 }
 
@@ -206,7 +206,9 @@ export function parseDirectPublishResponse(
 
   const intent =
     ctx.intent ??
-    (ctx.category === 'video' ? 'shortform_video' : ctx.category === 'writing' ? 'blog' : 'carousel')
+    (ctx.category === 'video'
+      ? targetFormat === 'longform' ? 'longform_video' : 'shortform_video'
+      : ctx.category === 'writing' ? 'blog' : 'carousel')
 
   const script = buildScriptGuideOutput({
     mode: 'direct',

@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import type { AddToast } from '@/lib/dashboard/dashboard-types'
-import type { InsightSection, GroundingSource } from '@/app/api/dashboard/insights/route'
+import type { InsightSection, InsightItem, GroundingSource } from '@/app/api/dashboard/insights/route'
 import { PageLoadingOverlay } from '@/components/dashboard/ui/loading'
 import { usePlanningQueue } from '@/lib/hooks/use-planning-queue'
 import { N8nLv1ServicesSection } from '@/components/dashboard/n8n-lv1-services-section'
@@ -59,9 +60,11 @@ function SourceLinks({ sources }: { sources: GroundingSource[] }) {
 function InsightCard({
   section,
   onAddPlan,
+  onGoGuide,
 }: {
   section: InsightSection
   onAddPlan: (text: string, icon?: string) => void
+  onGoGuide: (text: string, action?: string, format?: InsightItem['format']) => void
 }) {
   const style = SECTION_STYLES[section.type]
 
@@ -96,13 +99,22 @@ function InsightCard({
                     <span className={`text-[11px] px-2 py-0.5 rounded-md ${style.tagBg} font-medium`}>
                       → {item.action}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => onAddPlan(item.text, item.icon)}
-                      className="opacity-0 group-hover:opacity-100 transition text-[10px] px-2.5 py-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 shrink-0"
-                    >
-                      기획 추가
-                    </button>
+                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => onAddPlan(item.text, item.icon)}
+                        className="text-[10px] px-2.5 py-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+                      >
+                        기획 추가
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onGoGuide(item.text, item.action, item.format)}
+                        className="text-[10px] px-2.5 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                      >
+                        가이드 →
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -124,22 +136,78 @@ function formatRelativeTime(ts: number | null): string {
   const diffMin = Math.floor((Date.now() - ts) / 60000)
   if (diffMin < 1) return '방금 전'
   if (diffMin < 60) return `${diffMin}분 전`
-  return `${Math.floor(diffMin / 60)}시간 전`
+  const h = Math.floor(diffMin / 60)
+  if (h < 24) return `${h}시간 전`
+  return `${Math.floor(h / 24)}일 전`
 }
+
+// ─── 클라이언트 localStorage 캐시 (24h) ────────────────────────────
+const LS_KEY = 'dashboard_ai_insight_v1'
+const LS_TTL = 24 * 60 * 60 * 1000
+
+interface InsightLsCache {
+  sections: InsightSection[]
+  personalCachedAt: number | null
+  scoutCachedAt: number | null
+  savedAt: number
+}
+
+function loadInsightLs(): InsightLsCache | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    if (!raw) return null
+    const d = JSON.parse(raw) as InsightLsCache
+    if (Date.now() - d.savedAt > LS_TTL) return null
+    return d
+  } catch { return null }
+}
+
+function saveInsightLs(d: Omit<InsightLsCache, 'savedAt'>) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ ...d, savedAt: Date.now() })) } catch {}
+}
+
+function clearInsightLs() {
+  try { localStorage.removeItem(LS_KEY) } catch {}
+}
+// ──────────────────────────────────────────────────────────────────
 
 type BustMode = 'personal' | 'scout' | 'all'
 
 export default function AiInsightView({ addToast }: { addToast: AddToast }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [sections, setSections] = useState<InsightSection[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [scoutLoading, setScoutLoading] = useState(false)
   const [personalCachedAt, setPersonalCachedAt] = useState<number | null>(null)
   const [scoutCachedAt, setScoutCachedAt] = useState<number | null>(null)
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null)
   const [fetchError, setFetchError] = useState(false)
   const { addItem: addToQueue } = usePlanningQueue()
 
+  const goToContentGuide = useCallback(
+    (text: string, action?: string, format?: InsightItem['format']) => {
+      const p = new URLSearchParams(searchParams.toString())
+      p.set('view', 'content-guide')
+      // action = Gemini가 생성한 짧은 추천 액션 → 발행 주제로 매핑
+      // text   = 2-3문장 설명 → 주제 키워드 가이드(seedKeyword)로 매핑
+      // format = Gemini 추천 포맷 → 콘텐츠 가이드 포맷 자동 설정
+      const topic = action?.trim() || ''
+      if (topic) p.set('topic', topic)
+      const seed = text.trim()
+      if (seed) p.set('seedKeyword', encodeURIComponent(seed))
+      if (format) p.set('insightFormat', format)
+      router.push(`${pathname}?${p.toString()}`)
+      addToast('콘텐츠 가이드로 이동합니다 ✨', 'success')
+    },
+    [router, pathname, searchParams, addToast],
+  )
+
   const load = useCallback(
     (bust?: BustMode) => {
+      // bust가 있으면 localStorage 캐시 삭제 후 강제 재요청
+      if (bust) clearInsightLs()
       if (bust === 'scout') setScoutLoading(true)
       else setLoading(true)
       setFetchError(false)
@@ -151,9 +219,15 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
             personalCachedAt?: number
             scoutCachedAt?: number
           }) => {
-            setSections(d.sections ?? [])
-            setPersonalCachedAt(d.personalCachedAt ?? null)
-            setScoutCachedAt(d.scoutCachedAt ?? null)
+            const sections = d.sections ?? []
+            const personal = d.personalCachedAt ?? null
+            const scout = d.scoutCachedAt ?? null
+            setSections(sections)
+            setPersonalCachedAt(personal)
+            setScoutCachedAt(scout)
+            const now = Date.now()
+            setLastUpdatedAt(now)
+            saveInsightLs({ sections, personalCachedAt: personal, scoutCachedAt: scout })
           },
         )
         .catch(() => {
@@ -169,8 +243,19 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
   )
 
   useEffect(() => {
-    load()
-  }, [load])
+    // localStorage 캐시가 있으면 즉시 표시 (로딩 오버레이 없음)
+    // 없으면 최초 1회만 자동 로드 — 이후는 버튼으로만 업데이트
+    const cached = loadInsightLs()
+    if (cached) {
+      setSections(cached.sections)
+      setPersonalCachedAt(cached.personalCachedAt)
+      setScoutCachedAt(cached.scoutCachedAt)
+      setLastUpdatedAt(cached.savedAt)
+    } else {
+      load()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const aiSuccessCount = sections.filter((s) => s.isAi).length
   const hasScoutSections = sections.some((s) => s.type === 'korea' || s.type === 'global')
@@ -178,7 +263,7 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
   return (
     <PageLoadingOverlay
       loading={loading && sections.length === 0}
-      label="Gemini가 트렌드를 분석 중입니다… (약 20~40초)"
+      label="Gemini가 처음 분석 중입니다… (약 20~40초 · 이후 24시간 캐시)"
     >
       <div className="space-y-6">
         <N8nLv1ServicesSection viewId="ai-insight" addToast={addToast} />
@@ -190,10 +275,11 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
               🤖 AI 인사이트 &amp; 추천 액션
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              📊 내 데이터 최적화: {formatRelativeTime(personalCachedAt)} 갱신 (30분 캐시)
-              {hasScoutSections && (
-                <> · 🔍 트렌드 스캔(발굴): {formatRelativeTime(scoutCachedAt)} (12시간 캐시 · 주 1~2회 권장)</>
-              )}
+              {lastUpdatedAt
+                ? `마지막 업데이트: ${formatRelativeTime(lastUpdatedAt)} · 24시간 주기`
+                : sections.length > 0
+                  ? '캐시 데이터 표시 중'
+                  : '데이터 없음 · 업데이트 버튼을 눌러주세요'}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -209,10 +295,10 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
                 }`}
               >
                 {aiSuccessCount === sections.length
-                  ? `✦ AI ${aiSuccessCount}/${sections.length} 성공`
+                  ? `✦ AI ${aiSuccessCount}/${sections.length}`
                   : aiSuccessCount > 0
-                    ? `⚡ AI ${aiSuccessCount}/${sections.length} 부분 성공`
-                    : '⚠ AI 분석 실패'}
+                    ? `⚡ AI ${aiSuccessCount}/${sections.length}`
+                    : '⚠ AI 실패'}
               </span>
             )}
             {hasScoutSections && (
@@ -222,23 +308,24 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
                   load('scout')
                   addToast('한국/글로벌 트렌드를 다시 스캔합니다 (약 20~40초 소요)', 'success')
                 }}
-                disabled={scoutLoading}
-                title="신규 카테고리 발굴용 · 주 1~2회 점검을 권장합니다"
-                className="shrink-0 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 px-4 py-2 rounded-xl font-semibold transition"
+                disabled={scoutLoading || loading}
+                title="한국·글로벌 트렌드 섹션만 재스캔"
+                className="shrink-0 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 px-3 py-2 rounded-xl font-semibold transition"
               >
-                {scoutLoading ? '스캔 중…' : '🔍 트렌드 스캔 새로고침'}
+                {scoutLoading ? '스캔 중…' : '🔍 트렌드 갱신'}
               </button>
             )}
             <button
               type="button"
               onClick={() => {
-                load('personal')
-                addToast('내 데이터 기반 추천을 다시 분석합니다', 'success')
+                load('all')
+                addToast('전체 인사이트를 새로 분석합니다 (약 20~40초 소요)', 'success')
               }}
-              disabled={loading}
+              disabled={loading || scoutLoading}
+              title="모든 섹션 재분석 · 24시간마다 자동 만료"
               className="shrink-0 text-xs bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-80 disabled:opacity-40 px-4 py-2 rounded-xl font-semibold transition"
             >
-              {loading ? '분석 중…' : '↻ 내 데이터 재분석'}
+              {loading ? '분석 중…' : '↻ 업데이트'}
             </button>
           </div>
         </div>
@@ -257,7 +344,7 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
               </div>
             ))}
             <p className="text-center text-sm text-gray-400 py-2">
-              Gemini가 한국·글로벌 트렌드를 검색 중입니다…
+              Gemini가 분석 중입니다… 완료 후 24시간 동안 즉시 표시됩니다.
             </p>
           </div>
         ) : fetchError || sections.length === 0 ? (
@@ -294,13 +381,14 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
               <InsightCard
                 key={sec.type}
                 section={sec}
+                onGoGuide={(text, action, format) => goToContentGuide(text, action, format)}
                 onAddPlan={(text, icon) => {
                   // 한국/글로벌 트렌드 = 신규 카테고리 확장 후보, 개인맞춤 = 현재 운영 채널 최적화
                   const category = sec.type === 'personal' ? 'current' : 'expansion'
                   const added = addToQueue(text.slice(0, 80), 'insight', { detail: text, icon, category })
                   addToast(
                     added
-                      ? `기획 큐에 추가됨 (${category === 'expansion' ? '확장 후보' : '현재 운영'}) · 콘텐츠 가이드 참고 레퍼런스에서 연결하세요 ✓`
+                      ? `기획 큐에 추가됨 (${category === 'expansion' ? '확장 후보' : '현재 운영'}) ✓`
                       : '이미 기획 큐에 있는 항목입니다',
                     added ? 'success' : 'warning',
                   )
@@ -308,7 +396,7 @@ export default function AiInsightView({ addToast }: { addToast: AddToast }) {
               />
             ))}
             <p className="text-center text-[11px] text-gray-400">
-              ✦ 내 데이터 최적화: Gemini 분석 · 30분 캐시 ｜ 한국·글로벌 트렌드: Google Search Grounding · 12시간 캐시
+              ✦ Gemini 분석 · 24시간 캐시 · 수동 업데이트 방식 ｜ 한국·글로벌 트렌드: Google Search Grounding
             </p>
           </div>
         )}

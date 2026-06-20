@@ -73,6 +73,7 @@ export interface OutlierTagRow {
   tagged_at: string
   source: string
   updated_at: string
+  format?: string | null
 }
 
 export function tierForVsAvg(vsAvg: number): 'S' | 'A' | 'B' | 'C' {
@@ -96,5 +97,6 @@ export function outlierTagToVideo(row: OutlierTagRow, index = 0): Video {
     platform: (row.platform ?? 'youtube') as Video['platform'],
     publishedAt: row.tagged_at?.split('T')[0] ?? '',
     keyword: 'outlier-tag',
+    format: (row.format ?? undefined) as VideoFormat | undefined,
   }
 }

@@ -101,6 +101,7 @@ async function trimOldHistory(): Promise<void> {
     .from('content_generation_history')
     .select('id')
     .order('updated_at', { ascending: false })
+    .limit(MAX_ITEMS + 10)
 
   if (error || !data || data.length <= MAX_ITEMS) return
 

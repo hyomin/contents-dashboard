@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { Video, AddToast } from '@/lib/dashboard/dashboard-types'
 import { dbVideoToVideo, outlierTagToVideo, type OutlierTagRow } from '@/lib/dashboard/dashboard-helpers'
 import ContentTable from '@/components/dashboard/ContentTable'
@@ -287,12 +287,21 @@ export default function OutlierView({
   const [showTaggedOnly, setShowTaggedOnly] = useState(false)
   const [formatTab, setFormatTab] = useState<FormatTab>('all')
   const [showTable, setShowTable] = useState(false)
+  const [aiInsight, setAiInsight] = useState<string | null>(null)
+
+  // formatTab을 ref로 유지 — loadOutliers dep에서 제거해 태깅 모드 불필요 재호출 방지
+  const formatTabRef = useRef(formatTab)
+  formatTabRef.current = formatTab
+  // 마운트 초기 실행 여부 추적 — 포맷 탭 effect가 마운트 시 중복 실행되는 것을 막음
+  const isMounted = useRef(false)
 
   const loadOutliers = useCallback(() => {
     setLoading(true)
     const type = showTaggedOnly ? 'tagged-outliers' : 'outliers'
-    const params = new URLSearchParams({ type, limit: '50' })
-    if (formatTab !== 'all' && !showTaggedOnly) params.set('format', formatTab)
+    const params = new URLSearchParams({ type, limit: '100' })
+    if (!showTaggedOnly && formatTabRef.current !== 'all') {
+      params.set('format', formatTabRef.current)
+    }
     fetch(`/api/dashboard/videos?${params}`)
       .then((r) => r.json())
       .then((data: DBVideo[] | OutlierTagRow[]) => {
@@ -308,11 +317,22 @@ export default function OutlierView({
       .then((r) => r.json())
       .then((d: { count?: number }) => setTaggedCount(d.count ?? 0))
       .catch(() => setTaggedCount(0))
-  }, [showTaggedOnly, formatTab])
+  }, [showTaggedOnly]) // formatTab은 ref로 읽으므로 dep 불필요
 
+  // 모드(showTaggedOnly) 전환 시 재로드 — loadOutliers ref가 변경될 때만 실행
   useEffect(() => {
     loadOutliers()
   }, [loadOutliers])
+
+  // 포맷 탭 전환 시 재로드 — 비태깅 모드에서만 (태깅 모드는 클라이언트 필터)
+  useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true
+      return
+    }
+    if (!showTaggedOnly) loadOutliers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formatTab])
 
   const runTagging = async () => {
     setTagging(true)
@@ -320,13 +340,16 @@ export default function OutlierView({
       const res = await fetch('/api/n8n/lv1-services/outlier-tagging', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ minVsAvg: 3, persistTagged: true }),
+        body: JSON.stringify({ minVsAvg, persistTagged: true }),
       })
       const data = await res.json()
       addToast(
         typeof data.message === 'string' ? data.message : '태깅 완료',
         data.ok !== false ? 'success' : 'warning',
       )
+      if (typeof data.aiInsight === 'string' && data.aiInsight) {
+        setAiInsight(data.aiInsight)
+      }
       loadOutliers()
     } catch {
       addToast('태깅 실행 실패', 'warning')
@@ -335,16 +358,29 @@ export default function OutlierView({
     }
   }
 
-  const filtered = useMemo(
-    () => outliers.filter((v) => v.vsAvg >= minVsAvg),
-    [outliers, minVsAvg],
-  )
+  const filtered = useMemo(() => {
+    let result = outliers.filter((v) => v.vsAvg >= minVsAvg)
+    if (showTaggedOnly && formatTab !== 'all') {
+      result = result.filter((v) => v.format === formatTab)
+    }
+    return result
+  }, [outliers, minVsAvg, showTaggedOnly, formatTab])
 
   // vs.Avg 내림차순 정렬
   const sorted = useMemo(
     () => [...filtered].sort((a, b) => b.vsAvg - a.vsAvg),
     [filtered],
   )
+
+  // 포맷 탭 카운트 — formatTab 필터 적용 전 기준값으로 계산 (탭 선택과 무관하게 전체 카운트 유지)
+  const formatCounts = useMemo(() => {
+    const base = outliers.filter((v) => v.vsAvg >= minVsAvg)
+    return {
+      all: base.length,
+      short: base.filter((v) => v.format === 'short').length,
+      long: base.filter((v) => v.format === 'long').length,
+    }
+  }, [outliers, minVsAvg])
 
   return (
     <PageLoadingOverlay loading={loading} label="아웃라이어 데이터 로딩 중…">
@@ -376,7 +412,7 @@ export default function OutlierView({
                 disabled={tagging}
                 className="text-sm font-semibold px-3 py-2 rounded-xl bg-white text-green-700 hover:bg-green-50 disabled:opacity-60 transition"
               >
-                {tagging ? '태깅 중…' : '▶ 3x+ 자동 태깅'}
+                {tagging ? '태깅 중…' : `▶ ${minVsAvg}x+ 자동 태깅`}
               </button>
               <label className="flex items-center gap-1.5 text-xs bg-white/20 rounded-lg px-3 py-2 cursor-pointer hover:bg-white/30 transition">
                 <input
@@ -407,6 +443,25 @@ export default function OutlierView({
           </div>
         </div>
 
+        {/* AI 패턴 인사이트 카드 */}
+        {aiInsight && (
+          <div className="flex items-start gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-2xl px-5 py-4">
+            <span className="text-xl shrink-0 mt-0.5">🤖</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1">AI 패턴 분석</p>
+              <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">{aiInsight}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAiInsight(null)}
+              className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition text-lg leading-none"
+              aria-label="닫기"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* 포맷 탭 */}
         <div className="flex gap-2">
           {(Object.keys(FORMAT_LABELS) as FormatTab[]).map((f) => (
@@ -423,11 +478,7 @@ export default function OutlierView({
               {FORMAT_LABELS[f]}
               {!loading && (
                 <span className="ml-1.5 text-xs opacity-70">
-                  (
-                  {f === 'all'
-                    ? filtered.length
-                    : filtered.filter((v) => v.format === f).length}
-                  )
+                  ({f === 'all' ? formatCounts.all : formatCounts[f as 'short' | 'long']})
                 </span>
               )}
             </button>
@@ -485,6 +536,7 @@ export default function OutlierView({
             </div>
           </>
         )}
+
       </div>
     </PageLoadingOverlay>
   )

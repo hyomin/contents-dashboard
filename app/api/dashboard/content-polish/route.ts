@@ -37,9 +37,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const shortform = body.targetFormat === 'shortform'
+    const longform = body.targetFormat === 'longform'
     const result = await callGeminiGenerateContent(apiKey, model, prompt, {
       temperature: 0.5,
-      maxOutputTokens: shortform ? 10_240 : 8192,
+      maxOutputTokens: shortform ? 10_240 : longform ? 16_384 : 8_192,
       timeoutMs: 90_000,
     })
 

@@ -38,6 +38,20 @@ export function buildGeminiGenerationConfig(
   return config
 }
 
+/** 503·429는 서버 과부하/속도제한 — 재시도 대상. 4xx 인증·권한 오류는 재시도해도 무의미. */
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status === 503 || status === 500
+}
+
+function isRetryableNetworkError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false
+  // AbortError는 호출 측 타임아웃 — 재시도 불필요
+  if (err.name === 'AbortError') return false
+  return true
+}
+
+const RETRY_DELAYS_MS = [1_000, 2_000] as const // 최초 실패 후 1s → 2s 대기, 총 2회 재시도
+
 export async function callGeminiGenerateContent(
   apiKey: string,
   model: string,
@@ -55,54 +69,72 @@ export async function callGeminiGenerateContent(
     ? [{ fileData: { fileUri: opts.fileUri } }, { text: prompt }]
     : [{ text: prompt }]
 
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ parts: requestParts }],
-        generationConfig: buildGeminiGenerationConfig(resolved, opts),
-      }),
-      signal: AbortSignal.timeout(opts.timeoutMs ?? 90_000),
-    })
+  const body = JSON.stringify({
+    contents: [{ parts: requestParts }],
+    generationConfig: buildGeminiGenerationConfig(resolved, opts),
+  })
 
-    if (!res.ok) {
-      const errText = await res.text()
-      return { ok: false, status: res.status, error: errText.slice(0, 300) }
+  let lastResult: { ok: false; status: number; error: string } | null = null
+
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) {
+      const delayMs = RETRY_DELAYS_MS[attempt - 1]
+      console.warn(`[gemini] retry attempt ${attempt}/${RETRY_DELAYS_MS.length} after ${delayMs}ms (model=${resolved})`)
+      await new Promise((r) => setTimeout(r, delayMs))
     }
 
-    const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string }[]
-      promptFeedback?: { blockReason?: string }
-    }
-    const parts = data.candidates?.[0]?.content?.parts ?? []
-    const text =
-      parts
-        .filter((p) => !p.thought)
-        .map((p) => p.text ?? '')
-        .join('') || parts.map((p) => p.text ?? '').join('')
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body,
+        signal: AbortSignal.timeout(opts.timeoutMs ?? 90_000),
+      })
 
-    const finishReason = data.candidates?.[0]?.finishReason
-    const truncated = finishReason === 'MAX_TOKENS'
-    if (truncated) {
-      console.warn(`[gemini] response truncated by MAX_TOKENS (model=${resolved}, textLength=${text.length})`)
-    }
+      if (!res.ok) {
+        const errText = await res.text()
+        lastResult = { ok: false, status: res.status, error: errText.slice(0, 300) }
+        if (isRetryableStatus(res.status)) continue
+        return lastResult
+      }
 
-    // 프롬프트 자체가 안전 정책에 막히면 candidates가 비고 promptFeedback.blockReason만 채워진다
-    // (생성 전 차단이라 finishReason도 없음 — truncated와는 별개로 다뤄야 함)
-    const blockReason = !text && !data.candidates?.length ? data.promptFeedback?.blockReason : undefined
-    if (blockReason) {
-      console.warn(`[gemini] prompt blocked (model=${resolved}, blockReason=${blockReason})`)
-    }
+      const data = (await res.json()) as {
+        candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string }[]
+        promptFeedback?: { blockReason?: string }
+      }
+      const parts = data.candidates?.[0]?.content?.parts ?? []
+      const text =
+        parts
+          .filter((p) => !p.thought)
+          .map((p) => p.text ?? '')
+          .join('') || parts.map((p) => p.text ?? '').join('')
 
-    return { ok: true, text, finishReason, truncated, blockReason }
-  } catch (err) {
-    return {
-      ok: false,
-      status: 500,
-      error: err instanceof Error ? err.message : 'Gemini 호출 오류',
+      const finishReason = data.candidates?.[0]?.finishReason
+      const truncated = finishReason === 'MAX_TOKENS'
+      if (truncated) {
+        console.warn(`[gemini] response truncated by MAX_TOKENS (model=${resolved}, textLength=${text.length})`)
+      }
+
+      // 프롬프트 자체가 안전 정책에 막히면 candidates가 비고 promptFeedback.blockReason만 채워진다
+      const blockReason = !text && !data.candidates?.length ? data.promptFeedback?.blockReason : undefined
+      if (blockReason) {
+        console.warn(`[gemini] prompt blocked (model=${resolved}, blockReason=${blockReason})`)
+      }
+
+      return { ok: true, text, finishReason, truncated, blockReason }
+    } catch (err) {
+      lastResult = {
+        ok: false,
+        status: 500,
+        error: err instanceof Error ? err.message : 'Gemini 호출 오류',
+      }
+      if (isRetryableNetworkError(err)) continue
+      return lastResult
     }
   }
+
+  console.error(`[gemini] all retries exhausted (model=${resolved})`)
+  return lastResult ?? { ok: false, status: 500, error: 'Gemini 호출 실패' }
 }
 
 export function formatGeminiApiError(status: number, rawError: string): string {
@@ -117,8 +149,15 @@ export function formatGeminiApiError(status: number, rawError: string): string {
     if (msg?.includes('API key not valid') || msg?.includes('API_KEY_INVALID')) {
       return 'GEMINI_API_KEY가 올바르지 않습니다. .env.local의 키를 확인하세요.'
     }
-    if (status === 429 || msg?.toLowerCase().includes('quota') || msg?.toLowerCase().includes('rate')) {
-      return 'Gemini API 할당량 또는 요청 한도를 초과했습니다. 잠시 후 다시 시도하세요.'
+    if (
+      status === 429 ||
+      status === 503 ||
+      msg?.toLowerCase().includes('quota') ||
+      msg?.toLowerCase().includes('rate') ||
+      msg?.toLowerCase().includes('high demand') ||
+      msg?.toLowerCase().includes('overloaded')
+    ) {
+      return 'Gemini 서버가 혼잡합니다. 잠시 후 다시 시도해 주세요. (재시도 2회 후에도 동일 오류)'
     }
     if (msg) return `Gemini API 오류: ${msg}`
   } catch {

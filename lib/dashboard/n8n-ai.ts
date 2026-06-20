@@ -8,6 +8,7 @@ import {
   normalizeN8nScriptBody,
   type ScriptGuideOutput,
 } from '@/lib/dashboard/script-guide-output'
+import { getBlogImageGuideCount } from '@/lib/dashboard/contents-guideline'
 import type { InsightSection } from '@/app/api/dashboard/insights/route'
 
 const PLATFORM_BY_CATEGORY = {
@@ -77,11 +78,12 @@ export function buildLongformScriptN8nPayload(ctx: AiScriptGuideRequestContext) 
 }
 
 function buildPolishedFromScript(script: ScriptGuideOutput): ContentPolishResult {
+  const isBlog = script.targetFormat === 'blog' || script.category === 'writing'
   return {
     title: script.title,
     fullContent: script.fullScript,
     summary: script.hook?.slice(0, 200) ?? script.title,
-    imageGuideCount: 0,
+    imageGuideCount: isBlog ? getBlogImageGuideCount() : 0,
     polishedAt: new Date().toISOString(),
   }
 }

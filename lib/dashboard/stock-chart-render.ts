@@ -124,11 +124,46 @@ function sourceLabel(market: 'KR' | 'US'): string {
   return market === 'KR' ? '네이버 금융' : 'Alpha Vantage'
 }
 
+/** 최종 데이터 날짜를 차트에 골드 수직선으로 표시 */
+function lastDateMarkLine(lastDate: string) {
+  return {
+    silent: true,
+    symbol: 'none',
+    data: [{ xAxis: lastDate }],
+    lineStyle: { color: ACCENT_GOLD, type: 'solid' as const, width: 1.5, opacity: 0.8 },
+    label: {
+      formatter: `최종 ${lastDate}`,
+      fontFamily: FONT_FAMILY,
+      color: ACCENT_GOLD,
+      fontSize: 12,
+      position: 'insideEndTop' as const,
+    },
+  }
+}
+
+/** 데이터 없음 안내 graphic 요소 (거래량 0 등) */
+function noDataGraphic(msg: string, frame: boolean) {
+  const chartTop = frame ? HEADER_H : 0
+  const chartH = frame ? HEIGHT - HEADER_H - FOOTER_H : HEIGHT
+  return {
+    type: 'text' as const,
+    left: WIDTH / 2,
+    top: chartTop + chartH / 2,
+    style: {
+      text: msg,
+      fill: '#64748b',
+      font: `18px ${FONT_FAMILY}`,
+      textAlign: 'center' as const,
+    },
+  }
+}
+
 function buildPriceChart(bars: StockDailyBar[], name: string, ticker: string, market: 'KR' | 'US', marketLabel: string, generatedAt: string, frame: boolean): EChartsOption {
   const dates = bars.map((b) => b.tradeDate)
   const closes = bars.map((b) => b.close)
   const last = bars[bars.length - 1]
-  const subtitle = `${marketLabel} · ${ticker} · ${dates[0]} ~ ${dates[dates.length - 1]} · 최근 종가 ${last.close.toLocaleString()}`
+  const lastDate = dates[dates.length - 1]
+  const subtitle = `${marketLabel} · ${ticker} · ${dates[0]} ~ ${lastDate} · 최근 종가 ${last.close.toLocaleString('ko-KR')}`
   const footer = `데이터 출처: ${sourceLabel(market)} · 기준: ${generatedAt} · 참고용, 투자 판단 근거로 사용 불가`
 
   return {
@@ -157,7 +192,17 @@ function buildPriceChart(bars: StockDailyBar[], name: string, ticker: string, ma
       splitLine: { lineStyle: { color: GRID_LINE } },
     },
     series: [
-      { name: '종가', type: 'line', data: closes, showSymbol: false, lineStyle: { color: '#f8fafc', width: 2.5 } },
+      {
+        name: '종가',
+        type: 'line',
+        data: closes,
+        showSymbol: false,
+        lineStyle: { color: '#f8fafc', width: 2.5 },
+        markPoint: {
+          data: [{ name: '최종', coord: [lastDate, last.close], symbol: 'circle', symbolSize: 10, itemStyle: { color: ACCENT_GOLD, borderColor: '#fff', borderWidth: 2 }, label: { show: true, formatter: last.close.toLocaleString('ko-KR'), color: ACCENT_GOLD, fontSize: 12, fontFamily: FONT_FAMILY, position: 'top' as const } }],
+        },
+        markLine: lastDateMarkLine(lastDate),
+      },
       { name: 'MA5', type: 'line', data: sma(closes, 5), showSymbol: false, lineStyle: { color: '#fbbf24', width: 1.5 } },
       { name: 'MA20', type: 'line', data: sma(closes, 20), showSymbol: false, lineStyle: { color: '#34d399', width: 1.5 } },
       { name: 'MA60', type: 'line', data: sma(closes, 60), showSymbol: false, lineStyle: { color: '#a78bfa', width: 1.5 } },
@@ -168,17 +213,24 @@ function buildPriceChart(bars: StockDailyBar[], name: string, ticker: string, ma
 
 function buildVolumeChart(bars: StockDailyBar[], name: string, ticker: string, market: 'KR' | 'US', marketLabel: string, generatedAt: string, frame: boolean): EChartsOption {
   const dates = bars.map((b) => b.tradeDate)
+  const lastDate = dates[dates.length - 1]
+  const hasVolume = bars.some((b) => b.volume > 0)
   const data = bars.map((b, i) => ({
     value: b.volume,
     itemStyle: { color: i > 0 ? (b.close >= bars[i - 1].close ? COLOR_UP : COLOR_DOWN) : COLOR_FLAT },
   }))
-  const subtitle = `${marketLabel} · ${ticker} · ${dates[0]} ~ ${dates[dates.length - 1]} · 적색=상승일 / 청색=하락일`
+  const subtitle = `${marketLabel} · ${ticker} · ${dates[0]} ~ ${lastDate} · 적색=상승일 / 청색=하락일`
   const footer = `데이터 출처: ${sourceLabel(market)} · 기준: ${generatedAt} · 참고용`
+
+  const baseGraphic = frame ? slideFrame(`${name} 거래량`, subtitle, footer) : []
+  const graphic = hasVolume
+    ? (frame ? baseGraphic : undefined)
+    : [...baseGraphic, noDataGraphic('거래량 데이터 없음 (해외주식 API 미제공)', frame)]
 
   return {
     backgroundColor: BG_GRADIENT,
     textStyle: { fontFamily: FONT_FAMILY },
-    graphic: frame ? slideFrame(`${name} 거래량`, subtitle, footer) : undefined,
+    graphic,
     grid: frame ? COMMON_GRID : RAW_GRID_PLAIN,
     xAxis: {
       type: 'category',
@@ -197,13 +249,14 @@ function buildVolumeChart(bars: StockDailyBar[], name: string, ticker: string, m
       },
       splitLine: { lineStyle: { color: GRID_LINE } },
     },
-    series: [{ name: '거래량', type: 'bar', data }],
+    series: [{ name: '거래량', type: 'bar', data, ...(hasVolume ? { markLine: lastDateMarkLine(lastDate) } : {}) }],
     animation: false,
   }
 }
 
 function buildChangePctChart(bars: StockDailyBar[], name: string, ticker: string, market: 'KR' | 'US', marketLabel: string, generatedAt: string, frame: boolean): EChartsOption {
   const dates = bars.map((b) => b.tradeDate)
+  const lastDate = dates[dates.length - 1]
   const changes = bars.map((b, i) => calcChangePct(b.close, i > 0 ? bars[i - 1].close : null))
   const valid = changes.filter((c): c is number => c !== null)
   const avg = valid.length ? Math.round((valid.reduce((a, b) => a + b, 0) / valid.length) * 100) / 100 : 0
@@ -238,16 +291,10 @@ function buildChangePctChart(bars: StockDailyBar[], name: string, ticker: string
         })),
         markLine: {
           symbol: 'none',
-          data: [{ yAxis: avg, name: '평균' }],
-          lineStyle: { color: ACCENT_GOLD, type: 'dashed' },
-          label: {
-            formatter: `평균 ${avg >= 0 ? '+' : ''}${avg}%`,
-            fontFamily: FONT_FAMILY,
-            color: ACCENT_GOLD,
-            fontSize: 13,
-            position: 'insideStartTop',
-            align: 'left',
-          },
+          data: [
+            { yAxis: avg, name: '평균', lineStyle: { color: ACCENT_GOLD, type: 'dashed' as const }, label: { formatter: `평균 ${avg >= 0 ? '+' : ''}${avg}%`, fontFamily: FONT_FAMILY, color: ACCENT_GOLD, fontSize: 13, position: 'insideStartTop' as const, align: 'left' as const } },
+            { xAxis: lastDate, name: '최종', lineStyle: { color: ACCENT_GOLD, type: 'solid' as const, width: 1.5, opacity: 0.8 }, label: { formatter: `최종 ${lastDate}`, fontFamily: FONT_FAMILY, color: ACCENT_GOLD, fontSize: 12, position: 'insideEndTop' as const } },
+          ],
         },
       },
     ],

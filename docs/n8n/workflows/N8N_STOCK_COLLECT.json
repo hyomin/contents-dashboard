@@ -1,0 +1,228 @@
+{
+  "name": "[W11] 주식 시세 수집 (평일 15:30 KST 자동)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 6 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "node-schedule-stock-collect",
+      "name": "스케줄 (평일 15:30 KST)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {},
+      "id": "node-manual-stock-collect",
+      "name": "수동 실행",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 380]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stock-collect",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "node-webhook-stock-collect",
+      "name": "Webhook 수집",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 560],
+      "webhookId": "stock-collect-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = ($env.DASHBOARD_API_URL || 'http://host.docker.internal:3000').replace(/\\/$/, '');\nconst secret = $env.DASHBOARD_API_SECRET || '';\nconst reportWebhook = ($env.N8N_WEBHOOK_STOCK_REPORT || 'http://localhost:5678/webhook/stock-report-auto').replace(/\\/$/, '');\n\nif (!secret) {\n  return [{ json: {\n    ok: false,\n    skipCall: true,\n    message: 'DASHBOARD_API_SECRET 미설정. .env.local 확인 후 n8n 컨테이너를 재기동하세요.',\n  } }];\n}\n\nreturn [{ json: {\n  skipCall: false,\n  collectUrl: `${base}/api/dashboard/stock-collect`,\n  reportWebhookUrl: reportWebhook,\n  apiSecret: secret,\n  source: 'n8n-w11',\n} }];"
+      },
+      "id": "node-code-stock-collect",
+      "name": "기준·API 설정",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 380]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip",
+              "leftValue": "={{ $json.skipCall }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-skip-collect",
+      "name": "설정 오류?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [540, 380]
+    },
+    {
+      "parameters": {},
+      "id": "node-noop-collect-error",
+      "name": "완료 (설정 오류)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [760, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.collectUrl }}",
+        "options": {}
+      },
+      "id": "node-http-collect",
+      "name": "시세 수집",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 460]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $json;\nconst ok = result.ok === true;\nconst savedCount = result.savedCount ?? 0;\nconst config = $('기준·API 설정').first().json;\n\nreturn [{ json: {\n  collectOk: ok,\n  savedCount,\n  message: result.message ?? '',\n  reportWebhookUrl: config.reportWebhookUrl,\n  skipTrigger: !ok && savedCount === 0,\n} }];"
+      },
+      "id": "node-code-collect-result",
+      "name": "수집 결과 확인",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 460]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip-trigger",
+              "leftValue": "={{ $json.skipTrigger }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-skip-trigger",
+      "name": "수집 실패?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 460]
+    },
+    {
+      "parameters": {},
+      "id": "node-noop-collect-fail",
+      "name": "완료 (수집 실패)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1420, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.reportWebhookUrl }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: 'n8n-w11', collectSavedCount: $json.savedCount }) }}",
+        "options": {}
+      },
+      "id": "node-http-trigger-w12",
+      "name": "W12 리포트 트리거",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1420, 560]
+    },
+    {
+      "parameters": {},
+      "id": "node-noop-collect-done",
+      "name": "완료",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1640, 560]
+    }
+  ],
+  "connections": {
+    "스케줄 (평일 15:30 KST)": {
+      "main": [
+        [{ "node": "기준·API 설정", "type": "main", "index": 0 }]
+      ]
+    },
+    "수동 실행": {
+      "main": [
+        [{ "node": "기준·API 설정", "type": "main", "index": 0 }]
+      ]
+    },
+    "Webhook 수집": {
+      "main": [
+        [{ "node": "기준·API 설정", "type": "main", "index": 0 }]
+      ]
+    },
+    "기준·API 설정": {
+      "main": [
+        [{ "node": "설정 오류?", "type": "main", "index": 0 }]
+      ]
+    },
+    "설정 오류?": {
+      "main": [
+        [{ "node": "완료 (설정 오류)", "type": "main", "index": 0 }],
+        [{ "node": "시세 수집", "type": "main", "index": 0 }]
+      ]
+    },
+    "시세 수집": {
+      "main": [
+        [{ "node": "수집 결과 확인", "type": "main", "index": 0 }]
+      ]
+    },
+    "수집 결과 확인": {
+      "main": [
+        [{ "node": "수집 실패?", "type": "main", "index": 0 }]
+      ]
+    },
+    "수집 실패?": {
+      "main": [
+        [{ "node": "완료 (수집 실패)", "type": "main", "index": 0 }],
+        [{ "node": "W12 리포트 트리거", "type": "main", "index": 0 }]
+      ]
+    },
+    "W12 리포트 트리거": {
+      "main": [
+        [{ "node": "완료", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [{ "name": "StockReport" }],
+  "pinData": {}
+}

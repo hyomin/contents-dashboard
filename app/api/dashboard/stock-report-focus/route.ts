@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { denyUnlessDashboardMutationAuth } from '@/lib/dashboard/api-auth'
-import { fetchNaverDailySeries, type StockDailyBar } from '@/lib/data/naver-finance-stock'
+import { fetchNaverDailySeries, fetchNaverWorldDailySeries, type StockDailyBar } from '@/lib/data/naver-finance-stock'
 import { fetchAlphaVantageDailySeries } from '@/lib/data/alpha-vantage-stock'
 import { calcChangePct, type StockSeriesForPrompt } from '@/lib/data/stock-collect'
 import { ALL_RSS_FEEDS, getRssTopicCandidates } from '@/lib/data/rss-topic-collect'
@@ -116,9 +117,17 @@ export async function POST(req: NextRequest) {
 
   const fetched = await Promise.all(
     items.map(async (item) => {
-      const result = item.market === 'KR'
-        ? await fetchNaverDailySeries(item.ticker, 'stock', FOCUS_CHART_DAYS)
-        : await fetchAlphaVantageDailySeries(item.ticker, FOCUS_CHART_DAYS)
+      let result
+      if (item.market === 'KR') {
+        result = await fetchNaverDailySeries(item.ticker, 'stock', FOCUS_CHART_DAYS)
+      } else {
+        // 네이버 해외주식 API 우선 (키 불필요) → Alpha Vantage 폴백
+        result = await fetchNaverWorldDailySeries(item.ticker, FOCUS_CHART_DAYS)
+        if (!result.ok) {
+          const av = await fetchAlphaVantageDailySeries(item.ticker, FOCUS_CHART_DAYS)
+          if (av.ok && av.bars) result = { ok: true as const, bars: av.bars }
+        }
+      }
 
       const bars: StockDailyBar[] = result.ok && result.bars
         ? [...result.bars].sort((a, b) => (a.tradeDate < b.tradeDate ? -1 : 1))
@@ -189,7 +198,7 @@ export async function POST(req: NextRequest) {
 
   const now = new Date().toISOString()
   const saved = await insertGenerationHistory({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    id: randomUUID(),
     publishTopic,
     category: 'writing',
     referenceCount: 0,
@@ -203,23 +212,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: saved.error ?? '히스토리 저장 실패' }, { status: 500 })
   }
 
-  const attached = await attachPolishedToHistory(saved.item.id, { ...polishToHistory(polished), chartIndexes })
-
   const charts = renderResearchReportCharts(fetched, reportDate, chartIndexes)
 
   const chartImages = charts
     .filter((c) => c.slideFiles.length > 0)
     .map((c) => ({ name: c.name, slideFiles: c.slideFiles }))
 
-  let resultItem = attached.ok && attached.item ? attached.item : saved.item
-  if (chartImages.length > 0) {
-    const reattached = await attachPolishedToHistory(saved.item.id, {
-      ...polishToHistory(polished),
-      chartIndexes,
-      chartImages,
-    })
-    if (reattached.ok && reattached.item) resultItem = reattached.item
-  }
+  const attached = await attachPolishedToHistory(saved.item.id, {
+    ...polishToHistory(polished),
+    chartIndexes,
+    ...(chartImages.length > 0 ? { chartImages } : {}),
+  })
+  const resultItem = attached.ok && attached.item ? attached.item : saved.item
 
   return NextResponse.json({
     item: resultItem,
@@ -233,41 +237,33 @@ interface ResearchChartResult {
   market: 'KR' | 'US'
   ticker: string
   name: string
-  chartFiles: string[]
   slideFiles: string[]
 }
 
-/** 분석 종목별 차트(raw)·슬라이드(PPT 장표) PNG를 stock/<date>/research/{chart,slide}/에 저장 (실패해도 리포트 생성 자체는 영향 없음) */
+/** 분석 종목별 슬라이드 PNG를 stock/<date>/research/slide/에 저장 (실패해도 리포트 생성 자체는 영향 없음) */
 function renderResearchReportCharts(
   fetched: { item: FocusItemInput; bars: StockDailyBar[] }[],
   reportDate: string,
   chartIndexes: StockChartIndex[],
 ): ResearchChartResult[] {
-  const now = new Date()
+  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000)
   const pad = (n: number) => String(n).padStart(2, '0')
-  const generatedAt = `${reportDate} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+  const generatedAt = `${reportDate} ${pad(kstNow.getUTCHours())}:${pad(kstNow.getUTCMinutes())} KST`
 
   const results: ResearchChartResult[] = []
   try {
-    const chartDir = resolveStockOutputDir(reportDate, 'research', 'chart')
     const slideDir = resolveStockOutputDir(reportDate, 'research', 'slide')
 
     for (const { item, bars } of fetched) {
       if (bars.length < 5) continue
-      const chartFiles: string[] = []
       const slideFiles: string[] = []
       for (const index of chartIndexes) {
         const fileName = stockChartFileName(item.name, index)
-
-        const chartBuffer = renderStockChartPng(index, bars, item.name, item.ticker, item.market, generatedAt, false)
-        writeFileSync(resolve(chartDir, fileName), chartBuffer)
-        chartFiles.push(stockOutputRelativePath(reportDate, 'research', 'chart', fileName))
-
         const slideBuffer = renderStockChartPng(index, bars, item.name, item.ticker, item.market, generatedAt, true)
         writeFileSync(resolve(slideDir, fileName), slideBuffer)
         slideFiles.push(stockOutputRelativePath(reportDate, 'research', 'slide', fileName))
       }
-      results.push({ market: item.market, ticker: item.ticker, name: item.name, chartFiles, slideFiles })
+      results.push({ market: item.market, ticker: item.ticker, name: item.name, slideFiles })
     }
   } catch (err) {
     console.error('분석 리포트 차트 이미지 생성 실패:', err)

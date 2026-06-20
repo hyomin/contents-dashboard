@@ -12,6 +12,7 @@ export interface InsightItem {
   icon: string
   text: string
   action?: string
+  format?: 'shortform' | 'longform' | 'writing' | 'image'
 }
 
 export interface GroundingSource {
@@ -30,11 +31,11 @@ export interface InsightSection {
 
 /**
  * 캐시 TTL
- * - 개인맞춤(내 DB 데이터 기반): 30분 — 수집 데이터 변화를 빠르게 반영, Search Grounding 미사용으로 비용이 낮음
- * - 한국/글로벌 트렌드(Search Grounding, 신규 카테고리 발굴용): 12시간 — "주 1~2회 점검"이면 충분한 스카우팅 용도라 캐시를 길게 잡아 비용 절감
+ * - 개인맞춤(내 DB 데이터 기반): 24시간 — 클라이언트 localStorage 캐시와 맞춰 수동 업데이트 시에만 재호출
+ * - 한국/글로벌 트렌드(Search Grounding, 신규 카테고리 발굴용): 24시간 — 하루 1회 점검이면 충분한 스카우팅 용도
  */
-const PERSONAL_CACHE_TTL = 30 * 60 * 1000
-const SCOUT_CACHE_TTL = 12 * 60 * 60 * 1000
+const PERSONAL_CACHE_TTL = 24 * 60 * 60 * 1000
+const SCOUT_CACHE_TTL = 24 * 60 * 60 * 1000
 
 const personalCache: { data: { section: InsightSection; cachedAt: number } | null } = { data: null }
 const scoutCache: { data: { korea: InsightSection; global: InsightSection; cachedAt: number } | null } = { data: null }
@@ -61,12 +62,14 @@ function parseJsonItems(text: string): InsightItem[] {
 
     const parsed = JSON.parse(fixedJson)
     if (!Array.isArray(parsed)) return []
+    const VALID_FORMATS = new Set(['shortform', 'longform', 'writing', 'image'])
     return parsed
       .filter((x): x is InsightItem => x != null && typeof x.text === 'string')
       .map((x) => ({
         icon: typeof x.icon === 'string' && x.icon ? x.icon : '💡',
         text: String(x.text).trim(),
         action: x.action ? String(x.action) : undefined,
+        format: typeof x.format === 'string' && VALID_FORMATS.has(x.format) ? (x.format as InsightItem['format']) : undefined,
       }))
   } catch {
     return []
@@ -160,7 +163,8 @@ async function callGemini(
   return { text: '', sources: [] }
 }
 
-const JSON_FORMAT = `[{"icon":"이모지","text":"설명 2-3문장","action":"추천 액션"}]`
+// format 값: shortform=60초 이내 숏폼 영상, longform=5분 이상 롱폼 영상, writing=블로그·글쓰기, image=카드뉴스·캐러셀
+const JSON_FORMAT = `[{"icon":"이모지","text":"설명 2-3문장","action":"추천 액션","format":"shortform 또는 longform 또는 writing 또는 image"}]`
 
 /** 키워드별 캐시 (30분) */
 const keywordCache = new Map<string, { sections: InsightSection[]; cachedAt: number }>()
@@ -249,6 +253,7 @@ ${rssList || '매칭 데이터 없음'}
 ${sampleTitles.length > 0 ? sampleTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '매칭 데이터 없음'}
 
 각 추천은 «${kwLabel}» 키워드와 직접 연관되어야 합니다. 구체적이고 실행 가능하게.
+format은 해당 콘텐츠에 가장 적합한 제작 포맷을 선택하세요: shortform(60초 이내 숏폼·릴스), longform(5분 이상 영상), writing(블로그·뉴스레터), image(카드뉴스·캐러셀).
 반드시 JSON 배열만 응답 (다른 텍스트 없이):
 ${JSON_FORMAT}`,
     false,
@@ -324,6 +329,7 @@ ${rssList || '데이터 없음'}
 ${catList}
 
 이 데이터를 바탕으로 지금 만들어야 할 콘텐츠를 추천하세요. 구체적이고 실행 가능한 내용으로.
+format은 해당 콘텐츠에 가장 적합한 제작 포맷을 선택하세요: shortform(60초 이내 숏폼·릴스), longform(5분 이상 유튜브 영상), writing(블로그·뉴스레터), image(카드뉴스·캐러셀). 채널 카테고리와 Outlier 패턴을 참고하세요.
 반드시 JSON 배열만 응답 (다른 텍스트 없이):
 ${JSON_FORMAT}`,
     false,
@@ -350,6 +356,7 @@ async function buildScoutSections(): Promise<{ korea: InsightSection; global: In
     callGemini(
       `지금 한국에서 급상승 중인 YouTube·SNS 콘텐츠 트렌드 4가지를 분석해줘.
 2026년 최신 기준으로, 콘텐츠 크리에이터가 지금 당장 참고할 만한 내용으로 작성해.
+format은 해당 트렌드에 가장 어울리는 제작 포맷을 선택하세요: shortform(60초 이내 숏폼·릴스), longform(5분 이상 영상), writing(블로그·뉴스레터), image(카드뉴스·캐러셀).
 반드시 JSON 배열만 응답 (다른 텍스트 없이):
 ${JSON_FORMAT}`,
       true, // Google Search
@@ -358,6 +365,7 @@ ${JSON_FORMAT}`,
       `지금 전 세계(글로벌)에서 급상승 중인 YouTube·SNS 콘텐츠 트렌드 4가지를 분석해줘.
 한국 콘텐츠 크리에이터가 글로벌 흐름을 참고할 수 있도록 작성해.
 2026년 최신 기준으로.
+format은 해당 트렌드에 가장 어울리는 제작 포맷을 선택하세요: shortform(60초 이내 숏폼·릴스), longform(5분 이상 영상), writing(블로그·뉴스레터), image(카드뉴스·캐러셀).
 반드시 JSON 배열만 응답 (다른 텍스트 없이):
 ${JSON_FORMAT}`,
       true, // Google Search
