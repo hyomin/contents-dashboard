@@ -3,6 +3,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import { getVsAvgColor } from '@/lib/dashboard/dashboard-helpers'
 import type { NicheResearchItem, NicheResearchResult } from '@/app/api/dashboard/niche-research/route'
+import type { AddToast } from '@/lib/dashboard/dashboard-types'
 
 // ─── 상수 ─────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 9
@@ -50,20 +51,14 @@ function relativeTime(iso: string): string {
   if (hr < 24) return `${hr}시간 전`
   return `${Math.floor(hr / 24)}일 전`
 }
-function fmtViews(n: number | null): string {
-  if (n == null) return '-'
+function fmtNumber(n: number): string {
   if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)}억`
   if (n >= 10_000) return `${Math.floor(n / 10_000)}만`
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}천`
   return n.toLocaleString()
 }
-function fmtSubs(n: number | null): string | null {
-  if (n == null) return null
-  if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)}억`
-  if (n >= 10_000) return `${Math.floor(n / 10_000)}만`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}천`
-  return n.toLocaleString()
-}
+function fmtViews(n: number | null): string { return n == null ? '-' : fmtNumber(n) }
+function fmtSubs(n: number | null): string | null { return n == null ? null : fmtNumber(n) }
 function subsBadge(n: number | null): { label: string; cls: string } | null {
   if (n == null) return null
   if (n < 10_000)    return { label: '소형',   cls: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400' }
@@ -127,7 +122,7 @@ function VideoCard({ item, rank }: { item: NicheResearchItem; rank: number }) {
 
 // ─── 스켈레톤 ─────────────────────────────────────────────────
 function SkeletonGrid({ cols = 3 }: { cols?: 2 | 3 }) {
-  const count = cols === 2 ? 4 : 9
+  const count = cols === 2 ? 6 : 9
   const gridCls = cols === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
   return (
     <div className={`grid ${gridCls} gap-4`}>
@@ -447,7 +442,7 @@ function ComparePane({
 }
 
 // ─── 메인 패널 ────────────────────────────────────────────────
-export function NicheResearchPanel({ defaultExpanded = false }: { defaultExpanded?: boolean }) {
+export function NicheResearchPanel({ defaultExpanded = false, addToast }: { defaultExpanded?: boolean; addToast?: AddToast }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [compareMode, setCompareMode] = useState(false)
 
@@ -502,11 +497,13 @@ export function NicheResearchPanel({ defaultExpanded = false }: { defaultExpande
       setResult(data)
       addToHistory(kw.trim(), t, data.items?.length ?? 0)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '오류가 발생했습니다')
+      const msg = e instanceof Error ? e.message : '오류가 발생했습니다'
+      setError(msg)
+      addToast?.(msg, 'error', 'error')
     } finally {
       setLoading(false)
     }
-  }, [addToHistory])
+  }, [addToHistory, addToast])
 
   const handleSearch = () => runSearch(keyword, type)
   const handleSubNicheSearch = (niche: string) => { setKeyword(niche); runSearch(niche, type) }

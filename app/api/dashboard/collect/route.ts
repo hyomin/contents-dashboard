@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runNaverBlogViewsSync } from '@/lib/data/naver-blog-views-sync'
 import { collectChannelByPlatform } from '@/lib/data/collect-helpers'
+import { isCollectionEnabled } from '@/lib/dashboard/platforms'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
@@ -10,6 +11,14 @@ export async function POST(request: NextRequest) {
   }
 
   const platform = (rawPlatform ?? 'youtube').trim().toLowerCase()
+
+  if (!isCollectionEnabled(platform)) {
+    return NextResponse.json(
+      { error: `${platform} 수집은 아직 연결되지 않았습니다.` },
+      { status: 501 },
+    )
+  }
+
   const result = await collectChannelByPlatform(platform, { channel_id, channel_name })
 
   if (!result.ok) {

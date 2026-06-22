@@ -21,13 +21,15 @@ export async function POST(request: NextRequest) {
 
   const platform = (body.platform ?? 'youtube').trim().toLowerCase()
   const mineOnly = body.mineOnly === true
-  const isNoLookback = platform === 'naver-blog' || platform === 'tistory'
+  const isNoLookback = platform === 'naver-blog' || platform === 'tistory' || platform === 'blogger'
   const lookbackDays = isNoLookback ? 0 : getCollectLookbackDays()
   const maxVideosPerChannel = getCollectMaxVideosPerChannel()
   const policyLabel = isNoLookback
-    ? platform === 'tistory'
+    ? platform === 'blogger'
       ? `채널당 최근 RSS 분량 · 날짜 무관`
-      : `채널당 최근 ${Math.max(maxVideosPerChannel, 30)}개 · 날짜 무관`
+      : platform === 'tistory'
+        ? `채널당 최근 RSS 분량 · 날짜 무관`
+        : `채널당 최근 ${Math.max(maxVideosPerChannel, 30)}개 · 날짜 무관`
     : getCollectPolicyLabel()
 
   if (!isCollectionEnabled(platform)) {

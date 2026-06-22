@@ -67,7 +67,11 @@ export function normalizeYoutubeUrlForGemini(url: string): string {
     } else if (host === 'youtube.com') {
       if (u.pathname === '/watch') {
         id = u.searchParams.get('v')
-      } else if (u.pathname.startsWith('/shorts/') || u.pathname.startsWith('/embed/')) {
+      } else if (
+        u.pathname.startsWith('/shorts/') ||
+        u.pathname.startsWith('/embed/') ||
+        u.pathname.startsWith('/live/')
+      ) {
         id = u.pathname.split('/')[2] || null
       }
     }

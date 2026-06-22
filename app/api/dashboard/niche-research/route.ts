@@ -78,7 +78,7 @@ subNiches는 현재 키워드보다 더 구체적이거나 인접한 서브카�
             responseMimeType: 'application/json',
           },
         }),
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(15000),
       },
     )
     if (!res.ok) return empty
@@ -90,7 +90,7 @@ subNiches는 현재 키워드보다 더 구체적이거나 인접한 서브카�
     const parsed = JSON.parse(raw) as Partial<GeminiAnalysis>
     return {
       insight: parsed.insight ?? '',
-      subNiches: Array.isArray(parsed.subNiches) ? parsed.subNiches.slice(0, 6) : [],
+      subNiches: Array.isArray(parsed.subNiches) ? parsed.subNiches.slice(0, 5) : [],
     }
   } catch {
     return empty
@@ -162,15 +162,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(result)
     }
 
-    // Step 2: 영상 통계 + 재생시간
+    // Step 2 & 3: 영상 통계 + 채널 통계 병렬 요청
     const videoIds = rawItems.map(it => it.id.videoId).join(',')
     const videosUrl = new URL('https://www.googleapis.com/youtube/v3/videos')
     videosUrl.searchParams.set('key', apiKey)
     videosUrl.searchParams.set('id', videoIds)
     videosUrl.searchParams.set('part', 'statistics,contentDetails')
 
+    const channelIds = [...new Set(rawItems.map(it => it.snippet.channelId).filter(Boolean))]
+    const channelsUrl = new URL('https://www.googleapis.com/youtube/v3/channels')
+    channelsUrl.searchParams.set('key', apiKey)
+    channelsUrl.searchParams.set('id', channelIds.join(','))
+    channelsUrl.searchParams.set('part', 'statistics')
+
+    const [videosRes, chRes] = await Promise.all([
+      fetch(videosUrl.toString()),
+      channelIds.length > 0 ? fetch(channelsUrl.toString()) : Promise.resolve(null),
+    ])
+
     const statsMap = new Map<string, { viewCount: number | null; likeCount: number | null; duration: string }>()
-    const videosRes = await fetch(videosUrl.toString())
     if (videosRes.ok) {
       const vd = (await videosRes.json()) as {
         items?: {
@@ -188,40 +198,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Step 3: 채널 평균 조회수 + 구독자 수
-    const channelIds = [...new Set(rawItems.map(it => it.snippet.channelId).filter(Boolean))]
     const channelMap = new Map<string, { avg: number; subscribers: number | null }>()
-    if (channelIds.length > 0) {
-      const channelsUrl = new URL('https://www.googleapis.com/youtube/v3/channels')
-      channelsUrl.searchParams.set('key', apiKey)
-      channelsUrl.searchParams.set('id', channelIds.join(','))
-      channelsUrl.searchParams.set('part', 'statistics')
-      const chRes = await fetch(channelsUrl.toString())
-      if (chRes.ok) {
-        const cd = (await chRes.json()) as {
-          items?: {
-            id: string
-            statistics?: {
-              viewCount?: string
-              videoCount?: string
-              subscriberCount?: string
-              hiddenSubscriberCount?: boolean
-            }
-          }[]
-        }
-        for (const c of cd.items ?? []) {
-          const tv = c.statistics?.viewCount != null ? parseInt(c.statistics.viewCount) : 0
-          const vc = c.statistics?.videoCount != null ? parseInt(c.statistics.videoCount) : 0
-          const sub = c.statistics?.hiddenSubscriberCount
-            ? null
-            : c.statistics?.subscriberCount != null
-              ? parseInt(c.statistics.subscriberCount)
-              : null
-          channelMap.set(c.id, {
-            avg: tv > 0 && vc > 0 ? tv / vc : 0,
-            subscribers: sub,
-          })
-        }
+    if (chRes?.ok) {
+      const cd = (await chRes.json()) as {
+        items?: {
+          id: string
+          statistics?: {
+            viewCount?: string
+            videoCount?: string
+            subscriberCount?: string
+            hiddenSubscriberCount?: boolean
+          }
+        }[]
+      }
+      for (const c of cd.items ?? []) {
+        const tv = c.statistics?.viewCount != null ? parseInt(c.statistics.viewCount) : 0
+        const vc = c.statistics?.videoCount != null ? parseInt(c.statistics.videoCount) : 0
+        const sub = c.statistics?.hiddenSubscriberCount
+          ? null
+          : c.statistics?.subscriberCount != null
+            ? parseInt(c.statistics.subscriberCount)
+            : null
+        channelMap.set(c.id, {
+          avg: tv > 0 && vc > 0 ? tv / vc : 0,
+          subscribers: sub,
+        })
       }
     }
 

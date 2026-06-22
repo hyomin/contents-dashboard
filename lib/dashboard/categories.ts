@@ -12,7 +12,7 @@ export interface BenchmarkItem {
   title: string
   memo: string
   categoryId: string
-  platform: 'youtube' | 'tiktok' | 'instagram' | 'naver-blog' | 'tistory' | 'other'
+  platform: 'youtube' | 'tiktok' | 'instagram' | 'naver-blog' | 'tistory' | 'blogger' | 'other'
   addedAt: string
   vsAvg?: number
   views?: number

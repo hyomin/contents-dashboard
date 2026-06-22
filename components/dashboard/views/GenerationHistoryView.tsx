@@ -45,8 +45,10 @@ export default function GenerationHistoryView({ addToast }: { addToast: AddToast
   const [analyzerHistory, setAnalyzerHistory] = useState<ContentAnalyzerHistoryItem[]>([])
 
   useEffect(() => {
-    setAnalyzerHistory(loadContentAnalyzerHistory())
-  }, [])
+    if (category === 'analyzer') {
+      setAnalyzerHistory(loadContentAnalyzerHistory())
+    }
+  }, [category])
 
   useEffect(() => {
     setCategory(categoryParam)
@@ -120,7 +122,7 @@ export default function GenerationHistoryView({ addToast }: { addToast: AddToast
   }
 
   const handleRestoreAnalyzerItem = (item: ContentAnalyzerHistoryItem) => {
-    const p = new URLSearchParams()
+    const p = new URLSearchParams(searchParams.toString())
     p.set('view', 'content-analyzer')
     p.set('historyId', item.id)
     router.push(`${pathname}?${p.toString()}`)

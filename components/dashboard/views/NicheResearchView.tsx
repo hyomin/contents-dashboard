@@ -3,7 +3,7 @@
 import type { AddToast } from '@/lib/dashboard/dashboard-types'
 import { NicheResearchPanel } from '@/components/dashboard/NicheResearchPanel'
 
-export default function NicheResearchView({ addToast: _addToast }: { addToast: AddToast }) {
+export default function NicheResearchView({ addToast }: { addToast: AddToast }) {
   return (
     <div className="space-y-5">
       {/* 안내 카드 */}
@@ -23,7 +23,7 @@ export default function NicheResearchView({ addToast: _addToast }: { addToast: A
       </div>
 
       {/* 검색 패널 (기본 펼침) */}
-      <NicheResearchPanel defaultExpanded />
+      <NicheResearchPanel defaultExpanded addToast={addToast} />
     </div>
   )
 }

@@ -1,11 +1,13 @@
 import { collectNaverBlogChannelData } from '@/lib/data/naver-blog-collect'
 import { collectTistoryChannelData } from '@/lib/data/tistory-collect'
+import { collectBloggerChannelData } from '@/lib/data/blogger-collect'
 import { collectYoutubeChannelData } from '@/lib/data/youtube-channel-collect'
 
 export type CollectResult =
   | Awaited<ReturnType<typeof collectYoutubeChannelData>>
   | Awaited<ReturnType<typeof collectNaverBlogChannelData>>
   | Awaited<ReturnType<typeof collectTistoryChannelData>>
+  | Awaited<ReturnType<typeof collectBloggerChannelData>>
 
 /**
  * 플랫폼에 따라 적절한 수집 함수를 호출합니다.
@@ -20,6 +22,9 @@ export async function collectChannelByPlatform(
   }
   if (platform === 'tistory') {
     return collectTistoryChannelData({ channel_id: row.channel_id, channel_name: row.channel_name })
+  }
+  if (platform === 'blogger') {
+    return collectBloggerChannelData({ channel_id: row.channel_id, channel_name: row.channel_name })
   }
   if (platform === 'tiktok' || platform === 'instagram') {
     return {

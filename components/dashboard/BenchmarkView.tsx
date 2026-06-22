@@ -65,12 +65,13 @@ import {
 
 // ─── 헬퍼 ─────────────────────────────────────────────────────
 const PLATFORMS = [
-  { value: 'youtube',    label: 'YouTube',      icon: '🔴' },
-  { value: 'tiktok',     label: 'TikTok',       icon: '🎵' },
-  { value: 'instagram',  label: 'Instagram',    icon: '💗' },
-  { value: 'naver-blog', label: '네이버 블로그', icon: '🟢' },
-  { value: 'tistory',    label: '티스토리',      icon: '🟠' },
-  { value: 'other',      label: '기타',          icon: '🔗' },
+  { value: 'youtube',    label: 'YouTube',        icon: '🔴' },
+  { value: 'tiktok',     label: 'TikTok',         icon: '🎵' },
+  { value: 'instagram',  label: 'Instagram',      icon: '💗' },
+  { value: 'naver-blog', label: '네이버 블로그',   icon: '🟢' },
+  { value: 'tistory',    label: '티스토리',        icon: '🟠' },
+  { value: 'blogger',    label: 'Google Blogger', icon: '🌐' },
+  { value: 'other',      label: '기타',            icon: '🔗' },
 ]
 
 function getPlatformIcon(p: string) {
@@ -96,7 +97,7 @@ const STYLE_GROUPS: { value: string; label: string; icon: string }[] = [
 
 /** 플랫폼 특성상 콘텐츠 스타일이 거의 고정인 경우 자동 추천값 */
 function suggestContentStyle(platform: string): ContentStyle | null {
-  if (platform === 'naver-blog' || platform === 'tistory') return 'text'
+  if (platform === 'naver-blog' || platform === 'tistory' || platform === 'blogger') return 'text'
   if (platform === 'tiktok' || platform === 'instagram') return 'shortform'
   return null
 }
@@ -188,16 +189,16 @@ function extractChannelIdFromInput(rawId: string, platform: string): string {
 }
 
 function channelIdPlaceholder(platform: string): string {
-  if (platform === 'naver-blog') {
-    return 'blogId 또는 https://blog.naver.com/blogId'
-  }
+  if (platform === 'naver-blog') return 'blogId 또는 https://blog.naver.com/blogId'
+  if (platform === 'tistory') return 'blogId 또는 https://blogId.tistory.com'
+  if (platform === 'blogger') return 'myblog.blogspot.com 또는 https://myblog.blogspot.com'
   return 'UC... 또는 https://youtube.com/channel/UC...'
 }
 
 function channelIdHint(platform: string): string {
-  if (platform === 'naver-blog') {
-    return '예: ohmoneymate 또는 https://blog.naver.com/ohmoneymate'
-  }
+  if (platform === 'naver-blog') return '예: ohmoneymate 또는 https://blog.naver.com/ohmoneymate'
+  if (platform === 'tistory') return '예: jaetech 또는 https://jaetech.tistory.com'
+  if (platform === 'blogger') return '예: myblog.blogspot.com 또는 커스텀 도메인'
   return '예: UCsJ6RuBiTVWRX156FVbeaGg 또는 https://youtube.com/channel/UC…'
 }
 
@@ -207,6 +208,7 @@ function getChannelPageUrl(platform: string, channelId: string): string | null {
   if (platform === 'naver-blog') return `https://blog.naver.com/${channelId}`
   if (platform === 'tiktok') return `https://www.tiktok.com/@${channelId.replace(/^@/, '')}`
   if (platform === 'tistory') return channelId.startsWith('http') ? channelId : `https://${channelId}.tistory.com`
+  if (platform === 'blogger') return channelId.startsWith('http') ? channelId : `https://${channelId}`
   return null
 }
 
@@ -216,6 +218,7 @@ function detectPlatform(url: string): BenchmarkItem['platform'] {
   if (url.includes('instagram.com')) return 'instagram'
   if (url.includes('blog.naver.com')) return 'naver-blog'
   if (url.includes('tistory.com')) return 'tistory'
+  if (url.includes('blogspot.com')) return 'blogger'
   return 'other'
 }
 

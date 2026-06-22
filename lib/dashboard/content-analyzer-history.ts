@@ -49,7 +49,7 @@ export function addContentAnalyzerHistoryItem(input: {
     result: input.result,
     createdAt: new Date().toISOString(),
   }
-  const next = [item, ...loadContentAnalyzerHistory().filter((x) => x.url !== item.url)]
+  const next = [item, ...loadContentAnalyzerHistory()]
   saveContentAnalyzerHistory(next)
   return item
 }

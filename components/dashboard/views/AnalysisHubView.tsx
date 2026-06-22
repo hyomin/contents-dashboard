@@ -36,6 +36,11 @@ const PLATFORMS: Platform[] = [
     label: '티스토리',
     icon: '🟠',
   },
+  {
+    id: 'blogger',
+    label: 'Google Blogger',
+    icon: '🌐',
+  },
 ]
 
 type PlatformStatusKey = 'ready'
